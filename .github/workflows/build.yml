@@ -1,0 +1,39 @@
+name: build
+
+on:
+  push:
+    paths: ['**', '!*.md', '!.github/**', '.github/workflows/build.yml', '.github/workflows/nim-run/action.yml']
+    branches: master
+  pull_request:
+    paths: ['**', '!*.md', '!.github/**', '.github/workflows/build.yml', '.github/workflows/nim-run/action.yml']
+
+jobs:
+  build:
+    name: Build and test
+    strategy:
+      fail-fast: false
+      matrix:
+        nim-version: [devel]
+        os: [ubuntu-latest, windows-latest, macOS-latest]
+        arch: [x86_64]
+        include:
+          - arch: 'aarch64'
+            os: 'ubuntu-latest'
+          - arch: 'riscv64'
+            os: 'ubuntu-latest'
+          - arch: 'ppc64le'
+            os: 'ubuntu-latest'
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v3
+
+    - name: Install Nim, then build and test
+      uses: './.github/workflows/nim-run'
+      with:
+        run: nimble test -y
+        version: ${{ matrix.nim-version }}
+        arch: ${{ matrix.arch }}
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

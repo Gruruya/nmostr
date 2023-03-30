@@ -1,0 +1,75 @@
+name : 'Nim Run'
+description: 'Run shell commands in an environment with Nim.'
+
+inputs:
+  run:
+    description: 'Commands to run'
+    required: false
+  version:
+    description: 'Version of Nim.'
+    required: false
+    default: 'devel'
+  GITHUB_TOKEN:
+    description: 'Your GitHub token.'
+    required: true
+  arch:
+    description: 'Architecture to build Nim for.'
+    required: false
+    default: 'x86_64'
+
+runs:
+  using: "composite"
+  steps:
+    - name: Get Date
+      if: ${{ inputs.arch == 'x86_64' || inputs.arch == 'x86' }}
+      id: get-date
+      run: echo "date=$(date "+%Y-%m-%d")" >> $GITHUB_OUTPUT
+      shell: bash
+
+    - name: Cache choosenim
+      if: ${{ inputs.arch == 'x86_64' || inputs.arch == 'x86' }}
+      uses: actions/cache@v3
+      with:
+        path: ~/.choosenim
+        key: ${{ runner.os }}-choosenim-${{ inputs.version }}-${{ steps.get-date.outputs.date }}
+        restore-keys: |
+          ${{ runner.os }}-choosenim-${{ inputs.version }}-
+
+    - name: Cache nimble
+      uses: actions/cache@v3
+      with:
+        path: ~/.nimble
+        key: ${{ runner.os }}-${{ inputs.arch }}-nimble-${{ hashFiles('*.nimble') }}
+        restore-keys: |
+          ${{ runner.os }}-${{ inputs.arch }}-nimble-
+
+    - name: Setup Nim
+      if: ${{ inputs.arch == 'x86_64' || inputs.arch == 'x86' }}
+      uses: jiro4989/setup-nim-action@v1
+      with:
+        nim-version: ${{ inputs.version }}
+        repo-token: ${{ inputs.GITHUB_TOKEN }}
+
+    - name: Run
+      if: ${{ inputs.arch == 'x86_64' || inputs.arch == 'x86' }}
+      shell: bash
+      run: ${{ inputs.run }}
+
+    - name: Setup Nim for ${{ inputs.arch }} and Run
+      if: ${{ inputs.arch != 'x86_64' && inputs.arch != 'x86' }}
+      uses: uraimo/run-on-arch-action@v2
+      with:
+        arch: ${{ inputs.arch }}
+        distro: ubuntu_devel
+        githubToken: ${{ inputs.GITHUB_TOKEN }}
+
+        dockerRunArgs: |
+          --volume "$HOME/.nimble:/root/.nimble"
+
+        install: |
+          apt-get update -q -y
+          apt-get install -q -y nim
+
+        run: |
+          export PATH="$PATH:${NIMBLE_DIR:-$HOME/.nimble}/bin"
+          ${{ inputs.run }}
