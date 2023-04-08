@@ -17,21 +17,25 @@
 
 ## Utilities for working with Nostr events.
 
-import std/[times, strutils, sequtils]
-import pkg/[jsony, adix/lptabz]
+import std/[times, strutils, sequtils, macros, sysrand]
+import pkg/[jsony, adix/lptabz, secp256k1, stew/byteutils, crunchy]
 
-export jsony, times, lptabz
-
-template anyIt(s, iter, pred: untyped): bool =
-  ## Like `sequtil's` `anyIt`, except it accepts an `iter` argument to use for iterating over `s` rather than only using `items` .
-  var result = false
-  for it {.inject.} in iter(s):
-    if pred:
-      result = true
-      break
-  result
+export jsony, times, lptabz, secp256k1
 
 # Types
+
+type EventKind* = enum
+  ## NIP-01:
+  metadata,       ## Indicates the content is set to a stringified JSON object {name: <username>, about: <string>, picture: <url, string>} describing the user who created the event.
+                  ## A relay may delete past metadata events once it gets a new one for the same pubkey.
+  note,           ## Indicates the content is set to the plaintext content of a note (anything the user wants to say). Markdown links ([]() stuff) are not plaintext.
+  recommendServer ## Indicates the content is set to the URL (e.g., wss://somerelay.com) of a relay the event creator wants to recommend to its followers.
+
+type EventID* = object
+  bytes*: array[32, byte]
+
+func `$`*(id: EventID): string {.inline.} = toHex(id.bytes)
+template toHex*(id: EventID): string = $id
 
 const TagTableHashcodeBits* = 8 ## A higher number such as 8 means more memory usage and faster lookups
 type TagTable* = LPTabz[string, seq[string], int8, TagTableHashcodeBits] ## A Table containing tags, translated to use the first element as the index.
@@ -40,6 +44,7 @@ type TagTable* = LPTabz[string, seq[string], int8, TagTableHashcodeBits] ## A Ta
 ## NIP-01:
 ## * \["e", <32-bytes hex of the id of another event>, <recommended relay URL>]
 ## * \["p", <32-bytes hex of a pubkey>, <recommended relay URL>]
+# use enums
 
 template initTagTable*(initialSize=lpInitialSize, numer=lpNumer, denom=lpDenom, minFree=lpMinFree, growPow2=lpGrowPow2, rehash=lpRehash, robinhood=lpRobinHood): TagTable =
   initLPTabz[string, seq[string], int8, TagTableHashcodeBits](initialSize, numer, denom, minFree, growPow2, rehash, robinhood)
@@ -47,20 +52,14 @@ template initTagTable*(initialSize=lpInitialSize, numer=lpNumer, denom=lpDenom, 
 template toTagTable*(pairs: openArray[(string, seq[string])], dups = false): untyped {.dirty.} =
   toLPTabz[string, seq[string], int8, TagTableHashcodeBits](pairs, dups)
 
-type EventKind* = enum
-  metadata,       ## Indicates the content is set to a stringified JSON object {name: <username>, about: <string>, picture: <url, string>} describing the user who created the event.
-                  ## A relay may delete past metadata events once it gets a new one for the same pubkey.
-  shortTextNote,  ## Indicates the content is set to the plaintext content of a note (anything the user wants to say). Markdown links ([]() stuff) are not plaintext.
-  recommendServer ## Indicates the content is set to the URL (e.g., wss://somerelay.com) of a relay the event creator wants to recommend to its followers.
-
 type Event* = object
-  id*: string       ## 32-bytes lowercase hex-encoded sha256 of the serialized event data
-  pubkey*: string   ## 32-bytes lowercase hex-encoded public key of the event creator
+  id*: EventID      ## 32-bytes lowercase hex-encoded sha256 of the serialized event data
   kind*: EventKind  ## The type of event this is. See `EventKind` for what an event can be.
-  tags*: TagTable   ## A table of tags. See `TagTable` for what a tag could be.
-  created_at*: Time ## Received and transmitted as a Unix timestamp in seconds
   content*: string  ## Arbitrary string, what it is should be gleamed from this event's `kind`
-  sig*: string      ## 64-bytes hex of the signature of the sha256 hash of the serialized event data, which is the same as the "id" field
+  pubkey*: SkXOnlyPublicKey ## 32-bytes lowercase hex-encoded public key of the event creator
+  created_at*: Time ## Received and transmitted as a Unix timestamp in seconds
+  tags*: TagTable   ## A table of tags. See `TagTable` for what a tag could be.
+  sig*: SkSchnorrSignature ## 64-bytes hex of the signature of the sha256 hash of the serialized event data, which is the same as the "id" field
 
 type Filter* = object
   ids*: seq[string]      ## List of event ids or prefixes.
@@ -71,11 +70,101 @@ type Filter* = object
   until*: Time = initTime(high(int64), 0)  ## Events must be older than this to pass.
   limit*: int            ## Maximum number of events to be returned in the initial query.
 
+# Events
+
+func serialize*(e: Event): string {.inline.} =
+  ## Serialize `event` into JSON so that it can be hashed in accordance with NIP-01.
+  "[0," & e.pubkey.toJson & "," & e.created_at.toJson & "," & e.kind.toJson & "," & e.tags.toJson & "," & e.content.toJson & "]"
+
+type Keypair* = object
+  ## Representation of private/public keys pair.
+  seckey*: SkSecretKey
+  pubkey*: SkXOnlyPublicKey
+
+converter toKeypair*(keypair: sink SkKeyPair): Keypair =
+  Keypair(seckey: keypair.seckey, pubkey: keypair.pubkey.toXOnly)
+
+converter toKeypair*(seckey: sink SkSecretKey): Keypair =
+  Keypair(seckey: seckey, pubkey: seckey.toPublicKey.toXOnly)
+
+proc sysRng*(data: var openArray[byte]): bool =
+  ## Fill `data` with random bytes generated by your operating system.
+  try:
+    let randData = urandom(data.len)
+    for i in 0..<data.len:
+      data[i] = randData[i]
+  except OSError: return false
+  return true
+
+proc newKeypair*(rng: Rng = sysRng): Keypair {.inline.} =
+  toKeypair SkKeyPair.random(rng).tryGet
+
+proc sign*(event: var Event, sk: SkSecretKey, rng: Rng = sysRng) {.inline.} =
+  event.sig = signSchnorr(sk, event.serialize.sha256, rng).tryGet
+
+template sign*(event: var Event, sk: Keypair, rng: Rng = sysRng) =
+  sign(event, sk.seckey, rng)
+
+proc updateID*(event: var Event) {.inline.} =
+  event.id = EventID(bytes: sha256 event.serialize)
+
+proc init*(T: type Event, kind: EventKind, content: string, keypair: Keypair, created_at = getTime(), tags = TagTable()): Event =
+  result = Event(
+    kind: kind,
+    content: content,
+    pubkey: keypair.pubkey,
+    created_at: created_at,
+    tags: tags)
+  result.updateID
+  result.sign(keypair)
+
+# Convenience Event init wrappers
+template metadata*(content: string, keypair: Keypair, created_at = getTime(), tags = TagTable()): Event =
+  Event.init(metadata, content, keypair, created_at, tags)
+template note*(content: string, keypair: Keypair, created_at = getTime(), tags = TagTable()): Event =
+  Event.init(note, content, keypair, created_at, tags)
+template recommendServer*(content: string, keypair: Keypair, created_at = getTime(), tags = TagTable()): Event =
+  Event.init(recommendServer, content, keypair, created_at, tags)
+
+
+template verify*(event: Event): bool =
+  verify(event.sig, sha256(serialize event), event.pubkey)
+
+proc stamp*(event: var Event, keypair: Keypair, rng: Rng = sysRng)  =
+  ## Change the author of an event
+  event.pubkey = keypair.pubkey
+  event.updateID
+  event.sign(keypair.seckey, rng)
+  
 # JSON interop
 
 # Optimization
 {.push inline.}
 
+func parseHook*(s: string, i: var int, v: var EventID) =
+  ## Parse `id` as a hexadecimal encoding [of a sha256 hash.]
+  var j: string
+  parseHook(s, i, j)
+  v.bytes = array[32, byte].fromHex(j)
+
+func parseHook*(s: string, i: var int, v: var SkXOnlyPublicKey) =
+  ## Parse `id` as a hexadecimal encoding [of a sha256 hash].
+  var j: string
+  parseHook(s, i, j)
+  # WARNING: Silently failing, replacing incorrect with nulled pubkeys
+  v = (SkXOnlyPublicKey.fromHex j).valueOr: default(typeof v)
+
+func parseHook*(s: string, i: var int, v: var SkSchnorrSignature) =
+  ## Parse `id` as a hexadecimal encoding [of a sha256 hash.]
+  var j: string
+  parseHook(s, i, j)
+  # FIXME: Silently failing, replacing incorrect with nulled pubkeys
+  v = (SkSchnorrSignature.fromHex j).valueOr: default(typeof v)
+
+func dumpHook*(s: var string, v: EventID | SkXOnlyPublicKey | SkSchnorrSignature) =
+  ## Serialize `id`, `pubkey`, and `sig` into hexadecimal.
+  dumpHook(s, v.toHex)
+  
 func dumpHook*(s: var string, v: EventKind) =
   ## Parse `kind` as its corresponding number.
   dumpHook(s, ord(v))
@@ -87,7 +176,7 @@ func parseHook*(s: string, i: var int, v: var Time) =
   v = fromUnix(j)
 
 func dumpHook*(s: var string, v: Time) =
-  ## Send `created_at` as a Unix timestamp.
+  ## Serialize `created_at` into a Unix timestamp.
   dumpHook(s, v.toUnix)
 
 proc parseHook*(s: string, i: var int, v: var TagTable) =
@@ -99,7 +188,7 @@ proc parseHook*(s: string, i: var int, v: var TagTable) =
     v.add(tag[0], tag[1..^1])
 
 func dumpHook*(s: var string, v: TagTable) =
-  ## Send tags as an JSON array of arrays.
+  ## Serialize tags into a JSON array of arrays.
   var j = newSeqOfCap[seq[string]](v.len)
   for key, value in v.pairs:
     j.add (key & value)
@@ -133,7 +222,7 @@ proc parseHook*(s: string, i: var int, v: var Filter) =
     when compiles(renameHook(v, key)):
       renameHook(v, key)
     if key[0] == '#':
-      # Parses each field that starts with a # as an entry in a `TagTable`
+      # Parses each field that starts with a # as an entry in `tags`
       var j: seq[string]
       parseHook(s, i, j)
       v.tags.add key, j
@@ -154,8 +243,6 @@ proc parseHook*(s: string, i: var int, v: var Filter) =
   when compiles(postHook(v)):
     postHook(v)
   eatChar(s, i, '}')
-
-import std/macros
 
 macro fieldAccess(o: object, s: string): untyped =
   newDotExpr(o, newIdentNode(s.strVal))
@@ -189,12 +276,19 @@ proc dumpHook*(s: var string, v: Filter) =
 
 # Working with events
 
+template anyIt(s, iter, pred: untyped): bool =
+  ## Like `sequtil's` `anyIt`, except it accepts an `iter` argument to use for iterating over `s` rather than only using `items` .
+  var result = false
+  for it {.inject.} in iter(s):
+    if pred:
+      result = true
+      break
+  result
+
 func matches*(event: Event, filter: Filter): bool =
   ## Determine if `event` matches `filter`.
   filter.since < event.created_at and event.created_at < filter.until and
   (filter.kinds == @[] or anyIt(filter.kinds, event.kind == it)) and
-  (filter.ids == @[] or anyIt(filter.ids, event.id.startsWith it)) and
-  (filter.authors == @[] or anyIt(filter.authors, event.pubkey.startsWith it)) and
+  (filter.ids == @[] or anyIt(filter.ids, event.id.`$`.startsWith it)) and
+  (filter.authors == @[] or anyIt(filter.authors, event.pubkey.toHex.startsWith it)) and
   (filter.tags == default(TagTable) or anyIt(filter.tags, pairs, try: event.tags[it[0]] == it[1] except KeyError: false))
-
-#func serialize*(

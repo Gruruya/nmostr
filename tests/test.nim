@@ -17,6 +17,7 @@
 
 import pkg/balls
 import nmostr
+import std/importutils
 
 suite "events":
   block filters:
@@ -26,16 +27,16 @@ suite "events":
     check a == b
     check a.toJson == b.toJson
 
-  block filtering_messages:
+  block filtering_events:
     var f = Filter()
     let e = """
 {
   "content": "hello world",
-  "created_at": 1679750865,
-  "id": "48aa67648cad668033516cade8171c779b1b4649d842a5d4062ff769fcd925fa",
+  "created_at": 1680870359,
+  "id": "68e5d223ad9fa98c1c4b86d57a7f744f418664c3ce986d4dcf354cff2910081c",
   "kind": 1,
   "pubkey": "79be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798",
-  "sig": "5479a51897d90e0e010d155a6012082e6c588d4b80504dd10334a82c64df85affc5697ea32641f724ff7c6aa17f848ed3ac1a2389484c01f0b377b9ee5c150b2",
+  "sig": "575f15910f1d4990ab07d959ce817de44b9b6bb93f4e3fe460ffbe5dd4d66a81cfe025da11be2bc9c153af9cfb70a4e14ae23ed4693292a1a0e03642a991bcc7",
   "tags": [
     ["d",""],["d","not empty"]
   ]
@@ -58,11 +59,11 @@ suite "events":
 
     f.kinds = @[metadata]
     check not e.matches(f)
-    f.kinds = @[shortTextNote]
+    f.kinds = @[note]
 
     f.ids = @["50"]
     check not e.matches(f)
-    f.ids = @["48"]
+    f.ids = @["68"]
 
     f.authors = @["b97"]
     check not e.matches(f)
@@ -114,3 +115,13 @@ suite "messages":
       discard ("[\"EVENT\"]").fromMessage
     expect jsony.JsonError:
       discard ("[\"EVENT\",L" & Event().toJson & "]").fromMessage
+
+  block signatures:
+    var e = note("hello world", newKeypair())
+    check e.verify
+    e.stamp(newKeypair())
+    check e.verify
+    e.content = "goodbye world"
+    check not e.verify
+    # Clear memory to prevent 208 byte leak caused by `SkContext`
+    # discard SkContext.releaseThread()

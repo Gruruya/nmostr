@@ -19,7 +19,7 @@
 
 import std/strutils
 import pkg/[jsony, union]
-import events
+import ./events
 
 export events, union
 
@@ -122,7 +122,7 @@ proc parseHook*(s: string, i: var int, v: var union(MessageClass)) =
   i = start
   case kind:
   of "EVENT":
-    if likely 10 < s.len:
+    if likely s.len > 10:
       # Check if the second element in the array is an object or a string.
       if s[9] == '{':
         v = parseAs(CMEvent)
