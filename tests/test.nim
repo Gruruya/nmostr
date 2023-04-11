@@ -91,6 +91,14 @@ suite "messages":
     check CMClose(id: "someid") == ("[\"CLOSE\",\"someid\"]").fromMessage
     check CMClose(id: "someid").toJson == ("[\"CLOSE\",\"someid\"]").fromMessage.toJson
 
+  block client_auth:
+    check CMAuth(event: Event()) == ("[\"AUTH\"," & Event().toJson & "]").fromMessage
+    check CMAuth(event: Event()).toJson == ("[\"AUTH\"," & Event().toJson & "]").fromMessage.toJson
+
+  block server_count:
+    check CMCount(id: "someid", filter: Filter()) == ("""["COUNT","someid",""" & Filter().toJson & "]").fromMessage
+    check CMCount(id: "someid", filter: Filter()).toJson == ("""["COUNT","someid",""" & Filter().toJson & "]").fromMessage.toJson
+
   block server_event:
     check SMEvent(id: "someid", event: Event()) == ("[\"EVENT\",\"someid\"," & Event().toJson & "]").fromMessage
     check SMEvent(id: "someid", event: Event()).toJson == ("[\"EVENT\",\"someid\"," & Event().toJson & "]").fromMessage.toJson
@@ -105,6 +113,14 @@ suite "messages":
   block ok:
     check SMOk(id: "someid", saved: true, message: "") == """["OK","someid",true,""]""".fromMessage
     check SMOk(id: "someid", saved: true, message: "").toJson == """["OK","someid",true,""]""".fromMessage.toJson
+
+  block server_auth:
+    check SMAuth(challenge: "challengestringhere") == """["AUTH","challengestringhere"]""".fromMessage
+    check SMAuth(challenge: "challengestringhere").toJson == """["AUTH","challengestringhere"]""".fromMessage.toJson
+
+  block server_count:
+    check SMCount(count: 420) == """["COUNT",420]""".fromMessage
+    check SMCount(count: 420).toJson == """["COUNT",420]""".fromMessage.toJson
 
   block ignore_invalid_message_fields:
     check """["NOTICE","Important \"notice.","other field"]""".fromMessage == """["NOTICE","Important \"notice."]""".fromMessage

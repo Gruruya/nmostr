@@ -16,7 +16,7 @@
 # along with nmostr.  If not, see <http://www.gnu.org/licenses/>.
 
 ## Utilities for creating and parsing Nostr messages.
-## Implements NIP-01, NIP-20
+## Implements NIP-01, NIP-20, NIP-42, NIP-45
 
 import std/strutils
 import pkg/[jsony, union]
@@ -34,10 +34,15 @@ type
   CMEvent* = object of ClientMessage   ## ["EVENT", <event JSON>]
     event*: Event
   CMRequest* = object of ClientMessage ## ["REQ", <subscription_id>, <filters JSON>...]
-    id*: string
+    id*: string                        ## TODO: Find out wtf `...` means
     filter*: Filter
   CMClose* = object of ClientMessage   ## ["CLOSE", <subscription_id>]
     id*: string
+  CMAuth* = object of ServerMessage    ## ["AUTH", <event kind 2242 JSON>]
+    event*: Event
+  CMCount* = object of ClientMessage   ## ["COUNT", <subscription_id>, <filters JSON>]
+    id*: string
+    filter*: Filter
   SMEvent* = object of ServerMessage   ## ["EVENT", <subscription_id>, <event JSON>]
     id*: string
     event*: Event
@@ -49,9 +54,13 @@ type
     id*: string
     saved*: bool
     message*: string
+  SMAuth* = object of ServerMessage    ## ["AUTH", <challenge-string>]
+    challenge*: string
+  SMCount* = object of ServerMessage   ## ["COUNT", <integer>]
+    count*: int64
 
-  ClientMessageClass = (CMEvent | CMRequest | CMClose)
-  ServerMessageClass = (SMEvent | SMEose | SMNotice | SMOk)
+  ClientMessageClass = (CMEvent | CMRequest | CMClose | CMAuth | CMCount)
+  ServerMessageClass = (SMEvent | SMEose | SMNotice | SMOk | SMAuth | SMCount)
   MessageClass = (ClientMessageClass | ServerMessageClass)
 
 type UnknownMessageError* = object of ValueError
@@ -114,14 +123,19 @@ template setupArrayObjectParsing(T: typedesc, flag: string) =
 setupArrayObjectParsing(CMEvent, "EVENT")
 setupArrayObjectParsing(CMRequest, "REQ")
 setupArrayObjectParsing(CMClose, "CLOSE")
+setupArrayObjectParsing(CMAuth, "AUTH")
+setupArrayObjectParsing(CMCount, "COUNT")
 setupArrayObjectParsing(SMEvent, "EVENT")
 setupArrayObjectParsing(SMEose, "EOSE")
 setupArrayObjectParsing(SMNotice, "NOTICE")
 setupArrayObjectParsing(SMOk, "OK")
+setupArrayObjectParsing(SMAuth, "AUTH")
+setupArrayObjectParsing(SMCount, "COUNT")
 
 proc parseHook*(s: string, i: var int, v: var union(MessageClass)) =
   ## Parses a message of unknown type into the `Message` object inferred by the array's first element and shape.
   template parseAs(T: typedesc): union(MessageClass) =
+    i = 0
     var j: T
     s.parseHook(i, j)
     j as union(MessageClass)
@@ -130,17 +144,18 @@ proc parseHook*(s: string, i: var int, v: var union(MessageClass)) =
   eatChar(s, i, '[')
   var kind: string
   parseHook(s, i, kind)
-  i = start
+  # i = start
   case kind:
   of "EVENT":
-    if likely s.len > 10:
-      # Check if the second element in the array is an object or a string.
-      if s[9] == '{':
-        v = parseAs(CMEvent)
-      elif s[9] == '"':
-        v = parseAs(SMEvent)
-      else: raise newException(jsony.JsonError, "Expected { or \" for the first char of the element following \"EVENT\" in the message array but got " & s[9] & " instead. At offset: 9\n" & (if s.len > 19: s[0..18] & "..." else: s[0..s.len - 1]) & "\n" & repeat(' ', 9) & "^")
-    else: raise newException(jsony.JsonError, "Expected an element to follow \"EVENT\" in the message array but end reached. At offset: " & $s.len)
+    # TODO: Fix this to deal with arbitrary spaces
+    eatChar(s, i, ',')
+    eatSpace(s, i)
+    # Check if the second element in the array is an object or a string.
+    if s[i] == '{':
+      v = parseAs(CMEvent)
+    elif s[i] == '"':
+      v = parseAs(SMEvent)
+    else: raise newException(jsony.JsonError, "Expected { or \" after \"EVENT\", but got " & s[i] & " instead. At offset: " & $i)
   of "REQ":
     v = parseAs(CMRequest)
   of "CLOSE":
@@ -151,6 +166,21 @@ proc parseHook*(s: string, i: var int, v: var union(MessageClass)) =
     v = parseAs(SMNotice)
   of "OK":
     v = parseAs(SMOk)
+  of "AUTH":
+    eatChar(s, i, ',')
+    eatSpace(s, i)
+    if s[i] == '{':
+      v = parseAs(CMAuth)
+    elif s[i] == '"':
+      v = parseAs(SMAuth)
+    else: raise newException(jsony.JsonError, "Expected { or \" after \"AUTH\", but got " & s[i] & " instead. At offset: " & $i)
+  of "COUNT":
+    eatChar(s, i, ',')
+    eatSpace(s, i)
+    if s[i] == '"':
+      v = parseAs(CMCount)
+    else: # It should be a number, `in {0..9}`?
+      v = parseAs(SMCount)
   else:
     raise newException(UnknownMessageError, "Unknown message starting with \"" & kind & "\"")
 

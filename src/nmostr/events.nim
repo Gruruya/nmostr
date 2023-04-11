@@ -48,9 +48,9 @@ template toTagTable*(pairs: openArray[(string, seq[string])], dups = false): unt
 
 type Event* = object
   id*: EventID      ## 32-bytes lowercase hex-encoded sha256 of the serialized event data
+  pubkey*: SkXOnlyPublicKey ## 32-bytes lowercase hex-encoded public key of the event creator
   kind*: int64      ## The type of event this is.
   content*: string  ## Arbitrary string, what it is should be gleamed from this event's `kind`
-  pubkey*: SkXOnlyPublicKey ## 32-bytes lowercase hex-encoded public key of the event creator
   created_at*: Time ## Received and transmitted as a Unix timestamp in seconds
   tags*: TagTable   ## A table of tags. See `TagTable` for what a tag could be.
   sig*: SkSchnorrSignature ## 64-bytes hex of the signature of the sha256 hash of the serialized event data, which is the same as the "id" field
