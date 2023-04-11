@@ -24,24 +24,6 @@ export jsony, times, lptabz, secp256k1
 
 # Types
 
-type EventKind* = enum
-  ## NIP-01:
-  metadata,       ## Indicates the content is set to a stringified JSON object {name: <username>, about: <string>, picture: <url, string>} describing the user who created the event.
-                  ## A relay may delete past metadata events once it gets a new one for the same pubkey.
-  note,           ## Indicates the content is set to the plaintext content of a note (anything the user wants to say). Markdown links ([]() stuff) are not plaintext.
-  recommendServer ## Indicates the content is set to the URL (e.g., wss://somerelay.com) of a relay the event creator wants to recommend to its followers.
-
-macro enumAsSet(enm: typed): untyped = newNimNode(nnkCurly).add(enm.getType[1][1..^1])
-
-proc toEventKind*(val: SomeInteger): EventKind =
-  # Modified from ElegantBeef's `https://forum.nim-lang.org/t/8188#52705`
-  const enmRange = EventKind.low.ord .. EventKind.high.ord
-  let enmSet = cast[set[EventKind.low.ord .. EventKind.high.ord]](enumAsSet(EventKind)) # Vm cannot do the casting
-  if val in enmRange and val in enmSet:
-    EventKind(val)
-  else:
-    raise newException(UnknownEventKind, $val & " isn't a known Nostr event kind")
-  
 type EventID* = object
   bytes*: array[32, byte]
 
@@ -66,7 +48,7 @@ template toTagTable*(pairs: openArray[(string, seq[string])], dups = false): unt
 
 type Event* = object
   id*: EventID      ## 32-bytes lowercase hex-encoded sha256 of the serialized event data
-  kind*: EventKind  ## The type of event this is. See `EventKind` for what an event can be.
+  kind*: int64      ## The type of event this is.
   content*: string  ## Arbitrary string, what it is should be gleamed from this event's `kind`
   pubkey*: SkXOnlyPublicKey ## 32-bytes lowercase hex-encoded public key of the event creator
   created_at*: Time ## Received and transmitted as a Unix timestamp in seconds
@@ -76,7 +58,7 @@ type Event* = object
 type Filter* = object
   ids*: seq[string]      ## List of event ids or prefixes.
   authors*: seq[string]  ## List of pubkeys or prefixes, the pubkey of an event must be one of these.
-  kinds*: seq[EventKind] ## A list of event kinds. See `EventKind` for what an event can be.
+  kinds*: seq[int64]     ## A list of event kinds.
   tags*: TagTable        ## A table of tags. The tag's value must match exactly. See `TagTable` for what a tag could be.
   since*: Time           ## Events must be newer than this to pass.
   until*: Time = initTime(high(int64), 0)  ## Events must be older than this to pass.
@@ -92,8 +74,6 @@ type Keypair* = object
   privkey*: SkSecretKey
   pubkey*: SkXOnlyPublicKey
 
-type UnknownEventKind = object of ValueError
-  
 # JSON interop
 
 {.push inline.}
@@ -121,16 +101,6 @@ func parseHook*(s: string, i: var int, v: var SkSchnorrSignature) =
 func dumpHook*(s: var string, v: EventID | SkXOnlyPublicKey | SkSchnorrSignature) =
   ## Serialize `id`, `pubkey`, and `sig` into hexadecimal.
   dumpHook(s, v.toHex)
-
-func parseHook*(s: string, i: var int, v: var EventKind) =
-  ## Raise a catchable exception if `kind` is unknown.
-  eatSpace(s, i)
-  var strV = parseSymbol(s, i)
-  v = parseInt(strV).toEventKind
-
-func dumpHook*(s: var string, v: EventKind) =
-  ## Parse `kind` as its corresponding number.
-  dumpHook(s, ord(v))
 
 func parseHook*(s: string, i: var int, v: var Time) =
   ## Parse `created_at` as a `Time`.
@@ -276,7 +246,7 @@ template sign*(event: var Event, sk: Keypair, rng: Rng = sysRng) =
 proc updateID*(event: var Event) =
   event.id = EventID(bytes: sha256 event.serialize)
 
-proc init*(T: type Event, kind: EventKind, content: string, keypair: Keypair, created_at = getTime(), tags = TagTable()): Event =
+proc init*(T: type Event, kind: int64, content: string, keypair: Keypair, created_at = getTime(), tags = TagTable()): Event =
   result = Event(
     kind: kind,
     content: content,
@@ -287,11 +257,15 @@ proc init*(T: type Event, kind: EventKind, content: string, keypair: Keypair, cr
   result.sign(keypair)
 
 proc metadata*(name, about, picture: string, keypair: Keypair, created_at = getTime(), tags = TagTable()): Event =
-  Event.init(metadata, Metadata(name: name, about: about, picture: picture).toJson, keypair, created_at, tags)
+  ## Describes the user who created the event.
+  ## A relay may delete past metadata events once it gets a new one for the same pubkey.
+  Event.init(0, Metadata(name: name, about: about, picture: picture).toJson, keypair, created_at, tags)
 proc note*(content: string, keypair: Keypair, created_at = getTime(), tags = TagTable()): Event  =
-  Event.init(note, content, keypair, created_at, tags)
+  ## Plaintext note (anything the user wants to say). Markdown links ([]() stuff) are not plaintext.
+  Event.init(1, content, keypair, created_at, tags)
 proc recommendServer*(content: string, keypair: Keypair, created_at = getTime(), tags = TagTable()): Event =
-  Event.init(recommendServer, content, keypair, created_at, tags)
+  ## URL (e.g., wss://somerelay.com) of a relay the event creator wants to recommend to its followers.
+  Event.init(2, content, keypair, created_at, tags)
 
 template verify*(event: Event): bool =
   verify(event.sig, sha256(serialize event), event.pubkey)

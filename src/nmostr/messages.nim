@@ -49,7 +49,7 @@ type
   ServerMessageClass = (SMEvent | SMEose | SMNotice)
   MessageClass = (ClientMessageClass | ServerMessageClass)
 
-type UnknownMessageError = object of ValueError
+type UnknownMessageError* = object of ValueError
 
 # JSON interop
 

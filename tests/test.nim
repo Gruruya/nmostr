@@ -21,7 +21,7 @@ import nmostr
 suite "events":
   block filters:
     check Filter().toJson == "{}"
-    let a = Filter(since: fromUnix(high(int64)), until: low(Time), kinds: @[metadata], ids: @["50"], authors: @["b97"], tags: {"#e": @["48aa67648cad668033516cade8171c779b1b4649d842a5d4062ff769fcd925fa", "bad2aa2974281303e4632e3aeedee7fd6c829e2f63d343caa8fead8f9af95599"], "#p": @["79be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798"]}.toTagTable)
+    let a = Filter(since: fromUnix(high(int64)), until: low(Time), kinds: @[0], ids: @["50"], authors: @["b97"], tags: {"#e": @["48aa67648cad668033516cade8171c779b1b4649d842a5d4062ff769fcd925fa", "bad2aa2974281303e4632e3aeedee7fd6c829e2f63d343caa8fead8f9af95599"], "#p": @["79be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798"]}.toTagTable)
     let b = """{"ids":["50"],"authors":["b97"],"kinds":[0],"#e":["48aa67648cad668033516cade8171c779b1b4649d842a5d4062ff769fcd925fa","bad2aa2974281303e4632e3aeedee7fd6c829e2f63d343caa8fead8f9af95599"],"#p":["79be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798"],"since":9223372036854775807,"until":0}""".fromJson(Filter)
     check a == b
     check a.toJson == b.toJson
@@ -56,9 +56,9 @@ suite "events":
     check not e.matches(f)
     f.tags["#d"] = @[""]
 
-    f.kinds = @[metadata]
+    f.kinds = @[0]
     check not e.matches(f)
-    f.kinds = @[note]
+    f.kinds = @[1]
 
     f.ids = @["50"]
     check not e.matches(f)
