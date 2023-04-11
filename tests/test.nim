@@ -17,7 +17,6 @@
 
 import pkg/balls
 import nmostr
-import std/importutils
 
 suite "events":
   block filters:
@@ -53,9 +52,9 @@ suite "events":
     check not e.matches(f)
     f.until = high(Time)
 
-    f.tags["d"] = @["not empty"]
+    f.tags["#d"] = @["not empty"]
     check not e.matches(f)
-    f.tags["d"] = @[""]
+    f.tags["#d"] = @[""]
 
     f.kinds = @[metadata]
     check not e.matches(f)
@@ -95,6 +94,9 @@ suite "messages":
   block server_event:
     check SMEvent(id: "someid", event: Event()) == ("[\"EVENT\",\"someid\"," & Event().toJson & "]").fromMessage
     check SMEvent(id: "someid", event: Event()).toJson == ("[\"EVENT\",\"someid\"," & Event().toJson & "]").fromMessage.toJson
+  block end_of_stored_events:
+    check SMEose(id: "someid") == """["EOSE","someid"]""".fromMessage
+    check SMEose(id: "someid").toJson == """["EOSE","someid"]""".fromMessage.toJson
 
   block notice:
     check SMNotice(message: "Important notice.") == """["NOTICE","Important notice."]""".fromMessage
@@ -105,7 +107,7 @@ suite "messages":
     check """["NOTICE","Important \"notice."{}}{())([]][,\"\[\{""".fromMessage == """["NOTICE","Important \"notice."]""".fromMessage
 
   block unkown_message_error:
-    expect KeyError:
+    expect UnknownMessageError:
       discard ("[\"EVE\"," & Event().toJson & "]").fromMessage
 
   block invalid_json_error:

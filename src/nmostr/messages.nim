@@ -30,22 +30,26 @@ type
   ClientMessage* = object of Message
   ServerMessage* = object of Message
 
-  CMEvent* = object of ClientMessage   ## \["EVENT", <event JSON>]
+  CMEvent* = object of ClientMessage   ## ["EVENT", <event JSON>]
     event*: Event
-  CMRequest* = object of ClientMessage ## \["REQ", <subscription_id>, <filters JSON>...]
+  CMRequest* = object of ClientMessage ## ["REQ", <subscription_id>, <filters JSON>...]
     id*: string
     filter*: Filter
-  CMClose* = object of ClientMessage   ## \["CLOSE", <subscription_id>]
+  CMClose* = object of ClientMessage   ## ["CLOSE", <subscription_id>]
     id*: string
-  SMEvent* = object of ServerMessage   ## \["EVENT", <subscription_id>, <event JSON>]
+  SMEvent* = object of ServerMessage   ## ["EVENT", <subscription_id>, <event JSON>]
     id*: string
     event*: Event
-  SMNotice* = object of ServerMessage  ## \["NOTICE", <message>]
+  SMNotice* = object of ServerMessage  ## ["NOTICE", <message>]
     message*: string
+  SMEose* = object of ServerMessage    ## ["EOSE", <subscription_id>]
+    id*: string
 
   ClientMessageClass = (CMEvent | CMRequest | CMClose)
-  ServerMessageClass = (SMEvent | SMNotice)
+  ServerMessageClass = (SMEvent | SMEose | SMNotice)
   MessageClass = (ClientMessageClass | ServerMessageClass)
+
+type UnknownMessageError = object of ValueError
 
 # JSON interop
 
@@ -57,6 +61,7 @@ template parseArrayAsObject(T: typedesc) =
     skipValue(s, i)
     for field in v.fields: # Every type is required to match in valid JSON or an error is raised, consider make this more forgiving
       eatChar(s, i, ',')
+      echo s[0..i]
       parseHook(s, i, field)
     eatSpace(s, i)
     if likely s[i] == ']':
@@ -106,6 +111,7 @@ setupArrayObjectParsing(CMEvent, "EVENT")
 setupArrayObjectParsing(CMRequest, "REQ")
 setupArrayObjectParsing(CMClose, "CLOSE")
 setupArrayObjectParsing(SMEvent, "EVENT")
+setupArrayObjectParsing(SMEose, "EOSE")
 setupArrayObjectParsing(SMNotice, "NOTICE")
 
 proc parseHook*(s: string, i: var int, v: var union(MessageClass)) =
@@ -134,10 +140,12 @@ proc parseHook*(s: string, i: var int, v: var union(MessageClass)) =
     v = parseAs(CMRequest)
   of "CLOSE":
     v = parseAs(CMClose)
+  of "EOSE":
+    v = parseAs(SMEose)
   of "NOTICE":
     v = parseAs(SMNotice)
   else:
-    raise newException(KeyError, "Unknown key for message \"" & kind & "\"")
+    raise newException(UnknownMessageError, "Unknown message starting with \"" & kind & "\"")
 
 template fromMessage*(s: string): untyped =
   ## Alias for s.fromJson(union(MessageClass))
