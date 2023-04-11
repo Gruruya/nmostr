@@ -102,6 +102,10 @@ suite "messages":
     check SMNotice(message: "Important notice.") == """["NOTICE","Important notice."]""".fromMessage
     check SMNotice(message: "Important notice.").toJson == """["NOTICE","Important notice."]""".fromMessage.toJson
 
+  block ok:
+    check SMOk(id: "someid", saved: true, message: "") == """["OK","someid",true,""]""".fromMessage
+    check SMOk(id: "someid", saved: true, message: "").toJson == """["OK","someid",true,""]""".fromMessage.toJson
+
   block ignore_invalid_message_fields:
     check """["NOTICE","Important \"notice.","other field"]""".fromMessage == """["NOTICE","Important \"notice."]""".fromMessage
     check """["NOTICE","Important \"notice."{}}{())([]][,\"\[\{""".fromMessage == """["NOTICE","Important \"notice."]""".fromMessage

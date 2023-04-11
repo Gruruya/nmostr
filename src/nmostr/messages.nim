@@ -16,6 +16,7 @@
 # along with nmostr.  If not, see <http://www.gnu.org/licenses/>.
 
 ## Utilities for creating and parsing Nostr messages.
+## Implements NIP-01, NIP-20
 
 import std/strutils
 import pkg/[jsony, union]
@@ -44,9 +45,13 @@ type
     message*: string
   SMEose* = object of ServerMessage    ## ["EOSE", <subscription_id>]
     id*: string
+  SMOk* = object of ServerMessage      ## ["OK", <event_id>, <true|false>, <message>]
+    id*: string
+    saved*: bool
+    message*: string
 
   ClientMessageClass = (CMEvent | CMRequest | CMClose)
-  ServerMessageClass = (SMEvent | SMEose | SMNotice)
+  ServerMessageClass = (SMEvent | SMEose | SMNotice | SMOk)
   MessageClass = (ClientMessageClass | ServerMessageClass)
 
 type UnknownMessageError* = object of ValueError
@@ -61,7 +66,6 @@ template parseArrayAsObject(T: typedesc) =
     skipValue(s, i)
     for field in v.fields: # Every type is required to match in valid JSON or an error is raised, consider make this more forgiving
       eatChar(s, i, ',')
-      echo s[0..i]
       parseHook(s, i, field)
     eatSpace(s, i)
     if likely s[i] == ']':
@@ -113,6 +117,7 @@ setupArrayObjectParsing(CMClose, "CLOSE")
 setupArrayObjectParsing(SMEvent, "EVENT")
 setupArrayObjectParsing(SMEose, "EOSE")
 setupArrayObjectParsing(SMNotice, "NOTICE")
+setupArrayObjectParsing(SMOk, "OK")
 
 proc parseHook*(s: string, i: var int, v: var union(MessageClass)) =
   ## Parses a message of unknown type into the `Message` object inferred by the array's first element and shape.
@@ -144,6 +149,8 @@ proc parseHook*(s: string, i: var int, v: var union(MessageClass)) =
     v = parseAs(SMEose)
   of "NOTICE":
     v = parseAs(SMNotice)
+  of "OK":
+    v = parseAs(SMOk)
   else:
     raise newException(UnknownMessageError, "Unknown message starting with \"" & kind & "\"")
 
