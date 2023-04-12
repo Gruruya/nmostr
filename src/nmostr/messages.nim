@@ -18,7 +18,6 @@
 ## Utilities for creating and parsing Nostr messages.
 ## Implements NIP-01, NIP-20, NIP-42, NIP-45
 
-import std/strutils
 import pkg/[jsony, union]
 import ./events
 
@@ -28,6 +27,7 @@ export events, union
 
 type
   Message* = object of RootObj
+  # Use a variant object once they support duplicate fields
   ClientMessage* = object of Message
   ServerMessage* = object of Message
 
@@ -43,6 +43,7 @@ type
   CMCount* = object of ClientMessage   ## ["COUNT", <subscription_id>, <filters JSON>]
     id*: string
     filter*: Filter
+
   SMEvent* = object of ServerMessage   ## ["EVENT", <subscription_id>, <event JSON>]
     id*: string
     event*: Event
@@ -135,7 +136,7 @@ setupArrayObjectParsing(SMCount, "COUNT")
 proc parseHook*(s: string, i: var int, v: var union(MessageClass)) =
   ## Parses a message of unknown type into the `Message` object inferred by the array's first element and shape.
   template parseAs(T: typedesc): union(MessageClass) =
-    i = 0
+    i = start
     var j: T
     s.parseHook(i, j)
     j as union(MessageClass)
@@ -144,7 +145,6 @@ proc parseHook*(s: string, i: var int, v: var union(MessageClass)) =
   eatChar(s, i, '[')
   var kind: string
   parseHook(s, i, kind)
-  # i = start
   case kind:
   of "EVENT":
     # TODO: Fix this to deal with arbitrary spaces

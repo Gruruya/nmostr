@@ -18,12 +18,15 @@
 ## Command line client for Nostr.
 
 import
-  std/[os, strutils, sequtils, sugar, options, streams, random, bitops, sysrand],
-  pkg/yaml/[serialization, presenter, taglib, private/internal], pkg/adix/lptabz,
-  ../nmostr, ./cli/alias
+  std/[os, strutils, sequtils, sugar, options, streams, random],
+  pkg/yaml/[serialization, presenter, taglib, private/internal], pkg/adix/lptabz, cligen,
+  ../nmostr, ./bech32, ./cli/alias
 
 from std/strformat import fmt
 from std/terminal import getch
+
+template usage*(why: string): untyped =
+  raise newException(HelpError, "No private keys given, nothing to import. ${HELP}")
 
 proc promptYN(default: bool): bool =
   while true:
@@ -58,11 +61,15 @@ template getConfig: Config =
     createDir(configPath.parentDir)
     config.save(configPath)
   else:
-    # Check if it's empty
+    # TODO: Check if it's empty
     var s = newFileStream(configPath)
     load(s, config)
     s.close()
   config
+
+template display(keypair: Keypair): string =
+  "Private key: " & $keypair.seckey & "\n" &
+  "Public key: " & $keypair.pubkey & "\n"
 
 template keypair(config: Config, name: string): Keypair =
   if name in config.accounts:
@@ -70,14 +77,22 @@ template keypair(config: Config, name: string): Keypair =
   else:
     echo name, " isn't an existing account. Creating it."
     let created = newKeypair()
-    echo format(created)
-    config.accounts[name] = $created.privkey
+    echo display(created)
+    config.accounts[name] = $created.seckey
     config.save(configPath)
     created
 
 template defaultKeypair: Keypair =
   if config.account == "": newKeypair()
   else: config.keypair(config.account)
+
+template randomAccount: (string, Keypair) =
+  var kp = newKeypair()
+  var name = generateAlias(kp.pubkey)
+  while name in config.accounts:
+    kp = newKeypair()
+    name = generateAlias(kp.seckey.toPublicKey)
+  (name, kp)
 
 # YAML serialization
 {.push inline.}
@@ -145,7 +160,7 @@ proc constructObject*[K,Z,z](s: var YamlStream, c: ConstructionContext, result: 
     var item: K
     constructChild(s, c, item)
     try: result.incl(item)
-    except: raise s.constructionError(event.startPos, "IOError when attempting to include into LPSetz") # should use proper mark rather than the start (event.startPos)
+    except IOError: raise s.constructionError(event.startPos, "IOError when attempting to include into LPSetz") # should use proper mark rather than the start (event.startPos)
   discard s.next()
 
 proc representObject*[K,Z,z](value: LPSetz[K,Z,z], ts: TagStyle, c: SerializationContext, tag: Tag) =
@@ -158,49 +173,57 @@ proc representObject*[K,Z,z](value: LPSetz[K,Z,z], ts: TagStyle, c: Serializatio
 {.pop inline.}
 # End of YAML serialization
 
-template format(keypair: Keypair): string =
-  "Private key: " & $keypair.privkey & "\n" &
-  "Public key: " & $keypair.pubkey & "\n"
+template setAccount(config: Config, name: string, kp: KeyPair, echo: bool): string =
+  if not echo:
+    config.accounts[name] = $kp.seckey
+    config.save(configPath)
+  name & ":\n" & display(kp)
 
 proc accountCreate*(echo = false, overwrite = false, names: seq[string]): string =
   ## generate new accounts
-  template setAccount(config: Config, name: string, privatekey: string) =
-    result &= name & ":\n"
-    result &= format(kp)
-    if not echo:
-      config.accounts[name] = privatekey
-      config.save(configPath)
-
   var config = getConfig()
+
   if names.len == 0:
     # Generate a new account with a random name based on its public key
-    var kp = newKeypair()
-    var name = generateAlias(kp.pubkey)
-    while name in config.accounts:
-      kp = newKeypair()
-      name = generateAlias(kp.privkey.toPublicKey)
-    config.setAccount(name, $kp.privkey)
+    var (name, kp) = randomAccount()
+    return config.setAccount(name, kp, echo)
   else:
     if names.len == 1:
       # Check if `name` is a number, if so, create that many accounts
       try:
         let num = parseInt(names[0])
         for _ in 1..num:
-          result &= accountCreate(echo, overwrite, @[])
+          var (name, kp) = randomAccount()
+          result &= config.setAccount(name, kp, echo)
         return
       except ValueError: discard
     for name in names:
       if name notin config.accounts or overwrite:
         let kp = newKeypair()
-        config.setAccount(name, $kp.privkey)
+        result &= config.setAccount(name, kp, echo)
       else:
         result &= name & " already exists, refusing to overwrite\n"
 
+proc accountImport*(echo = false, private_keys: seq[string]): int =
+  ## import private keys as accounts
+  var config = getConfig()
+  if privateKeys.len == 0:
+    usage "No private keys given, nothing to import. ${HELP}"
+  for key in privateKeys:
+    let seckey =
+      if key.len == 64:
+        SkSecretkey.fromHex(key).tryGet
+      elif key.len == 63 and key.startsWith("nsec1"):
+        SkSecretKey.fromBech32 key
+      else:
+        usage "Unknown private key format. Supported: hex, bech32"
+    let kp = seckey.toKeypair
+    echo config.setAccount(generateAlias(seckey.toPublicKey), kp, echo)
+      
 proc accountRemove*(names: seq[string]): int =
   ## remove accounts
   if names.len == 0:
-    echo "No account names given, nothing to remove"
-    return 1
+    usage "No account names given, nothing to remove"
   else:
     var config = getConfig()
     for name in names:
@@ -213,7 +236,7 @@ proc accountRemove*(names: seq[string]): int =
           config.accounts.del(name)
     config.save(configPath)
 
-proc accountList*(prefixes: seq[string]): string =
+proc accountList*(bech32 = false, prefixes: seq[string]): string =
   ## list accounts (optionally) only showing those whose names start with any of the given `prefixes`
   let config = getConfig()
   if config.account != "":
@@ -221,7 +244,10 @@ proc accountList*(prefixes: seq[string]): string =
   for account, key in config.accounts.pairs:
     if prefixes.len == 0 or any(prefixes, prefix => account.startsWith(prefix)):
       let kp = SkSecretKey.fromHex(key).tryGet.toKeypair
-      result &= account & ":\nPrivate key: " & $kp.privkey & "\nPublic key: " & $kp.pubkey & "\n"
+      if not bech32:
+        result &= account & ":\nPrivate key: " & $kp.seckey & "\nPublic key: " & $kp.pubkey & "\n"
+      else:
+        result &= account & ":\nPrivate key: " & kp.seckey.toBech32 & "\nPublic key: " & kp.pubkey.toBech32 & "\n"
   if result.len == 0:
     result = "No accounts found. Use `account create` to make one.\nYou could also use nmostr without an account and have a different random key for every post."
 
@@ -293,8 +319,7 @@ proc relayDisable*(relays: seq[string]): int =
 proc relayRemove*(relays: seq[string]): int =
   ## remove urls from known relays
   if relays.len == 0:
-    echo "No relay urls or indexes given, nothing to remove"
-    return 1
+    usage "No relay urls or indexes given, nothing to remove"
   var config = getConfig()
   var toRemove: seq[string]
   for relay in relays:
@@ -334,7 +359,7 @@ proc fetchSearch(): string =
     echo x.toJson
   #Message(kind: TextMessage, data: "[\"EVENT\",\"npub1jk9h2jsa8hjmtm9qlcca942473gnyhuynz5rmgve0dlu6hpeazxqc3lqz7\",{\"id\":\"48f7ed0a9fe9e1ab29aa3250a8af0fcc0e90d5f63c15b2fa41a5375bf19f2e60\",\"pubkey\":\"0339f668b5ab95a3622b583c32569f7daa6b85d5facad9d7b9bb997222c61563\",\"created_at\":0,\"kind\":0,\"tags\":[],\"content\":\"{\\\"name\\\":\\\"jllam34265@minds.com\\\",\\\"about\\\":\\\"\\\",\\\"picture\\\":\\\"https://www.minds.com/icon/1409550373508616195/medium/1661438997/0/1660028401\\\"}\",\"sig\":\"bfc57ea0c34832da557f6ea0cd19b3c1527d356fd909704df8f525f3edb705b965c4e2f3f70fdb6f1cff3a4858cbe3dcf3f5023b798dacee06887141861cb8b4\"}]")
   # subscribe, not just search. would continue showing feed until you exit
-
+    
 proc post(account: Option[string] = none string, echo = true, text: seq[string]): string =
   ## make a post
   var config = getConfig()
@@ -352,30 +377,39 @@ proc post(account: Option[string] = none string, echo = true, text: seq[string])
   let res = some((kind: TextMessage, data: "[\"OK\",\"977e6cdc7b33874d0b45ce71b462aeedb51be8c2930cee01ff32889d8e81ec8a\",true,\"\"]"))
   echo res
   
-proc show(ids: seq[string] = @[""]): int =
+proc show(echo = false, limit = 10, ids: seq[string] = @[""]): int =
+  ## show a post found by its id
+  proc request(id: string): auto =
+    CMRequest(id: id, filter: Filter(limit: limit)) # (decode(id).toString)) #(if id.startsWith("note1") or id.startsWith("npub1"): (decode(id).toString).runes.toSeq else: id.toRunes), filter: Filter(limit: limit))).toJson
+
+  if echo:
+    for id in ids:
+      echo request id
+    return
   var config = getConfig()
   var relays = config.relays
   if relays.len == 0:
-    echo "No relays configured, add relays with `nmostr relay enable`"
-    return 1
+    usage "No relays configured, add relays with `nmostr relay enable`"
   randomize()
   for id in ids:
     while relays.len > 0:
       let relay = relays.nthKey(rand(relays.len - 1))
       relays.del(relay)
       let ws = newWebSocket(relay)
-      ws.send(CMRequest(id: id).toJson)
+      ws.send(CMRequest(id: id, filter: Filter(limit: 1)).toJson)
       while true:
         let optMsg = ws.receiveMessage(10000)
-        if optMsg.isNone: break
-        echo optMsg
-        let msg = optMsg.unsafeGet.data.fromMessage
-        echo msg
+        if optMsg.isNone or optMsg.unsafeGet.data == "": break # if is SMEose
+        let msgUnion = optMsg.unsafeGet.data.fromMessage
+        unpack msgUnion, msg:
+          echo msg
+      # ws.send(Close(id: id)
+      ws.close()
 #        if msg 
 #        some((kind: TextMessage, data: "[\"NOTICE\",\"ERROR: bad req: subscription id too short\"]"))
-
+      
 when isMainModule:
-  import pkg/[cligen, cligen/argcvt]
+  import pkg/[cligen/argcvt]
   # taken from c-blake "https://github.com/c-blake/cligen/issues/212#issuecomment-1167777874"
   include cligen/mergeCfgEnvMulMul
   proc argParse[T](dst: var Option[T], dfl: Option[T],
@@ -388,6 +422,7 @@ when isMainModule:
   dispatchMultiGen(
     ["accounts"],
     [accountCreate, cmdName = "create", help = {"echo": "generate and print accounts without saving", "overwrite": "overwrite existing accounts"}, dispatchName = "aCreate"],
+    [accountImport, cmdName = "import", dispatchName = "aImport"],
     [accountSet, cmdName = "set", dispatchName = "aSet", usage = "$command $args\n${doc}"],
     [accountRemove, cmdName = "remove", dispatchName = "aRemove", usage = "$command $args\n${doc}"], # alias rm
     [accountList, cmdName = "list", dispatchName = "aList", usage = "$command $args\n${doc}"])
@@ -401,7 +436,7 @@ when isMainModule:
     ["fetch"],
     [fetchSearch, cmdName = "search", dispatchName = "fSearch", usage = "$command $args\n${doc}"])
   dispatchMulti(["multi", cmdName = "nmostr"],
-    [accounts, doc = "manage your identities/keypairs", stopWords = @["create", "generate", "remove", "list"]],
+    [accounts, doc = "manage your identities/keypairs", stopWords = @["create", "import", "remove", "list"]],
     [relay, doc = "configure what relays to send posts to", stopWords = @["enable", "disable", "remove", "list"]],
     [fetch, doc = "fetch posts from relays", stopWords = @["search"]],
     # post, (send, messsage > use for DM?) 
