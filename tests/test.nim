@@ -21,7 +21,7 @@ import nmostr
 suite "events":
   block filters:
     check Filter().toJson == "{}"
-    let a = Filter(since: fromUnix(high(int64)), until: low(Time), kinds: @[0], ids: @["50"], authors: @["b97"], tags: {"#e": @["48aa67648cad668033516cade8171c779b1b4649d842a5d4062ff769fcd925fa", "bad2aa2974281303e4632e3aeedee7fd6c829e2f63d343caa8fead8f9af95599"], "#p": @["79be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798"]}.toTagTable)
+    let a = Filter(since: fromUnix(high(int64)), until: low(Time), kinds: @[0], ids: @["50"], authors: @["b97"], tags: @[@["#e", "48aa67648cad668033516cade8171c779b1b4649d842a5d4062ff769fcd925fa", "bad2aa2974281303e4632e3aeedee7fd6c829e2f63d343caa8fead8f9af95599"], @["#p", "79be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798"]])
     let b = """{"ids":["50"],"authors":["b97"],"kinds":[0],"#e":["48aa67648cad668033516cade8171c779b1b4649d842a5d4062ff769fcd925fa","bad2aa2974281303e4632e3aeedee7fd6c829e2f63d343caa8fead8f9af95599"],"#p":["79be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798"],"since":9223372036854775807,"until":0}""".fromJson(Filter)
     check a == b
     check a.toJson == b.toJson
@@ -52,9 +52,9 @@ suite "events":
     check not e.matches(f)
     f.until = high(Time)
 
-    f.tags["#d"] = @["not empty"]
+    f.tags.add @["#d", "not in event"]
     check not e.matches(f)
-    f.tags["#d"] = @[""]
+    f.tags.add @["#d", ""]
 
     f.kinds = @[0]
     check not e.matches(f)
@@ -75,7 +75,7 @@ suite "events":
     var b = Filter(until: high(Time))
     var c = Filter(until: low(Time))
     check a.toJson == b.toJson
-    check a.toJson.fromJson(Filter) == b.toJson.fromJson(Filter)
+    check a.toJson.fromJson(Filter) == b.toJson.fromJson(Filter) # stores only seconds, nanoseconds are discarded
     check a.toJson != c.toJson
 
 suite "messages":
