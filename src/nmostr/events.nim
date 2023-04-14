@@ -31,11 +31,12 @@ type EventID* = object
 
 func `$`*(id: EventID): string {.inline.} = toHex(id.bytes)
 template toHex*(id: EventID): string = $id
+func fromHex*(T: type EventID, hex: string): EventID {.raises: [ValueError].} = EventID(bytes: array[32, byte].fromHex(hex))
 
 type Event* = object
   id*: EventID              ## 32-bytes lowercase hex-encoded sha256 of the serialized event data
   pubkey*: SkXOnlyPublicKey ## 32-bytes lowercase hex-encoded public key of the event creator
-  kind*: int64              ## The type of event this is.
+  kind*: int                ## The type of event this is.
   content*: string          ## Arbitrary string, what it is should be gleamed from this event's `kind`
   created_at*: Time         ## Received and transmitted as a Unix timestamp in seconds
   tags*: seq[seq[string]]   ## A sequence of tags. This first item is the key and the rest is the content.
@@ -67,7 +68,7 @@ func parseHook*(s: string, i: var int, v: var EventID) {.raises: [JsonError, Val
   ## Parse `id` as a hexadecimal encoding [of a sha256 hash.]
   var j: string
   parseHook(s, i, j)
-  v.bytes = array[32, byte].fromHex(j)
+  v = EventID.fromHex j
 
 func parseHook*(s: string, i: var int, v: var SkXOnlyPublicKey) {.raises: [JsonError, ValueError].} =
   ## Parse `id` as a hexadecimal encoding [of a sha256 hash].

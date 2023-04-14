@@ -22,7 +22,6 @@ import
   pkg/yaml, pkg/adix/lptabz, cligen,
   ../nmostr, ./bech32, ./cli/alias, ./cli/lptabz_yaml
 
-from std/strformat import fmt
 from std/terminal import getch
 
 template usage*(why: string): untyped =
@@ -135,7 +134,7 @@ proc accountImport*(echo = false, private_keys: seq[string]): int =
       if key.len == 64:
         SkSecretkey.fromHex(key).tryGet
       elif key.len == 63 and key.startsWith("nsec1"):
-        SkSecretKey.fromBech32 key
+        SkSecretkey.fromBech32 key
       else:
         usage "Unknown private key format. Supported: hex, bech32"
     let kp = seckey.toKeypair
@@ -157,7 +156,7 @@ proc accountRemove*(names: seq[string]): int =
           config.accounts.del(name)
     config.save(configPath)
 
-proc accountList*(bech32 = false, prefixes: seq[string]): string =
+proc accountList*(prefixes: seq[string]): string =
   ## list accounts (optionally) only showing those whose names start with any of the given `prefixes`
   let config = getConfig()
   if config.account != "":
@@ -165,10 +164,7 @@ proc accountList*(bech32 = false, prefixes: seq[string]): string =
   for account, key in config.accounts.pairs:
     if prefixes.len == 0 or any(prefixes, prefix => account.startsWith(prefix)):
       let kp = SkSecretKey.fromHex(key).tryGet.toKeypair
-      if not bech32:
-        result &= account & ":\nPrivate key: " & $kp.seckey & "\nPublic key: " & $kp.pubkey & "\n"
-      else:
-        result &= account & ":\nPrivate key: " & kp.seckey.toBech32 & "\nPublic key: " & kp.pubkey.toBech32 & "\n"
+      result &= account & ":\nPrivate key: " & $kp.seckey & "\nPublic key: " & $kp.pubkey & "\n"
   if result.len == 0:
     result = "No accounts found. Use `account create` to make one.\nYou could also use nmostr without an account and have a different random key for every post."
 
@@ -362,4 +358,3 @@ when isMainModule:
     [fetch, doc = "fetch posts from relays", stopWords = @["search"]],
     # post, (send, messsage > use for DM?) 
     [post], [show, positional = "ids"])
-  # allow echoing instead of sending messages, for cli unix purposes

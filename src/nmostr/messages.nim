@@ -67,6 +67,7 @@ type
 type UnknownMessageError* = object of ValueError
 
 # JSON interop
+# Modified `jsony.nim` procs to desrialize message arrays as object and serialize them back to arrays.
 
 template parseArrayAsObject(T: typedesc) =
   ## Parse JSON array as object `T`.
@@ -109,7 +110,7 @@ template parseArrayAsObject(T: typedesc) =
 
 template dumpObjectAsArray(T: typedesc, flag: string) =
   func dumpHook*(s: var string, v: T) {.inline.} =
-    ## Send message as an array with `flag` as the first element.
+    ## Serialize message as an array with `flag` as the first element.
     s = "[\"" & flag & "\","
     for field in v.fields:
       s &= field.toJson
@@ -147,7 +148,6 @@ proc parseHook*(s: string, i: var int, v: var union(MessageClass)) =
   parseHook(s, i, kind)
   case kind:
   of "EVENT":
-    # TODO: Fix this to deal with arbitrary spaces
     eatChar(s, i, ',')
     eatSpace(s, i)
     # Check if the second element in the array is an object or a string.
@@ -189,6 +189,6 @@ template fromMessage*(s: string): untyped =
   s.fromJson(union(MessageClass))
 
 func dumpHook*(s: var string, v: union(MessageClass)) {.inline.} =
-  ## Send message union as its contained message.
+  ## Serialize message union as its contained message.
   unpack v, msg:
     dumpHook(s, msg)
