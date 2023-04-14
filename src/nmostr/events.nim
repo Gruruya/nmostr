@@ -45,7 +45,7 @@ type Event* = object
 type Filter* = object
   ids*: seq[string]       ## List of event ids or prefixes.
   authors*: seq[string]   ## List of pubkeys or prefixes, the pubkey of an event must be one of these.
-  kinds*: seq[int64]      ## A list of event kinds.
+  kinds*: seq[int]        ## A list of event kinds.
   tags*: seq[seq[string]] ## A sequence of tags. This first item is the key and the rest is the content.
   since*: Time            ## Events must be newer than this to pass.
   until*: Time = initTime(high(int64), 0)  ## Events must be older than this to pass.
@@ -221,7 +221,7 @@ template sign*(event: var Event, sk: Keypair, rng: Rng = sysRng) =
 proc updateID*(event: var Event) =
   event.id = EventID(bytes: sha256 event.serialize)
 
-proc init*(T: type Event, kind: int64, content: string, keypair: Keypair, created_at = getTime(), tags = default(seq[seq[string]])): Event {.raises: [ValueError].} =
+proc init*(T: type Event, kind: int, content: string, keypair: Keypair, created_at = getTime(), tags = default(seq[seq[string]])): Event {.raises: [ValueError].} =
   result = Event(
     kind: kind,
     content: content,

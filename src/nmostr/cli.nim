@@ -294,6 +294,7 @@ proc post(account: Option[string] = none string, echo = true, text: seq[string])
   let res = some((kind: TextMessage, data: "[\"OK\",\"977e6cdc7b33874d0b45ce71b462aeedb51be8c2930cee01ff32889d8e81ec8a\",true,\"\"]"))
   echo res
   
+<<<<<<< HEAD
 proc show(echo = false, limit = 10, ids: seq[string] = @[""]): int =
   ## show a post found by its id
   proc request(id: string): auto =
@@ -302,7 +303,43 @@ proc show(echo = false, limit = 10, ids: seq[string] = @[""]): int =
   if echo:
     for id in ids:
       echo request id
+=======
+proc show(echo = false, raw = false, kinds: seq[int] = @[], limit = 10, ids: seq[string]): int =
+  ## show a post found by its id
+  proc request(id: sink string): CMRequest =
+    var filter = Filter(limit: limit, kinds: kinds)
+    try:
+      # TODO: Get relays as well
+      let bech32 = fromNostrBech32(id)
+      unpack bech32, entity:
+        when entity is NNote:
+          filter.ids = @[entity.id.toHex]
+        elif entity is NProfile:
+          filter.authors = @[entity.pubkey.toHex]
+        elif entity is NEvent:
+          filter.ids = @[entity.id.toHex]
+        elif entity is NAddr:
+          filter.authors = @[entity.author.toHex]
+          filter.tags = @[@["#d", entity.id]]
+        elif entity is SkXOnlyPublicKey:
+          filter.authors = @[entity.toHex]
+    except: discard
+    if filter.kinds.len == 0:
+      # Decent default kinds
+      filter.kinds = @[1, 6, 30023]
+    elif filter.kinds == @[-1]:
+      filter.kinds = @[]
+    CMRequest(id: randomID(), filter: filter)
+
+  if echo:
+    if ids.len == 0:
+      echo request("")
+    else:
+      for id in ids:
+        echo toJson(request id)
+>>>>>>> 7ab051f (Continue work on cli)
     return
+
   var config = getConfig()
   var relays = config.relays
   if relays.len == 0:
@@ -313,13 +350,22 @@ proc show(echo = false, limit = 10, ids: seq[string] = @[""]): int =
       let relay = relays.nthKey(rand(relays.len - 1))
       relays.del(relay)
       let ws = newWebSocket(relay)
+<<<<<<< HEAD
       ws.send(CMRequest(id: id, filter: Filter(limit: 1)).toJson)
+=======
+      ws.send(toJson(request id))
+>>>>>>> 7ab051f (Continue work on cli)
       while true:
         let optMsg = ws.receiveMessage(10000)
-        if optMsg.isNone or optMsg.unsafeGet.data == "": break # if is SMEose
+        if optMsg.isNone or optMsg.unsafeGet.data == "": break
         let msgUnion = optMsg.unsafeGet.data.fromMessage
         unpack msgUnion, msg:
-          echo msg
+          if msg is SMEose: break
+          if raw:
+            echo msg.toJson
+          else:
+            when msg is SMEvent:
+              echo msg.event.content & "\n"
       # ws.send(Close(id: id)
       ws.close()
 #        if msg 
