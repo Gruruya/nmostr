@@ -18,8 +18,8 @@
 ## Utilities for creating and parsing Nostr messages.
 ## Implements NIP-01, NIP-20, NIP-42, NIP-45
 
-import pkg/[jsony, union]
-import ./events
+import std/sysrand, pkg/[jsony, union]
+import ./common, ./events
 
 export events, union
 
@@ -66,6 +66,9 @@ type
 
 type UnknownMessageError* = object of ValueError
 
+proc randomID*(): string =
+  urandom(32).toHex
+  
 # JSON interop
 # Modified `jsony.nim` procs to desrialize message arrays as object and serialize them back to arrays.
 

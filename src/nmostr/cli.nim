@@ -93,7 +93,7 @@ template randomAccount: (string, Keypair) =
     name = generateAlias(kp.seckey.toPublicKey)
   (name, kp)
 
-template setAccount(config: Config, name: string, kp: KeyPair, echo: bool): string =
+template setAccount(config: Config, name: string, kp: Keypair, echo: bool): string =
   if not echo:
     config.accounts[name] = $kp.seckey
     config.save(configPath)
@@ -132,9 +132,9 @@ proc accountImport*(echo = false, private_keys: seq[string]): int =
   for key in privateKeys:
     let seckey =
       if key.len == 64:
-        SkSecretkey.fromHex(key).tryGet
+        SkSecretKey.fromHex(key).tryGet
       elif key.len == 63 and key.startsWith("nsec1"):
-        SkSecretkey.fromBech32 key
+        SkSecretKey.fromBech32 key
       else:
         usage "Unknown private key format. Supported: hex, bech32"
     let kp = seckey.toKeypair
@@ -294,16 +294,6 @@ proc post(account: Option[string] = none string, echo = true, text: seq[string])
   let res = some((kind: TextMessage, data: "[\"OK\",\"977e6cdc7b33874d0b45ce71b462aeedb51be8c2930cee01ff32889d8e81ec8a\",true,\"\"]"))
   echo res
   
-<<<<<<< HEAD
-proc show(echo = false, limit = 10, ids: seq[string] = @[""]): int =
-  ## show a post found by its id
-  proc request(id: string): auto =
-    CMRequest(id: id, filter: Filter(limit: limit)) # (decode(id).toString)) #(if id.startsWith("note1") or id.startsWith("npub1"): (decode(id).toString).runes.toSeq else: id.toRunes), filter: Filter(limit: limit))).toJson
-
-  if echo:
-    for id in ids:
-      echo request id
-=======
 proc show(echo = false, raw = false, kinds: seq[int] = @[], limit = 10, ids: seq[string]): int =
   ## show a post found by its id
   proc request(id: sink string): CMRequest =
@@ -337,7 +327,6 @@ proc show(echo = false, raw = false, kinds: seq[int] = @[], limit = 10, ids: seq
     else:
       for id in ids:
         echo toJson(request id)
->>>>>>> 7ab051f (Continue work on cli)
     return
 
   var config = getConfig()
@@ -350,11 +339,7 @@ proc show(echo = false, raw = false, kinds: seq[int] = @[], limit = 10, ids: seq
       let relay = relays.nthKey(rand(relays.len - 1))
       relays.del(relay)
       let ws = newWebSocket(relay)
-<<<<<<< HEAD
-      ws.send(CMRequest(id: id, filter: Filter(limit: 1)).toJson)
-=======
       ws.send(toJson(request id))
->>>>>>> 7ab051f (Continue work on cli)
       while true:
         let optMsg = ws.receiveMessage(10000)
         if optMsg.isNone or optMsg.unsafeGet.data == "": break
