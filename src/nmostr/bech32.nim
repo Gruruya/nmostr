@@ -24,7 +24,7 @@ from std/sequtils import mapIt
 from std/strutils import toLower, rfind, join
 import ./common, ./events
 
-type InvalidBech32Error = object of ValueError
+type InvalidBech32Error* = object of ValueError
 
 template error(reason: string) =
   raise newException(InvalidBech32Error, reason)
@@ -151,22 +151,6 @@ type
 
   UnknownTLVError* = object of ValueError
 
-func getPubkey(raw: openArray[byte]): SkResult[SkXOnlyPublicKey] {.raises: [].} =
-  if raw.len == 33: SkXOnlyPublicKey.fromRaw(raw[0..^2])
-  elif raw.len == 32: SkXOnlyPublicKey.fromRaw(raw)
-  else: err("bech32: x-only public key must be 32 or 33 bytes")
-
-func fromBech32*(T: type SkXOnlyPublicKey, address: string): T =
-  let raw = decode("npub", address)
-  let pubkey = getPubkey(raw)
-  if pubkey.isOk: pubkey.unsafeGet
-  else: error($pubkey.error)
-  
-func fromBech32*(T: type SkSecretKey, address: string): T =
-  let seckey = T.fromRaw(decode("nsec", address))
-  if seckey.isOk: seckey.unsafeGet
-  else: error($seckey.error)
-
 template parseData(address: seq[byte], i: var int): tuple[kind: int8, data: seq[byte]] =
   if i + 1 > address.len: break
   let (kind, length) = (cast[int8](address[i]), cast[int8](address[i + 1]))
@@ -176,26 +160,36 @@ template parseData(address: seq[byte], i: var int): tuple[kind: int8, data: seq[
   i += length
   (kind, data)
 
-func parseNProfile*(address: seq[byte]): NProfile =
-  var i = 0
-  while true:
-    let (kind, data) = parseData(address, i)
-    case kind:
-    of 0:
-      let sk = SkXOnlyPublicKey.fromRaw(data)
-      if sk.isOk: result.pubkey = sk.unsafeGet
-      else: error("Invalid public key in nprofile bech32 address")
-    of 1:
-      result.relays.add string.fromBytes(data)
-    else:
-      discard
-
 func toArray[T](N: static int, data: openArray[T]): array[N, T] {.raises: [].} =
   # Taken from `stew/objects.nim`
   doAssert data.len == N
   copyMem(addr result[0], unsafeAddr data[0], N)
 
-func parseNEvent*(address: seq[byte]): NEvent =
+func fromUInt32(data: seq[byte]): uint32 {.inline, raises: [].} =
+  for i in 0..<4: result = result or (uint32(data[3 - i]) shl (i * 8))
+
+##### Parsing Bech32 #####
+
+func fromRaw*(T: type SkXOnlyPublicKey, data: openArray[byte]): SkResult[SkXOnlyPublicKey] {.inline.} =
+  if data.len == 33: SkXOnlyPublicKey.fromRaw(data[0..^2])
+  elif data.len == 32: SkXOnlyPublicKey.fromRaw(data)
+  else: err("bech32: x-only public key must be 32 or 33 bytes")
+
+func fromRaw*(T: type NProfile, address: seq[byte]): T =
+  var i = 0
+  while true:
+    let (kind, data) = parseData(address, i)
+    case kind:
+    of 0:
+      let pk = SkXOnlyPublicKey.fromRaw(data)
+      if pk.isOk: result.pubkey = pk.unsafeGet
+      else: error($pk.error)
+    of 1:
+      result.relays.add string.fromBytes(data)
+    else:
+      discard
+
+func fromRaw*(T: type NEvent, address: seq[byte]): T =
   var i = 0
   while true:
     let (kind, data) = parseData(address, i)
@@ -207,7 +201,7 @@ func parseNEvent*(address: seq[byte]): NEvent =
     of 1:
       result.relays.add string.fromBytes(data)
     of 2:
-      let pubkey = getPubkey(data)
+      let pubkey = SkXOnlyPublicKey.fromRaw(data)
       if pubkey.isOk: result.author = pubkey.unsafeGet
     of 3:
       if data.len == 4:
@@ -215,10 +209,7 @@ func parseNEvent*(address: seq[byte]): NEvent =
     else:
       discard
 
-func fromUInt32(data: seq[byte]): uint32 {.inline, raises: [].} =
-  for i in 0..<4: result = result or (uint32(data[3 - i]) shl (i * 8))
-
-func parseNAddr*(address: seq[byte]): NAddr =
+func fromRaw*(T: type NAddr, address: seq[byte]): T =
   var i = 0
   while true:
     let (kind, data) = parseData(address, i)
@@ -228,7 +219,7 @@ func parseNAddr*(address: seq[byte]): NAddr =
     of 1:
       result.relays.add string.fromBytes(data)
     of 2:
-      let pubkey = getPubkey(data)
+      let pubkey = SkXOnlyPublicKey.fromRaw(data)
       if pubkey.isOk: result.author = pubkey.unsafeGet
     of 3:
       if data.len == 4:
@@ -236,7 +227,7 @@ func parseNAddr*(address: seq[byte]): NAddr =
     else:
       discard
 
-func parseNRelay*(address: seq[byte]): NRelay {.raises: [InvalidBech32Error].} =
+func fromRaw*(T: type NRelay, address: seq[byte]): T =
   var i = 0
   while true:
     let (kind, data) = parseData(address, i)
@@ -247,18 +238,22 @@ proc fromNostrBech32*(address: string): union(Bech32EncodedEntity) {.raises: [In
   let (kind, data) = decode(address)
   case kind:
   of "npub":
-    SkXOnlyPublicKey.fromBech32(address) as union(Bech32EncodedEntity)
+    let pk = SkXOnlyPublicKey.fromRaw(data)
+    if pk.isOk: unsafeGet(pk) as union(Bech32EncodedEntity)
+    else: error($pk.error)
   of "nsec":
-    SkSecretKey.fromBech32(address) as union(Bech32EncodedEntity)
+    let sk = SkSecretKey.fromRaw(data)
+    if sk.isOk: unsafeGet(sk) as union(Bech32EncodedEntity)
+    else: error($sk.error)
   of "note":
     NNote(id: EventID(bytes: toArray(32, data))) as union(Bech32EncodedEntity)
   of "nprofile":
-    parseNProfile(data) as union(Bech32EncodedEntity)
+    NProfile.fromRaw(data) as union(Bech32EncodedEntity)
   of "nevent":
-    parseNEvent(data) as union(Bech32EncodedEntity)
+    NEvent.fromRaw(data) as union(Bech32EncodedEntity)
   of "naddr":
-    parseNAddr(data) as union(Bech32EncodedEntity)
+    NAddr.fromRaw(data) as union(Bech32EncodedEntity)
   of "nrelay":
-    parseNRelay(data) as union(Bech32EncodedEntity)
+    NRelay.fromRaw(data) as union(Bech32EncodedEntity)
   else:
     raise newException(UnknownTLVError, "Unknown TLV starting with " & kind)

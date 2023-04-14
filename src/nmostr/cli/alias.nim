@@ -40,7 +40,7 @@
 #    SOFTWARE.
 
 ## Generate a deterministic friendly name for a public key
-## Modified from `nim-status/status/private/alias.nim`
+## Modified from `status/private/alias`
 
 import
   std/bitops,

@@ -24,7 +24,9 @@ import
 
 from std/terminal import getch
 
-template usage*(why: string): untyped =
+##### Types and helper procs #####
+
+template usage(why: string): untyped =
   raise newException(HelpError, "No private keys given, nothing to import. ${HELP}")
 
 proc promptYN(default: bool): bool =
@@ -85,6 +87,105 @@ template defaultKeypair: Keypair =
   if config.account == "": newKeypair()
   else: config.keypair(config.account)
 
+template selectKeypair(account: Option[string]): Keypair =
+  if account.isNone: defaultKeypair()
+  elif account == some "": newKeypair()
+  else: config.keypair(unsafeGet account)
+
+##### CLI Commands #####
+
+proc post*(echo = false, account: Option[string] = none string, text: seq[string]): int =
+  ## make a post
+  var config = getConfig()
+  let keypair = selectKeypair(account)
+
+  let post = CMEvent(event: note(text.join(" "), keypair)).toJson # TODO: Add enabled relays
+  if echo:
+    echo post
+    return
+
+  proc send(p: tuple[relay: string, post: string]) {.thread, nimcall.} =
+    let ws = newWebSocket(p.relay)
+    ws.send(p.post)
+    let response = ws.receiveMessage(10000)
+    echo:
+      if response.isNone: "Error posting to " & p.relay
+      else: response.toJson
+
+  var posting = newSeq[Thread[(tuple[relay: string, post: string])]](config.relays.len)
+  for i, relay in pairs[string, int8, 6](config.relays):
+    createThread posting[i], send, (relay, post)
+  joinThreads(posting)
+
+proc show*(echo = false, raw = false, kinds: seq[int] = @[1, 6, 30023], limit = 10, ids: seq[string]): int =
+  ## show a post
+  var messages = newSeqOfCap[CMRequest](ids.len)
+  var ids = ids                #
+  if ids.len == 0: ids = @[""] # Workaround cligen default opts
+  for id in ids:
+    var filter = Filter(limit: limit, kinds: kinds)
+    try:
+      # TODO: Get relays as well
+      let bech32 = fromNostrBech32(id)
+      unpack bech32, entity:
+        when entity is NNote:
+          filter.ids = @[entity.id.toHex]
+        elif entity is NProfile:
+          filter.authors = @[entity.pubkey.toHex]
+        elif entity is NEvent:
+          filter.ids = @[entity.id.toHex]
+        elif entity is NAddr:
+          filter.authors = @[entity.author.toHex]
+          filter.tags = @[@["#d", entity.id]]
+        elif entity is SkXOnlyPublicKey:
+          filter.authors = @[entity.toHex]
+    except InvalidBech32Error, UnknownTLVError: filter.ids = @[id]
+    if filter.kinds == @[1, 6, 30023, -1]:
+      filter.kinds = @[]
+    messages.add CMRequest(id: randomID(), filter: filter)
+
+  if echo:
+    for request in messages:
+      echo request.toJson()
+    return
+
+  var config = getConfig()
+  var relays = config.relays
+  if relays.len == 0:
+    usage "No relays configured, add relays with `nmostr relay enable`"
+  randomize()
+  for request in messages:
+    while relays.len > 0:
+      let relay = relays.nthKey(rand(relays.len - 1))
+      relays.del(relay)
+      let ws = newWebSocket(relay)
+      ws.send(request.toJson)
+      while true:
+        let optMsg = ws.receiveMessage(10000)
+        if optMsg.isNone or optMsg.unsafeGet.data == "": break
+        try:
+          let msgUnion = optMsg.unsafeGet.data.fromMessage
+          unpack msgUnion, msg:
+            if raw:
+              echo msg.toJson
+            else:
+              when msg is SMEvent:
+                # echo "@" & $msg.event.pubkey & "\n" & $msg.event.id
+                echo $msg.event.created_at & ":"
+                if msg.event.kind == 6: # repost
+                  if msg.event.content.startsWith("{"): # is a stringified post
+                    echo msg.event.content.fromJson(events.Event).content
+                  # else fetch from #e tag
+                else:
+                  echo msg.event.content
+            when msg is SMEose: break
+            else: echo ""
+        except: discard
+      # ws.send(Close(id: id)
+      ws.close()
+#        if msg 
+#        some((kind: TextMessage, data: "[\"NOTICE\",\"ERROR: bad req: subscription id too short\"]"))
+
 template randomAccount: (string, Keypair) =
   var kp = newKeypair()
   var name = generateAlias(kp.pubkey)
@@ -134,7 +235,7 @@ proc accountImport*(echo = false, private_keys: seq[string]): int =
       if key.len == 64:
         SkSecretKey.fromHex(key).tryGet
       elif key.len == 63 and key.startsWith("nsec1"):
-        SkSecretKey.fromBech32 key
+        SkSecretKey.fromRaw(decode("nsec1", key)).tryGet
       else:
         usage "Unknown private key format. Supported: hex, bech32"
     let kp = seckey.toKeypair
@@ -216,21 +317,22 @@ proc relayEnable*(relays: seq[string]): int =
 
 proc relayDisable*(relays: seq[string]): int =
   ## stop sending posts to specified relays
+  template disable(relay: string) =
+    if relay in config.relays:
+      echo "Disabling ", relay
+      config.relays.excl relay
+    else:
+      echo relay, " is already disabled"
+
   var config = getConfig()
   for relay in relays:
     if relay in config.relays_known:
-      if relay in config.relays:
-        echo "Disabling ", relay
-        config.relays.excl relay
-      else:
-        echo relay, "is already disabled"
+      disable(relay)
     else:
       try: # Disable by index
         let index = parseInt(relay)
         if index < config.relays_known.len:
-          let relay = config.relays_known.nthKey(index)
-          echo "Disabling ", relay
-          config.relays.excl relay
+          disable(config.relays_known.nthKey(index))
       except ValueError: discard # Ignore request to disable non-existant relay
   config.save(configPath)
 
@@ -264,97 +366,6 @@ proc relayList*(prefixes: seq[string]): string =
     if prefixes.len == 0 or any(prefixes, prefix => relay.startsWith(prefix)):
       echo $i, (if relay in config.relays: " * " else: " "), relay
   # could put enabled relays first
-
-proc post(echo = false, account: Option[string] = none string, text: seq[string]): int =
-  ## make a post
-  var config = getConfig()
-  let keypair =
-    if account.isNone: defaultKeypair()
-    elif account == some "": newKeypair()
-    else: config.keypair(unsafeGet account)
-
-  let post = CMEvent(event: note(text.join(" "), keypair)).toJson # Add enabled relays
-  if echo:
-    echo post
-    return
-
-  let ws = newWebSocket("wss://relay.snort.social")
-  ws.send(post)
-#  ws.send(CMEvent(event: note("test", newKeypair())).toJson)
-  let response = ws.receiveMessage()
-  echo response.toJson
-#  let res = some((kind: TextMessage, data: "[\"OK\",\"977e6cdc7b33874d0b45ce71b462aeedb51be8c2930cee01ff32889d8e81ec8a\",true,\"\"]"))
-  #(id: 0ee959e156cce11f590ce1ed8ddb642036be6a02935055bf920126338d90ba30, pubkey: eeb7632a3dae4a3e89219565a7b194975551a0559f592d406c9ffebbf114870f, kind: 1, content: "hello lovely", created_at: 2023-04-14T12:23:33-04:00, tags: @[], sig: 327e093aa6620233f729c23f32df062a5bf1775c0462751ebf8d8ce4ad455aabef5030bedceabb468d1add63bae6fd5370a6523e2c19551b486fa9129122082e)
-
-  
-proc show(echo = false, raw = false, kinds: seq[int] = @[1, 6, 30023], limit = 10, ids: seq[string]): int =
-  ## show a post
-  var messages = newSeqOfCap[CMRequest](ids.len)
-  var ids = ids
-  if ids.len == 0: ids = @[""] # Workaround cligen default opts
-  for id in ids:
-    var filter = Filter(limit: limit, kinds: kinds)
-    try:
-      # TODO: Get relays as well
-      let bech32 = fromNostrBech32(id)
-      unpack bech32, entity:
-        when entity is NNote:
-          filter.ids = @[entity.id.toHex]
-        elif entity is NProfile:
-          filter.authors = @[entity.pubkey.toHex]
-        elif entity is NEvent:
-          filter.ids = @[entity.id.toHex]
-        elif entity is NAddr:
-          filter.authors = @[entity.author.toHex]
-          filter.tags = @[@["#d", entity.id]]
-        elif entity is SkXOnlyPublicKey:
-          filter.authors = @[entity.toHex]
-    except: filter.ids = @[id]
-    if filter.kinds == @[1, 6, 30023, -1]:
-      filter.kinds = @[]
-    messages.add CMRequest(id: randomID(), filter: filter)
-
-  if echo:
-    for request in messages:
-      echo request.toJson()
-    return
-
-  var config = getConfig()
-  var relays = config.relays
-  if relays.len == 0:
-    usage "No relays configured, add relays with `nmostr relay enable`"
-  randomize()
-  for request in messages:
-    while relays.len > 0:
-      let relay = relays.nthKey(rand(relays.len - 1))
-      relays.del(relay)
-      let ws = newWebSocket(relay)
-      ws.send(request.toJson)
-      while true:
-        let optMsg = ws.receiveMessage(10000)
-        if optMsg.isNone or optMsg.unsafeGet.data == "": break
-        try:
-          let msgUnion = optMsg.unsafeGet.data.fromMessage
-          unpack msgUnion, msg:
-            if raw:
-              echo msg.toJson
-            else:
-              when msg is SMEvent:
-                # echo "@" & $msg.event.pubkey & "\n" & $msg.event.id
-                echo $msg.event.created_at & ":"
-                if msg.event.kind == 6: # repost
-                  if msg.event.content.startsWith("{"): # is a stringified post
-                    echo msg.event.content.fromJson(events.Event).content
-                  # else fetch from #e tag
-                else:
-                  echo msg.event.content
-            when msg is SMEose: break
-            else: echo ""
-        except: discard
-      # ws.send(Close(id: id)
-      ws.close()
-#        if msg 
-#        some((kind: TextMessage, data: "[\"NOTICE\",\"ERROR: bad req: subscription id too short\"]"))
 
 when isMainModule:
   import pkg/[cligen/argcvt]
