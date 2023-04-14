@@ -19,7 +19,7 @@
 
 import
   std/[os, strutils, sequtils, sugar, options, streams, random],
-  pkg/yaml, pkg/adix/lptabz, cligen,
+  pkg/[yaml, adix/lptabz, cligen, whisky],
   ../nmostr, ./bech32, ./cli/alias, ./cli/lptabz_yaml
 
 from std/terminal import getch
@@ -160,7 +160,8 @@ proc accountList*(prefixes: seq[string]): string =
   ## list accounts (optionally) only showing those whose names start with any of the given `prefixes`
   let config = getConfig()
   if config.account != "":
-    echo "Default account: " & config.account
+        echo "Default account: " & config.account
+  else: echo "No default account set, a random key will be generated every time you post"
   for account, key in config.accounts.pairs:
     if prefixes.len == 0 or any(prefixes, prefix => account.startsWith(prefix)):
       let kp = SkSecretKey.fromHex(key).tryGet.toKeypair
@@ -264,39 +265,34 @@ proc relayList*(prefixes: seq[string]): string =
       echo $i, (if relay in config.relays: " * " else: " "), relay
   # could put enabled relays first
 
-import pkg/whisky
-
-proc fetchSearch(): string =
-  let kp = newKeypair()
-  # let ws = newWebSocket("wss://relay.snort.social")
-  # ws.send(CMRequest(id: "npub1jk9h2jsa8hjmtm9qlcca942473gnyhuynz5rmgve0dlu6hpeazxqc3lqz7", filter: Filter()).toJson)
-  # let msg = ws.receiveMessage(1000)
-  let msg = (kind: TextMessage, data: "[\"EVENT\",\"npub1jk9h2jsa8hjmtm9qlcca942473gnyhuynz5rmgve0dlu6hpeazxqc3lqz7\",{\"id\":\"48f7ed0a9fe9e1ab29aa3250a8af0fcc0e90d5f63c15b2fa41a5375bf19f2e60\",\"pubkey\":\"0339f668b5ab95a3622b583c32569f7daa6b85d5facad9d7b9bb997222c61563\",\"created_at\":0,\"kind\":0,\"tags\":[],\"content\":\"{\\\"name\\\":\\\"jllam34265@minds.com\\\",\\\"about\\\":\\\"\\\",\\\"picture\\\":\\\"https://www.minds.com/icon/1409550373508616195/medium/1661438997/0/1660028401\\\"}\",\"sig\":\"bfc57ea0c34832da557f6ea0cd19b3c1527d356fd909704df8f525f3edb705b965c4e2f3f70fdb6f1cff3a4858cbe3dcf3f5023b798dacee06887141861cb8b4\"}]")
-  unpack(msg.data.fromMessage, x):
-    echo x.toJson
-  #Message(kind: TextMessage, data: "[\"EVENT\",\"npub1jk9h2jsa8hjmtm9qlcca942473gnyhuynz5rmgve0dlu6hpeazxqc3lqz7\",{\"id\":\"48f7ed0a9fe9e1ab29aa3250a8af0fcc0e90d5f63c15b2fa41a5375bf19f2e60\",\"pubkey\":\"0339f668b5ab95a3622b583c32569f7daa6b85d5facad9d7b9bb997222c61563\",\"created_at\":0,\"kind\":0,\"tags\":[],\"content\":\"{\\\"name\\\":\\\"jllam34265@minds.com\\\",\\\"about\\\":\\\"\\\",\\\"picture\\\":\\\"https://www.minds.com/icon/1409550373508616195/medium/1661438997/0/1660028401\\\"}\",\"sig\":\"bfc57ea0c34832da557f6ea0cd19b3c1527d356fd909704df8f525f3edb705b965c4e2f3f70fdb6f1cff3a4858cbe3dcf3f5023b798dacee06887141861cb8b4\"}]")
-  # subscribe, not just search. would continue showing feed until you exit
-    
-proc post(account: Option[string] = none string, echo = true, text: seq[string]): string =
+proc post(echo = false, account: Option[string] = none string, text: seq[string]): int =
   ## make a post
   var config = getConfig()
   let keypair =
     if account.isNone: defaultKeypair()
     elif account == some "": newKeypair()
     else: config.keypair(unsafeGet account)
-  let msg = note(text.join(" "), keypair)
+
+  let post = CMEvent(event: note(text.join(" "), keypair)).toJson # Add enabled relays
   if echo:
-    echo msg
+    echo post
     return
-#  let ws = newWebSocket("wss://relay.snort.social")
+
+  let ws = newWebSocket("wss://relay.snort.social")
+  ws.send(post)
 #  ws.send(CMEvent(event: note("test", newKeypair())).toJson)
-#  let msg = ws.receiveMessage()
-  let res = some((kind: TextMessage, data: "[\"OK\",\"977e6cdc7b33874d0b45ce71b462aeedb51be8c2930cee01ff32889d8e81ec8a\",true,\"\"]"))
-  echo res
+  let response = ws.receiveMessage()
+  echo response.toJson
+#  let res = some((kind: TextMessage, data: "[\"OK\",\"977e6cdc7b33874d0b45ce71b462aeedb51be8c2930cee01ff32889d8e81ec8a\",true,\"\"]"))
+  #(id: 0ee959e156cce11f590ce1ed8ddb642036be6a02935055bf920126338d90ba30, pubkey: eeb7632a3dae4a3e89219565a7b194975551a0559f592d406c9ffebbf114870f, kind: 1, content: "hello lovely", created_at: 2023-04-14T12:23:33-04:00, tags: @[], sig: 327e093aa6620233f729c23f32df062a5bf1775c0462751ebf8d8ce4ad455aabef5030bedceabb468d1add63bae6fd5370a6523e2c19551b486fa9129122082e)
+
   
-proc show(echo = false, raw = false, kinds: seq[int] = @[], limit = 10, ids: seq[string]): int =
-  ## show a post found by its id
-  proc request(id: sink string): CMRequest =
+proc show(echo = false, raw = false, kinds: seq[int] = @[1, 6, 30023], limit = 10, ids: seq[string]): int =
+  ## show a post
+  var messages = newSeqOfCap[CMRequest](ids.len)
+  var ids = ids
+  if ids.len == 0: ids = @[""] # Workaround cligen default opts
+  for id in ids:
     var filter = Filter(limit: limit, kinds: kinds)
     try:
       # TODO: Get relays as well
@@ -313,20 +309,14 @@ proc show(echo = false, raw = false, kinds: seq[int] = @[], limit = 10, ids: seq
           filter.tags = @[@["#d", entity.id]]
         elif entity is SkXOnlyPublicKey:
           filter.authors = @[entity.toHex]
-    except: discard
-    if filter.kinds.len == 0:
-      # Decent default kinds
-      filter.kinds = @[1, 6, 30023]
-    elif filter.kinds == @[-1]:
+    except: filter.ids = @[id]
+    if filter.kinds == @[1, 6, 30023, -1]:
       filter.kinds = @[]
-    CMRequest(id: randomID(), filter: filter)
+    messages.add CMRequest(id: randomID(), filter: filter)
 
   if echo:
-    if ids.len == 0:
-      echo request("")
-    else:
-      for id in ids:
-        echo toJson(request id)
+    for request in messages:
+      echo request.toJson()
     return
 
   var config = getConfig()
@@ -334,28 +324,38 @@ proc show(echo = false, raw = false, kinds: seq[int] = @[], limit = 10, ids: seq
   if relays.len == 0:
     usage "No relays configured, add relays with `nmostr relay enable`"
   randomize()
-  for id in ids:
+  for request in messages:
     while relays.len > 0:
       let relay = relays.nthKey(rand(relays.len - 1))
       relays.del(relay)
       let ws = newWebSocket(relay)
-      ws.send(toJson(request id))
+      ws.send(request.toJson)
       while true:
         let optMsg = ws.receiveMessage(10000)
         if optMsg.isNone or optMsg.unsafeGet.data == "": break
-        let msgUnion = optMsg.unsafeGet.data.fromMessage
-        unpack msgUnion, msg:
-          if msg is SMEose: break
-          if raw:
-            echo msg.toJson
-          else:
-            when msg is SMEvent:
-              echo msg.event.content & "\n"
+        try:
+          let msgUnion = optMsg.unsafeGet.data.fromMessage
+          unpack msgUnion, msg:
+            if raw:
+              echo msg.toJson
+            else:
+              when msg is SMEvent:
+                # echo "@" & $msg.event.pubkey & "\n" & $msg.event.id
+                echo $msg.event.created_at & ":"
+                if msg.event.kind == 6: # repost
+                  if msg.event.content.startsWith("{"): # is a stringified post
+                    echo msg.event.content.fromJson(events.Event).content
+                  # else fetch from #e tag
+                else:
+                  echo msg.event.content
+            when msg is SMEose: break
+            else: echo ""
+        except: discard
       # ws.send(Close(id: id)
       ws.close()
 #        if msg 
 #        some((kind: TextMessage, data: "[\"NOTICE\",\"ERROR: bad req: subscription id too short\"]"))
-      
+
 when isMainModule:
   import pkg/[cligen/argcvt]
   # taken from c-blake "https://github.com/c-blake/cligen/issues/212#issuecomment-1167777874"
@@ -380,12 +380,13 @@ when isMainModule:
     [relayDisable, cmdName = "disable", dispatchName = "rDisable", usage = "$command $args\n${doc}"],
     [relayRemove, cmdName = "remove", dispatchName = "rRemove", usage = "$command $args\n${doc}"],
     [relayList, cmdName = "list", dispatchName = "rList", usage = "$command $args\n${doc}"])
-  dispatchMultiGen(
-    ["fetch"],
-    [fetchSearch, cmdName = "search", dispatchName = "fSearch", usage = "$command $args\n${doc}"])
+  # dispatchMultiGen(
+  #   ["fetch"],
+  #   [fetchSearch, cmdName = "search", dispatchName = "fSearch", usage = "$command $args\n${doc}"])
   dispatchMulti(["multi", cmdName = "nmostr"],
     [accounts, doc = "manage your identities/keypairs", stopWords = @["create", "import", "remove", "list"]],
     [relay, doc = "configure what relays to send posts to", stopWords = @["enable", "disable", "remove", "list"]],
-    [fetch, doc = "fetch posts from relays", stopWords = @["search"]],
-    # post, (send, messsage > use for DM?) 
-    [post], [show, positional = "ids"])
+    # [fetch, doc = "fetch posts from relays", stopWords = @["search"]],
+    # post, (send, messsage > use for DM?)
+    [show, help = {"kinds": "kinds to filter for, pass -1 for any", "raw": "display all of the response rather than filtering to just the content"}, positional = "ids"],
+    [post])
