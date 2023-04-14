@@ -70,7 +70,7 @@ suite "events":
 
     check e.matches(f)
 
-  block time:
+  block times_ignore_nanosecond:
     var a = Filter() # until: initTime(high(int64), 0)
     var b = Filter(until: high(Time))
     var c = Filter(until: low(Time))
@@ -79,46 +79,27 @@ suite "events":
     check a.toJson != c.toJson
 
 suite "messages":
-  block client_event:
+  block serializing_and_parsing:
     check CMEvent(event: Event()) == ("[\"EVENT\"," & Event().toJson & "]").fromMessage
     check CMEvent(event: Event()).toJson == ("[\"EVENT\"," & Event().toJson & "]").fromMessage.toJson
-
-  block request:
     check CMRequest(id: "someid", filter: Filter()) == ("[\"REQ\",\"someid\"," & Filter().toJson & "]").fromJson(CMRequest)
     check CMRequest(id: "someid", filter: Filter()).toJson == ("[\"REQ\",\"someid\"," & Filter().toJson & "]").fromMessage.toJson
-
-  block close:
     check CMClose(id: "someid") == ("[\"CLOSE\",\"someid\"]").fromMessage
     check CMClose(id: "someid").toJson == ("[\"CLOSE\",\"someid\"]").fromMessage.toJson
-
-  block client_auth:
     check CMAuth(event: Event()) == ("[\"AUTH\"," & Event().toJson & "]").fromMessage
     check CMAuth(event: Event()).toJson == ("[\"AUTH\"," & Event().toJson & "]").fromMessage.toJson
-
-  block server_count:
     check CMCount(id: "someid", filter: Filter()) == ("""["COUNT","someid",""" & Filter().toJson & "]").fromMessage
     check CMCount(id: "someid", filter: Filter()).toJson == ("""["COUNT","someid",""" & Filter().toJson & "]").fromMessage.toJson
-
-  block server_event:
     check SMEvent(id: "someid", event: Event()) == ("[\"EVENT\",\"someid\"," & Event().toJson & "]").fromMessage
     check SMEvent(id: "someid", event: Event()).toJson == ("[\"EVENT\",\"someid\"," & Event().toJson & "]").fromMessage.toJson
-  block end_of_stored_events:
     check SMEose(id: "someid") == """["EOSE","someid"]""".fromMessage
     check SMEose(id: "someid").toJson == """["EOSE","someid"]""".fromMessage.toJson
-
-  block notice:
     check SMNotice(message: "Important notice.") == """["NOTICE","Important notice."]""".fromMessage
     check SMNotice(message: "Important notice.").toJson == """["NOTICE","Important notice."]""".fromMessage.toJson
-
-  block ok:
     check SMOk(id: "someid", saved: true, message: "") == """["OK","someid",true,""]""".fromMessage
     check SMOk(id: "someid", saved: true, message: "").toJson == """["OK","someid",true,""]""".fromMessage.toJson
-
-  block server_auth:
     check SMAuth(challenge: "challengestringhere") == """["AUTH","challengestringhere"]""".fromMessage
     check SMAuth(challenge: "challengestringhere").toJson == """["AUTH","challengestringhere"]""".fromMessage.toJson
-
-  block server_count:
     check SMCount(count: 420) == """["COUNT",420]""".fromMessage
     check SMCount(count: 420).toJson == """["COUNT",420]""".fromMessage.toJson
 
@@ -139,7 +120,7 @@ suite "messages":
       discard ("[\"EVENT\",L" & Event().toJson & "]").fromMessage
 
 suite "signatures":
-  block signatures:
+  block signing_and_verifying:
     var e = note("hello world", newKeypair())
     check e.verify
     e.stamp(newKeypair())
@@ -148,7 +129,7 @@ suite "signatures":
     check not e.verify
 
 suite "bech32":
-  block nostr_nip19:
+  block parsing_nip19:
     check fromNostrBech32("npub10elfcs4fr0l0r8af98jlmgdh9c8tcxjvz9qkw038js35mp4dma8qzvjptg") == SkXOnlyPublicKey.fromHex("7e7e9c42a91bfef19fa929e5fda1b72e0ebc1a4c1141673e2794234d86addf4e")[]
     check fromNostrBech32("nsec1vl029mgpspedva04g90vltkh6fvh240zqtv9k0t9af8935ke9laqsnlfe5") == SkSecretKey.fromHex("67dea2ed018072d675f5415ecfaed7d2597555e202d85b3d65ea4e58d2d92ffa")[]
     check fromNostrBech32("nprofile1qqsrhuxx8l9ex335q7he0f09aej04zpazpl0ne2cgukyawd24mayt8gpp4mhxue69uhhytnc9e3k7mgpz4mhxue69uhkg6nzv9ejuumpv34kytnrdaksjlyr9p") == NProfile(key: SkXOnlyPublicKey.fromHex("3bf0c63fcb93463407af97a5e5ee64fa883d107ef9e558472c4eb9aaaefa459d")[], relays: @["wss://r.x.com", "wss://djbas.sadkb.com"])
