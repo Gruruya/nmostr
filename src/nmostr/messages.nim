@@ -60,13 +60,14 @@ type
   SMCount* = object of ServerMessage   ## ["COUNT", <integer>]
     count*: int64
 
-  ClientMessageClass = (CMEvent | CMRequest | CMClose | CMAuth | CMCount)
-  ServerMessageClass = (SMEvent | SMEose | SMNotice | SMOk | SMAuth | SMCount)
-  MessageClass = (ClientMessageClass | ServerMessageClass)
+  ClientMessageClass* = (CMEvent | CMRequest | CMClose | CMAuth | CMCount)
+  ServerMessageClass* = (SMEvent | SMEose | SMNotice | SMOk | SMAuth | SMCount)
+  MessageClass* = (ClientMessageClass | ServerMessageClass)
 
 type UnknownMessageError* = object of ValueError
 
 proc randomID*(): string =
+  ## Get a random ID to identify your messages
   urandom(32).toHex
   
 # JSON interop
@@ -74,7 +75,7 @@ proc randomID*(): string =
 
 template parseArrayAsObject(T: typedesc) =
   ## Parse JSON array as object `T`.
-  proc parseHook*(s: string, i: var int, v: var T) =
+  func parseHook*(s: string, i: var int, v: var T) =
     ## Parse message array as its corresponding `Message` object.
     eatChar(s, i, '[')
     skipValue(s, i)
@@ -137,7 +138,7 @@ setupArrayObjectParsing(SMOk, "OK")
 setupArrayObjectParsing(SMAuth, "AUTH")
 setupArrayObjectParsing(SMCount, "COUNT")
 
-proc parseHook*(s: string, i: var int, v: var union(MessageClass)) =
+func parseHook*(s: string, i: var int, v: var union(MessageClass)) =
   ## Parses a message of unknown type into the `Message` object inferred by the array's first element and shape.
   template parseAs(T: typedesc): union(MessageClass) =
     i = start

@@ -52,9 +52,9 @@ type Filter* = object
   limit*: int             ## Maximum number of events to be returned in the initial query.
 
 type Metadata* = object ## Content of kind 0 (metadata) event
-  name: string    ## username
-  about: string   ## description
-  picture: string ## url
+  name*: string    ## username
+  about*: string   ## description
+  picture*: string ## url
 
 type Keypair* = object
   ## Representation of private/public keys pair.
