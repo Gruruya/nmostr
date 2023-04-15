@@ -15,7 +15,7 @@ Look at [niomo](https://github.com/Gruruya/niomo) for a reference client and [te
 
 What is Nostr?
 ---
-[Nostr](https://nostr.com) is a standard for sending and receiving messages between users identified by their public keys using generic servers, or "relays", that handle the storage. There then can be multiple different "frontends" using these relays as "backends" that can interface with one another regardless of how they look.
+[Nostr](https://nostr.com) is a standard for sending and receiving messages between users identified by their public keys using generic servers or "relays" that handle storage and logic. There then can be multiple different "frontends" using these relays as "backends" that can interface with one another regardless of how they look.
 
 It was made with the intent of being a decentralized alternative to Twitter and an alternative to the [Fediverse](https://www.fediverse.to) ([Mastodon](https://joinmastodon.org)/[Pleroma](https://pleroma.social)) that doesn't constrain users to one server that can be shut down or blocked.
 
