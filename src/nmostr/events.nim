@@ -60,7 +60,7 @@ type Metadata* = object ## Content of kind 0 (metadata) event
   picture*: string ## url
 
 type Keypair* = object
-  ## Representation of private/public keys pair.
+  ## Representation of private/public key pair.
   seckey*: SkSecretKey
   pubkey*: SkXOnlyPublicKey
 
@@ -84,7 +84,7 @@ func parseHook*(s: string, i: var int, v: var SkSchnorrSignature) {.raises: [Jso
   ## Parse `id` as a hexadecimal encoding [of a sha256 hash.]
   var j: string
   parseHook(s, i, j)
-  # FIXME: Silently failing, replacing incorrect with nulled pubkeys
+  # FIXME: Silently failing, replacing incorrect with nulled signature
   v = (SkSchnorrSignature.fromHex j).valueOr: default(typeof v)
 
 func dumpHook*(s: var string, v: EventID | SkXOnlyPublicKey | SkSchnorrSignature) =

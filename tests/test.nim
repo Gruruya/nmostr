@@ -44,9 +44,9 @@ suite "events":
 
     check e.matches(f)
 
-    f.since = high(Time)
-    check not e.matches(f)
-    f.since = low(Time)
+    f.since = high(Time)   # Add wrong value to filter
+    check not e.matches(f) # Check filter doesn't match
+    f.since = low(Time)    # Add right value to filter
 
     f.until = low(Time)
     check not e.matches(f)
