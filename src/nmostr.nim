@@ -15,5 +15,5 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with nmostr.  If not, see <http://www.gnu.org/licenses/>.
 
-import nmostr/[events, messages]
-export events, messages
+import nmostr/[events, messages, bech32]
+export events, messages, bech32
