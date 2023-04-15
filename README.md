@@ -1,11 +1,13 @@
-# nmostr:scroll:
+# nmostr
 
-A template to jump start your Nim library or project.
+Library for working with Nostr.
 
-* Tests using [balls](https://github.com/disruptek/balls)
-* GitHub Actions [workflows](../../actions)
-  * Runs tests on multiple OSes and ISAs
-  * Builds and deploys [API reference on GitHub Pages](https://Gruruya.github.io/nmostr/nmostr.html)
+Contained modules:
+* Events
+* Messages
+* Bech32 decoding
+
+Stability: Early days. Functional.
 
 ---
 [![GitHub CI](../../actions/workflows/build.yml/badge.svg?branch=master)](../../actions/workflows/build.yml)
@@ -14,4 +16,4 @@ A template to jump start your Nim library or project.
 
 Usage
 ---
-Look at [tests/test.nim](tests/test.nim).
+Look at [niomo](https://github.com/Gruruya/niomo) for a reference client and [tests/test.nim](tests/test.nim).

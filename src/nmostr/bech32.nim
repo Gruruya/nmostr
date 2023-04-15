@@ -170,9 +170,9 @@ func fromUInt32(data: seq[byte]): uint32 {.inline, raises: [].} =
 
 ##### Parsing Bech32 #####
 
-func fromRaw*(T: type SkXOnlyPublicKey, data: openArray[byte]): SkResult[SkXOnlyPublicKey] {.inline.} =
-  if data.len == 33: SkXOnlyPublicKey.fromRaw(data[0..^2])
-  elif data.len == 32: SkXOnlyPublicKey.fromRaw(data)
+func fromRaw*(T: type SkXOnlyPublicKey, data: openArray[byte]): SkResult[SkXOnlyPublicKey] {.inline, raises: [].} =
+  if data.len == 33: secp256k1.fromRaw(SkXOnlyPublicKey, data[0..^2])
+  elif data.len == 32: secp256k1.fromRaw(SkXOnlyPublicKey, data)
   else: err("bech32: x-only public key must be 32 or 33 bytes")
 
 func fromRaw*(T: type NProfile, address: seq[byte]): T =
