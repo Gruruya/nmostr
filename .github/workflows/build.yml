@@ -16,13 +16,6 @@ jobs:
         nim-version: [devel]
         os: [ubuntu-latest, windows-latest, macOS-latest]
         arch: [x86_64]
-        include:
-          - arch: 'aarch64'
-            os: 'ubuntu-latest'
-          - arch: 'riscv64'
-            os: 'ubuntu-latest'
-          - arch: 'ppc64le'
-            os: 'ubuntu-latest'
 
     runs-on: ${{ matrix.os }}
 
