@@ -18,8 +18,7 @@
 ## Utilities for working with Nostr events.
 
 import std/[times, strutils, sequtils, macros, sysrand, sugar]
-import pkg/[jsony, secp256k1, crunchy]
-import ./common
+import pkg/[jsony, secp256k1, crunchy, stew/byteutils]
 
 export jsony, times, secp256k1
 

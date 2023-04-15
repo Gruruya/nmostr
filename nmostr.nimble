@@ -10,6 +10,7 @@ skipDirs = @["tests"]
 requires "nim >= 1.9.1"
 requires "jsony ^= 1.1"
 requires "crunchy >= 0.1.8"
+requires "stew"
 requires "https://github.com/Gruruya/nim-secp256k1#less-safe"
 requires "https://github.com/alaviss/union >= 0.1.3"
 

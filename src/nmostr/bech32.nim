@@ -18,11 +18,11 @@
 ## Modified from Pieter Wuille's reference Python implementation `sipa/bech32/python/segwit_addr.py`
 ## Nostr-style Bech32 addresses use no witness version or m-encoding.
 
-import pkg/[secp256k1, union]
+import pkg/[secp256k1, union, stew/byteutils]
 from std/tables import toTable, `[]`
 from std/sequtils import mapIt
 from std/strutils import toLower, rfind, join
-import ./common, ./events
+import ./events
 
 type InvalidBech32Error* = object of ValueError
 
