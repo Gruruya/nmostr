@@ -3,9 +3,9 @@ author      = "Gruruya"
 description = "Library for working with the Nostr protocol."
 license     = "AGPL-3.0-only"
 
-namedBin["nmostr/cli"] = "nmostr"
 srcDir = "src"
 skipDirs = @["tests"]
+namedBin["nmostr/cli"] = "nmostr"
 
 # Dependencies
 requires "nim >= 1.9.1"

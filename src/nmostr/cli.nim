@@ -87,7 +87,7 @@ template defaultKeypair: Keypair =
   if config.account == "": newKeypair()
   else: config.keypair(config.account)
 
-template selectKeypair(account: Option[string]): Keypair =
+template getKeypair(account: Option[string]): Keypair =
   if account.isNone: defaultKeypair()
   elif account == some "": newKeypair()
   else: config.keypair(unsafeGet account)
@@ -97,7 +97,7 @@ template selectKeypair(account: Option[string]): Keypair =
 proc post*(echo = false, account: Option[string] = none string, text: seq[string]): int =
   ## make a post
   var config = getConfig()
-  let keypair = selectKeypair(account)
+  let keypair = getKeypair(account)
 
   let post = CMEvent(event: note(text.join(" "), keypair)).toJson # TODO: Add enabled relays
   if echo:
@@ -119,6 +119,7 @@ proc post*(echo = false, account: Option[string] = none string, text: seq[string
 
 proc show*(echo = false, raw = false, kinds: seq[int] = @[1, 6, 30023], limit = 10, ids: seq[string]): int =
   ## show a post
+  # TODO: Reversing output
   var messages = newSeqOfCap[CMRequest](ids.len)
   var ids = ids                #
   if ids.len == 0: ids = @[""] # Workaround cligen default opts
@@ -175,6 +176,8 @@ proc show*(echo = false, raw = false, kinds: seq[int] = @[1, 6, 30023], limit = 
                 if msg.event.kind == 6: # repost
                   if msg.event.content.startsWith("{"): # is a stringified post
                     echo msg.event.content.fromJson(events.Event).content
+                  else:
+                    echo msg.event.content
                   # else fetch from #e tag
                 else:
                   echo msg.event.content
@@ -183,8 +186,6 @@ proc show*(echo = false, raw = false, kinds: seq[int] = @[1, 6, 30023], limit = 
         except: discard
       # ws.send(Close(id: id)
       ws.close()
-#        if msg 
-#        some((kind: TextMessage, data: "[\"NOTICE\",\"ERROR: bad req: subscription id too short\"]"))
 
 template randomAccount: (string, Keypair) =
   var kp = newKeypair()
