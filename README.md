@@ -11,7 +11,7 @@ Stability: Early days. Functional.
 
 Usage
 ---
-Look at [niomo](https://github.com/Gruruya/niomo) for a reference client and [tests/test.nim](tests/test.nim).
+See the reference client [niomo](https://github.com/Gruruya/niomo) and [tests/test.nim](tests/test.nim).
 
 What is Nostr?
 ---
