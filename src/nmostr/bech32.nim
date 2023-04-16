@@ -24,17 +24,19 @@ from std/sequtils import mapIt
 from std/strutils import toLower, rfind, join
 import ./events
 
+type int5* = int
+
 type InvalidBech32Error* = object of ValueError
 
 template error(reason: string) =
   raise newException(InvalidBech32Error, reason)
-  
+
 const CHARSET = "qpzry9x8gf2tvdw0s3jn54khce6mua7l"
-const CHARSET_MAP = CHARSET.mapIt((it, CHARSET.find(it))).toTable()
+const CHARSET_MAP = CHARSET.mapIt((it, CHARSET.find(it).int5)).toTable()
 
 {.push raises: [].}
 
-func bech32Decode(bech: sink string): tuple[hrp: string, data: seq[int]] {.raises: [InvalidBech32Error].} =
+func bech32Decode(bech: sink string): tuple[hrp: string, data: seq[int5]] {.raises: [InvalidBech32Error].} =
   bech = bech.toLower()
   let pos = bech.rfind('1')
   if pos < 1 or pos + 7 > bech.len: # or len(bech) > 90:
@@ -47,7 +49,7 @@ func bech32Decode(bech: sink string): tuple[hrp: string, data: seq[int]] {.raise
   #   error bech & " has an invalid checksum"
   result.data.setLen(result.data.len - 6) # Cut off checksum
 
-func toWords*(data: openArray[byte]): seq[int] {.raises: [InvalidBech32Error].} =
+func toWords*(data: openArray[byte]): seq[int5] {.raises: [InvalidBech32Error].} =
   ## int8 → int5 conversion
   var acc, bits = 0
   const maxV = (1 shl 5) - 1
@@ -59,24 +61,24 @@ func toWords*(data: openArray[byte]): seq[int] {.raises: [InvalidBech32Error].} 
     bits += 8
     while bits >= 5:
       bits -= 5
-      result[idx] = (acc shr bits) and maxV
+      result[idx] = int5((acc shr bits) and maxV)
       inc(idx)
   if bits > 0:
-    result[idx] = (acc shl (5 - bits)) and maxV
+    result[idx] = int5((acc shl (5 - bits)) and maxV)
   else:
     if bits >= 8: error "Excess padding"
     elif ((acc shl (5 - bits)) and maxV) != 0: error "Non-zero padding"
 
-func fromWords*(data: openArray[int]): seq[byte] {.raises: [InvalidBech32Error].} =
+func fromWords*(data: openArray[int5]): seq[byte] {.raises: [InvalidBech32Error].} =
   ## int5 → int8 conversion
-  var acc = 0.int
+  var acc = 0.int5
   var bits = 0.int8
   const maxV = (1 shl 8) - 1
   let outputLen = (data.len * 5) div 8
   result.setLen(outputLen)
   var idx = 0
   for value in data:
-    acc = (acc shl 5) or value
+    acc = (acc shl 5.int5) or value
     bits += 5
     while bits >= 8:
       bits -= 8
@@ -85,8 +87,8 @@ func fromWords*(data: openArray[int]): seq[byte] {.raises: [InvalidBech32Error].
   if bits >= 5: error "Excess padding"
   elif ((acc shl (8 - bits)) and maxV) != 0: error "Non-zero padding"
 
-func bech32Polymod(values: openArray[int]): int =
-  const generator = [0x3b6a57b2, 0x26508e6d, 0x1ea119fa, 0x3d4233dd, 0x2a1462b3]
+func bech32Polymod(values: openArray[int5]): int5 =
+  const generator = [int5 0x3b6a57b2, 0x26508e6d, 0x1ea119fa, 0x3d4233dd, 0x2a1462b3]
   result = 1
   for value in values:
     let top = result shr 25
@@ -94,21 +96,21 @@ func bech32Polymod(values: openArray[int]): int =
     for i in 0 ..< 5:
       result = result xor (if (top shr i and 1) == 1: generator[i] else: 0)
 
-func hrpExpand(hrp: string): seq[int] =
-  result = newSeq[int](hrp.len * 2 + 1)
+func hrpExpand(hrp: string): seq[int5] =
+  result = newSeq[int5](hrp.len * 2 + 1)
   for i, c in hrp:
-    result[i] = ord(c) shr 5
-    result[i + hrp.len + 1] = ord(c) and 31
+    result[i] = int5(c) shr 5
+    result[i + hrp.len + 1] = int5(c) and 31
 
-proc bech32VerifyChecksum*(hrp: string, data: openArray[int]): bool =
+proc bech32VerifyChecksum*(hrp: string, data: openArray[int5]): bool =
   bech32Polymod(hrpExpand(hrp) & @data) == 1
 
 func encode*(hrp: string, witprog: openArray[byte]): string {.raises: [InvalidBech32Error].} =
   ## Encode into a bech32 address
-  func checksum(hrp: string, data: openArray[int]): seq[int] =
+  func checksum(hrp: string, data: openArray[int5]): seq[int5] =
     let values = hrpExpand(hrp) & @data
-    let polymod = bech32Polymod(values & @[0, 0, 0, 0, 0, 0]) xor 1
-    result = newSeqOfCap[int](5)
+    let polymod = bech32Polymod(values & @[int5 0, 0, 0, 0, 0, 0]) xor 1
+    result = newSeqOfCap[int5](5)
     for i in 0 .. 5:
       result.add (polymod shr (5 * (5 - i))) and 31
   
