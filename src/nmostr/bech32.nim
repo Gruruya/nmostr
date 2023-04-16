@@ -129,10 +129,10 @@ func decode*(hrp, address: string): seq[byte] {.inline, raises: [InvalidBech32Er
     error "Incorrect hrp " & hrpGot & " in bech32 address, expected " & hrp
   result = fromWords(data)
   
-template toString*(bech32: tuple[hrp: string, data: seq[byte]]): string =
+template toString*(bech32: tuple[hrp: string, data: openArray[byte]]): string =
   string.fromBytes bech32.data
 
-## Nostr specific. NIP-19
+# Nostr specific. NIP-19 #
 
 type
   NProfile* = object
@@ -161,31 +161,31 @@ type
 
   UnknownTLVError* = object of ValueError
 
-template parseData(address: seq[byte], i: var int): tuple[kind: int8, data: seq[byte]] =
-  if i + 1 >= address.len: break
-  let (kind, length) = (cast[int8](address[i]), cast[int8](address[i + 1]))
-  i += 2
-  if i + length - 1 > address.len: error "End of value " & $(i + length - 1) & " exceeds bech32 address length " & $address.len & "."
-  let data = address[i..<i + length]
-  i += length
-  (kind, data)
+# Parsing #
 
 func toArray[T](N: static int, data: openArray[T]): array[N, T] {.inline.} =
   # Taken from `stew/objects.nim`
   doAssert data.len == N
   copyMem(addr result[0], unsafeAddr data[0], N)
 
-func fromUInt32(data: seq[byte]): uint32 {.inline.} =
+func fromUInt32(data: openArray[byte]): uint32 {.inline.} =
   for i in 0..<4: result = result or (uint32(data[3 - i]) shl (i * 8))
 
-##### Parsing Nostr Bech32 (NIP-19) #####
+template parseData(address: openArray[byte], i: var int): tuple[kind: int8, data: seq[byte]] =
+  if i + 1 >= address.len: break
+  let (kind, length) = (cast[int8](address[i]), cast[int8](address[i + 1]))
+  i += 2
+  if i + length - 1 > address.len: error "End of value " & $(i + length - 1) & " exceeds bech32 address length " & $address.len
+  let data = address[i..<i + length]
+  i += length
+  (kind, data)
 
 func fromRaw*(T: type SkXOnlyPublicKey, data: openArray[byte]): SkResult[SkXOnlyPublicKey] {.inline.} =
   if data.len == 33: secp256k1.fromRaw(SkXOnlyPublicKey, data[0..^2])
   elif data.len == 32: secp256k1.fromRaw(SkXOnlyPublicKey, data)
   else: err("bech32: x-only public key must be 32 or 33 bytes")
 
-func fromRaw*(T: type NProfile, address: seq[byte]): T {.raises: [InvalidBech32Error].} =
+func fromRaw*(T: type NProfile, address: openArray[byte]): T {.raises: [InvalidBech32Error].} =
   var i = 0
   while true:
     let (kind, data) = parseData(address, i)
@@ -199,7 +199,7 @@ func fromRaw*(T: type NProfile, address: seq[byte]): T {.raises: [InvalidBech32E
     else:
       discard
 
-func fromRaw*(T: type NEvent, address: seq[byte]): T {.raises: [InvalidBech32Error].} =
+func fromRaw*(T: type NEvent, address: openArray[byte]): T {.raises: [InvalidBech32Error].} =
   var i = 0
   while true:
     let (kind, data) = parseData(address, i)
@@ -219,7 +219,7 @@ func fromRaw*(T: type NEvent, address: seq[byte]): T {.raises: [InvalidBech32Err
     else:
       discard
 
-func fromRaw*(T: type NAddr, address: seq[byte]): T {.raises: [InvalidBech32Error].} =
+func fromRaw*(T: type NAddr, address: openArray[byte]): T {.raises: [InvalidBech32Error].} =
   var i = 0
   while true:
     let (kind, data) = parseData(address, i)
@@ -268,7 +268,7 @@ proc fromNostrBech32*(address: string): union(Bech32EncodedEntity) {.raises: [In
   else:
     raise newException(UnknownTLVError, "Unknown TLV starting with " & kind)
 
-###### Encoding Nostr Bech32 #######
+# Encoding #
 
 proc toBech32*(pubkey: SkXOnlyPublicKey): string {.raises: [InvalidBech32Error].} =
   encode("npub", pubkey.toRaw)
