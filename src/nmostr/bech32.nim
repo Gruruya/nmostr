@@ -32,9 +32,6 @@ template error(reason: string) =
 const CHARSET = "qpzry9x8gf2tvdw0s3jn54khce6mua7l"
 const CHARSET_MAP = CHARSET.mapIt((it, CHARSET.find(it))).toTable()
 
-# proc bech32VerifyChecksum(hrp: string, data: openArray[int]): bool =
-#   bech32Polymod(bech32HrpExpand(hrp) & @data) == 1
-
 {.push raises: [InvalidBech32Error].}
 
 func bech32Decode(bech: sink string): tuple[hrp: string, data: seq[int]] =
@@ -70,29 +67,32 @@ func convertBits*(data: openArray[int], fromBits, toBits: static[int], pad = tru
     if bits >= fromBits: error "Excess padding"
     if ((acc shl (toBits - bits)) and maxV) != 0: error "Non-zero padding"
 
-template toWords*(bytes: openArray[int]): seq[int] =
-  convertBits(bytes, 8, 5, true)
+template toWords*(bytes: openArray[byte]): seq[int] =
+  convertBits(bytes.mapIt(ord(it)), 8, 5, true)
 
 template fromWords*(words: openArray[int]): seq[byte] =
   convertBits(words, 5, 8, false).mapIt(byte(it))
 
-func encode*(hrp: string, witprog: openArray[int]): string =
+func bech32Polymod(values: openArray[int]): int {.raises: [].} =
+  const generator = [0x3b6a57b2, 0x26508e6d, 0x1ea119fa, 0x3d4233dd, 0x2a1462b3]
+  result = 1
+  for value in values:
+    let top = result shr 25
+    result = (result and 0x1ffffff) shl 5 xor value
+    for i in 0 ..< 5:
+      result = result xor (if (top shr i and 1) == 1: generator[i] else: 0)
+
+func hrpExpand(hrp: string): seq[int] {.raises: [].} =
+  result = newSeq[int](hrp.len * 2 + 1)
+  for i, c in hrp:
+    result[i] = ord(c) shr 5
+    result[i + hrp.len + 1] = ord(c) and 31
+
+proc bech32VerifyChecksum*(hrp: string, data: openArray[int]): bool =
+  bech32Polymod(hrpExpand(hrp) & @data) == 1
+
+func encode*(hrp: string, witprog: openArray[byte]): string =
   ## Encode into a bech32 address
-  func bech32Polymod(values: openArray[int]): int {.raises: [].} =
-    const generator = [0x3b6a57b2, 0x26508e6d, 0x1ea119fa, 0x3d4233dd, 0x2a1462b3]
-    result = 1
-    for value in values:
-      let top = result shr 25
-      result = (result and 0x1ffffff) shl 5 xor value
-      for i in 0 ..< 5:
-        result = result xor (if (top shr i and 1) == 1: generator[i] else: 0)
-  
-  func hrpExpand(hrp: string): seq[int] {.raises: [].} =
-    result = newSeq[int](hrp.len * 2 + 1)
-    for i, c in hrp:
-      result[i] = ord(c) shr 5
-      result[i + hrp.len + 1] = ord(c) and 31
-  
   func checksum(hrp: string, data: openArray[int]): seq[int] {.raises: [].} =
     let values = hrpExpand(hrp) & @data
     let polymod = bech32Polymod(values & @[0, 0, 0, 0, 0, 0]) xor 1
@@ -168,7 +168,7 @@ func toArray[T](N: static int, data: openArray[T]): array[N, T] {.raises: [].} =
 func fromUInt32(data: seq[byte]): uint32 {.inline, raises: [].} =
   for i in 0..<4: result = result or (uint32(data[3 - i]) shl (i * 8))
 
-##### Parsing Bech32 #####
+##### Parsing Nostr Bech32 (NIP-19) #####
 
 func fromRaw*(T: type SkXOnlyPublicKey, data: openArray[byte]): SkResult[SkXOnlyPublicKey] {.inline, raises: [].} =
   if data.len == 33: secp256k1.fromRaw(SkXOnlyPublicKey, data[0..^2])
@@ -257,3 +257,11 @@ proc fromNostrBech32*(address: string): union(Bech32EncodedEntity) {.raises: [In
     NRelay.fromRaw(data) as union(Bech32EncodedEntity)
   else:
     raise newException(UnknownTLVError, "Unknown TLV starting with " & kind)
+
+###### Encoding Nostr Bech32 #######
+
+proc toBech32*(pubkey: SkXOnlyPublicKey): string {.raises: [InvalidBech32Error].} =
+  encode("npub", pubkey.toRaw)
+ 
+proc toBech32*(seckey: SkSecretKey): string {.raises: [InvalidBech32Error].} =
+  encode("nsec", seckey.toRaw)
