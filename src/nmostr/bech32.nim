@@ -237,12 +237,20 @@ func fromRaw*(T: type NAddr, address: openArray[byte]): T {.raises: [InvalidBech
     else:
       discard
 
-func fromRaw*(T: type NRelay, address: seq[byte]): T {.raises: [InvalidBech32Error].} =
+func fromRaw*(T: type NRelay, address: openArray[byte]): T {.raises: [InvalidBech32Error].} =
   var i = 0
   while true:
     let (kind, data) = parseData(address, i)
     if kind == 0:
       return NRelay(url: string.fromBytes(data))
+
+func fromRaw*(T: type NNote, address: openArray[byte]): T {.raises: [InvalidBech32Error].} =
+  if address.len == 32:
+    NNote(id: EventID(bytes: toArray(32, address)))
+  elif address.len > 32:
+    NNote(id: EventID(bytes: toArray(32, address[0..31]))) # WARNING: Maybe? Silent failure.
+  else:
+    error "Event ID in bech32 encoded note should be 32 bytes, but was " & $address.len & " bytes instead"
 
 proc fromNostrBech32*(address: string): union(Bech32EncodedEntity) {.raises: [InvalidBech32Error, UnknownTLVError].} =
   let (kind, data) = decode(address)
@@ -256,7 +264,7 @@ proc fromNostrBech32*(address: string): union(Bech32EncodedEntity) {.raises: [In
     if sk.isOk: unsafeGet(sk) as union(Bech32EncodedEntity)
     else: error $sk.error
   of "note":
-    NNote(id: EventID(bytes: toArray(32, data))) as union(Bech32EncodedEntity)
+    NNote.fromRaw(data) as union(Bech32EncodedEntity)
   of "nprofile":
     NProfile.fromRaw(data) as union(Bech32EncodedEntity)
   of "nevent":
