@@ -163,7 +163,7 @@ type
 
 # Parsing #
 
-func toArray[T](N: static int, data: openArray[T]): array[N, T] {.inline.} =
+func toArray[T](N: static int, data: seq[T]): array[N, T] {.inline.} =
   # Taken from `stew/objects.nim`
   doAssert data.len == N
   copyMem(addr result[0], unsafeAddr data[0], N)
@@ -244,7 +244,7 @@ func fromRaw*(T: type NRelay, address: openArray[byte]): T {.raises: [InvalidBec
     if kind == 0:
       return NRelay(url: string.fromBytes(data))
 
-func fromRaw*(T: type NNote, address: openArray[byte]): T {.raises: [InvalidBech32Error].} =
+func fromRaw*(T: type NNote, address: seq[byte]): T {.raises: [InvalidBech32Error].} =
   if address.len == 32:
     NNote(id: EventID(bytes: toArray(32, address)))
   elif address.len > 32:
