@@ -48,6 +48,7 @@ func bech32Decode(bech: sink string): tuple[hrp: string, data: seq[int]] {.raise
   result.data.setLen(result.data.len - 6) # Cut off checksum
 
 func toWords*(data: openArray[byte]): seq[int] {.raises: [InvalidBech32Error].} =
+  ## int8 → int5 conversion
   var acc, bits = 0
   const maxV = (1 shl 5) - 1
   let outputLen = (data.len * 8 + 4) div 5
@@ -67,6 +68,7 @@ func toWords*(data: openArray[byte]): seq[int] {.raises: [InvalidBech32Error].} 
     elif ((acc shl (5 - bits)) and maxV) != 0: error "Non-zero padding"
 
 func fromWords*(data: openArray[int]): seq[byte] {.raises: [InvalidBech32Error].} =
+  ## int5 → int8 conversion
   var acc = 0.int
   var bits = 0.int8
   const maxV = (1 shl 8) - 1
