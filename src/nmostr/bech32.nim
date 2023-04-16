@@ -32,48 +32,58 @@ template error(reason: string) =
 const CHARSET = "qpzry9x8gf2tvdw0s3jn54khce6mua7l"
 const CHARSET_MAP = CHARSET.mapIt((it, CHARSET.find(it))).toTable()
 
-{.push raises: [InvalidBech32Error].}
+{.push raises: [].}
 
-func bech32Decode(bech: sink string): tuple[hrp: string, data: seq[int]] =
+func bech32Decode(bech: sink string): tuple[hrp: string, data: seq[int]] {.raises: [InvalidBech32Error].} =
   bech = bech.toLower()
   let pos = bech.rfind('1')
   if pos < 1 or pos + 7 > bech.len: # or len(bech) > 90:
-    error("'1' not found in " & bech)
+    error "'1' not found in " & bech
   result.hrp = bech[0..<pos]
   try:
     result.data = bech[pos + 1..^1].mapIt(CHARSET_MAP[it])
-  except KeyError: error("Invalid character in bech32 hash " & bech)
+  except KeyError: error "Invalid character in bech32 hash " & bech
   # if not bech32VerifyChecksum(result.hrp, result.data):
-  #   error(bech & " has an invalid checksum")
-  result.data.setLen(result.data.len - 6)
+  #   error bech & " has an invalid checksum"
+  result.data.setLen(result.data.len - 6) # Cut off checksum
 
-func convertBits*(data: openArray[int], fromBits, toBits: static[int], pad = true): seq[int] =
+func toWords*(data: openArray[byte]): seq[int] {.raises: [InvalidBech32Error].} =
   var acc, bits = 0
-  const maxV = (1 shl toBits) - 1
-  # const maxAcc = (1 shl (fromBits + toBits - 1)) - 1
-  result = newSeqOfCap[int](data.len)
+  const maxV = (1 shl 5) - 1
+  let outputLen = (data.len * 8 + 4) div 5
+  result.setLen(outputLen)
+  var idx = 0
   for value in data:
-    # if acc < 0 or (acc shr fromBits) != 0:
-    #   error("Bits must be positive " & $fromBits & " bit integers.")
-    # acc = ((acc shl fromBits) or acc) and maxAcc
-    acc = (acc shl fromBits) or value
-    bits += fromBits
-    while bits >= toBits:
-      bits -= toBits
-      result.add (acc shr bits) and maxV
-  if pad and bits > 0:
-    result.add (acc shl (toBits - bits)) and maxV
+    acc = (acc shl 8) or ord(value)
+    bits += 8
+    while bits >= 5:
+      bits -= 5
+      result[idx] = (acc shr bits) and maxV
+      inc(idx)
+  if bits > 0:
+    result[idx] = (acc shl (5 - bits)) and maxV
   else:
-    if bits >= fromBits: error "Excess padding"
-    if ((acc shl (toBits - bits)) and maxV) != 0: error "Non-zero padding"
+    if bits >= 8: error "Excess padding"
+    elif ((acc shl (5 - bits)) and maxV) != 0: error "Non-zero padding"
 
-template toWords*(bytes: openArray[byte]): seq[int] =
-  convertBits(bytes.mapIt(ord(it)), 8, 5, true)
+func fromWords*(data: openArray[int]): seq[byte] {.raises: [InvalidBech32Error].} =
+  var acc = 0.int
+  var bits = 0.int8
+  const maxV = (1 shl 8) - 1
+  let outputLen = (data.len * 5) div 8
+  result.setLen(outputLen)
+  var idx = 0
+  for value in data:
+    acc = (acc shl 5) or value
+    bits += 5
+    while bits >= 8:
+      bits -= 8
+      result[idx] = ((acc shr bits) and maxV).byte
+      inc(idx)
+  if bits >= 5: error "Excess padding"
+  elif ((acc shl (8 - bits)) and maxV) != 0: error "Non-zero padding"
 
-template fromWords*(words: openArray[int]): seq[byte] =
-  convertBits(words, 5, 8, false).mapIt(byte(it))
-
-func bech32Polymod(values: openArray[int]): int {.raises: [].} =
+func bech32Polymod(values: openArray[int]): int =
   const generator = [0x3b6a57b2, 0x26508e6d, 0x1ea119fa, 0x3d4233dd, 0x2a1462b3]
   result = 1
   for value in values:
@@ -82,7 +92,7 @@ func bech32Polymod(values: openArray[int]): int {.raises: [].} =
     for i in 0 ..< 5:
       result = result xor (if (top shr i and 1) == 1: generator[i] else: 0)
 
-func hrpExpand(hrp: string): seq[int] {.raises: [].} =
+func hrpExpand(hrp: string): seq[int] =
   result = newSeq[int](hrp.len * 2 + 1)
   for i, c in hrp:
     result[i] = ord(c) shr 5
@@ -91,9 +101,9 @@ func hrpExpand(hrp: string): seq[int] {.raises: [].} =
 proc bech32VerifyChecksum*(hrp: string, data: openArray[int]): bool =
   bech32Polymod(hrpExpand(hrp) & @data) == 1
 
-func encode*(hrp: string, witprog: openArray[byte]): string =
+func encode*(hrp: string, witprog: openArray[byte]): string {.raises: [InvalidBech32Error].} =
   ## Encode into a bech32 address
-  func checksum(hrp: string, data: openArray[int]): seq[int] {.raises: [].} =
+  func checksum(hrp: string, data: openArray[int]): seq[int] =
     let values = hrpExpand(hrp) & @data
     let polymod = bech32Polymod(values & @[0, 0, 0, 0, 0, 0]) xor 1
     result = newSeqOfCap[int](5)
@@ -109,14 +119,14 @@ func encode*(hrp: string, witprog: openArray[byte]): string =
 template encode*(hrp, witprog: string): string =
   encode(hrp, witprog.toBytes)
   
-func decode*(address: string): tuple[hrp: string, data: seq[byte]] {.inline.} =
+func decode*(address: string): tuple[hrp: string, data: seq[byte]] {.inline, raises: [InvalidBech32Error].} =
   let (hrp, data) = bech32Decode(address)
   result = (hrp, fromWords(data))
 
 func decode*(hrp, address: string): seq[byte] {.inline, raises: [InvalidBech32Error].} =
   let (hrpGot, data) = bech32Decode(address)
   if hrpGot != hrp:
-    error("Incorrect hrp " & hrpGot & " in bech32 address, expected " & hrp)
+    error "Incorrect hrp " & hrpGot & " in bech32 address, expected " & hrp
   result = fromWords(data)
   
 template toString*(bech32: tuple[hrp: string, data: seq[byte]]): string =
@@ -152,30 +162,30 @@ type
   UnknownTLVError* = object of ValueError
 
 template parseData(address: seq[byte], i: var int): tuple[kind: int8, data: seq[byte]] =
-  if i + 1 > address.len: break
+  if i + 1 >= address.len: break
   let (kind, length) = (cast[int8](address[i]), cast[int8](address[i + 1]))
   i += 2
-  if i + length - 1 > address.len: error("End of value " & $(i + length - 1) & " exceeds bech32 address length " & $address.len & ".")
+  if i + length - 1 > address.len: error "End of value " & $(i + length - 1) & " exceeds bech32 address length " & $address.len & "."
   let data = address[i..<i + length]
   i += length
   (kind, data)
 
-func toArray[T](N: static int, data: openArray[T]): array[N, T] {.raises: [].} =
+func toArray[T](N: static int, data: openArray[T]): array[N, T] {.inline.} =
   # Taken from `stew/objects.nim`
   doAssert data.len == N
   copyMem(addr result[0], unsafeAddr data[0], N)
 
-func fromUInt32(data: seq[byte]): uint32 {.inline, raises: [].} =
+func fromUInt32(data: seq[byte]): uint32 {.inline.} =
   for i in 0..<4: result = result or (uint32(data[3 - i]) shl (i * 8))
 
 ##### Parsing Nostr Bech32 (NIP-19) #####
 
-func fromRaw*(T: type SkXOnlyPublicKey, data: openArray[byte]): SkResult[SkXOnlyPublicKey] {.inline, raises: [].} =
+func fromRaw*(T: type SkXOnlyPublicKey, data: openArray[byte]): SkResult[SkXOnlyPublicKey] {.inline.} =
   if data.len == 33: secp256k1.fromRaw(SkXOnlyPublicKey, data[0..^2])
   elif data.len == 32: secp256k1.fromRaw(SkXOnlyPublicKey, data)
   else: err("bech32: x-only public key must be 32 or 33 bytes")
 
-func fromRaw*(T: type NProfile, address: seq[byte]): T =
+func fromRaw*(T: type NProfile, address: seq[byte]): T {.raises: [InvalidBech32Error].} =
   var i = 0
   while true:
     let (kind, data) = parseData(address, i)
@@ -183,13 +193,13 @@ func fromRaw*(T: type NProfile, address: seq[byte]): T =
     of 0:
       let pk = SkXOnlyPublicKey.fromRaw(data)
       if pk.isOk: result.pubkey = pk.unsafeGet
-      else: error($pk.error)
+      else: error $pk.error
     of 1:
       result.relays.add string.fromBytes(data)
     else:
       discard
 
-func fromRaw*(T: type NEvent, address: seq[byte]): T =
+func fromRaw*(T: type NEvent, address: seq[byte]): T {.raises: [InvalidBech32Error].} =
   var i = 0
   while true:
     let (kind, data) = parseData(address, i)
@@ -197,7 +207,7 @@ func fromRaw*(T: type NEvent, address: seq[byte]): T =
     of 0:
       if data.len == 32:
         result.id = EventID(bytes: toArray(32, data))
-      else: error("Invalid event id in nevent bech32 address")
+      else: error "Invalid event id in nevent bech32 address"
     of 1:
       result.relays.add string.fromBytes(data)
     of 2:
@@ -209,7 +219,7 @@ func fromRaw*(T: type NEvent, address: seq[byte]): T =
     else:
       discard
 
-func fromRaw*(T: type NAddr, address: seq[byte]): T =
+func fromRaw*(T: type NAddr, address: seq[byte]): T {.raises: [InvalidBech32Error].} =
   var i = 0
   while true:
     let (kind, data) = parseData(address, i)
@@ -227,7 +237,7 @@ func fromRaw*(T: type NAddr, address: seq[byte]): T =
     else:
       discard
 
-func fromRaw*(T: type NRelay, address: seq[byte]): T =
+func fromRaw*(T: type NRelay, address: seq[byte]): T {.raises: [InvalidBech32Error].} =
   var i = 0
   while true:
     let (kind, data) = parseData(address, i)
@@ -240,11 +250,11 @@ proc fromNostrBech32*(address: string): union(Bech32EncodedEntity) {.raises: [In
   of "npub":
     let pk = SkXOnlyPublicKey.fromRaw(data)
     if pk.isOk: unsafeGet(pk) as union(Bech32EncodedEntity)
-    else: error($pk.error)
+    else: error $pk.error
   of "nsec":
     let sk = SkSecretKey.fromRaw(data)
     if sk.isOk: unsafeGet(sk) as union(Bech32EncodedEntity)
-    else: error($sk.error)
+    else: error $sk.error
   of "note":
     NNote(id: EventID(bytes: toArray(32, data))) as union(Bech32EncodedEntity)
   of "nprofile":

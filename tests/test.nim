@@ -129,12 +129,29 @@ suite "signatures":
     check not e.verify
 
 suite "bech32":
-  block parsing_nip19:
+  block parsing_secret_key:
     check SkSecretKey.fromRaw(decode("nsec", "nsec1vl029mgpspedva04g90vltkh6fvh240zqtv9k0t9af8935ke9laqsnlfe5"))[] == fromNostrBech32("nsec1vl029mgpspedva04g90vltkh6fvh240zqtv9k0t9af8935ke9laqsnlfe5")
     check fromNostrBech32("nsec1vl029mgpspedva04g90vltkh6fvh240zqtv9k0t9af8935ke9laqsnlfe5") == SkSecretKey.fromHex("67dea2ed018072d675f5415ecfaed7d2597555e202d85b3d65ea4e58d2d92ffa")[]
+
+  block parsing_public_key:
     check fromNostrBech32("npub10elfcs4fr0l0r8af98jlmgdh9c8tcxjvz9qkw038js35mp4dma8qzvjptg") == SkXOnlyPublicKey.fromHex("7e7e9c42a91bfef19fa929e5fda1b72e0ebc1a4c1141673e2794234d86addf4e")[]
+
+  block parsing_nprofile:
     check fromNostrBech32("nprofile1qqsrhuxx8l9ex335q7he0f09aej04zpazpl0ne2cgukyawd24mayt8gpp4mhxue69uhhytnc9e3k7mgpz4mhxue69uhkg6nzv9ejuumpv34kytnrdaksjlyr9p") == NProfile(pubkey: SkXOnlyPublicKey.fromHex("3bf0c63fcb93463407af97a5e5ee64fa883d107ef9e558472c4eb9aaaefa459d")[], relays: @["wss://r.x.com", "wss://djbas.sadkb.com"])
+
+  block parsing_nevent:
     check fromNostrBech32("nevent1qqstna2yrezu5wghjvswqqculvvwxsrcvu7uc0f78gan4xqhvz49d9spr3mhxue69uhkummnw3ez6un9d3shjtn4de6x2argwghx6egpr4mhxue69uhkummnw3ez6ur4vgh8wetvd3hhyer9wghxuet5nxnepm") == NEvent(id: EventID.fromHex "b9f5441e45ca39179320e0031cfb18e34078673dcc3d3e3a3b3a981760aa5696", relays: @["wss://nostr-relay.untethr.me", "wss://nostr-pub.wellorder.net"])
+
+  block parsing_naddr:
     check fromNostrBech32("naddr1qqzkjurnw4ksz9thwden5te0wfjkccte9ehx7um5wghx7un8qgs2d90kkcq3nk2jry62dyf50k0h36rhpdtd594my40w9pkal876jxgrqsqqqa28pccpzu") == NAddr(id: "ipsum", relays: @["wss://relay.nostr.org"], author: SkXOnlyPublicKey.fromHex("a695f6b60119d9521934a691347d9f78e8770b56da16bb255ee286ddf9fda919")[], kind: 30023)
-    # I cannot find a single example of an nostr:nrelay being used in the wild.
+
+  # I cannot find a single example of an nostr:nrelay being used in the wild.
+
+  block parsing_note:
     echo fromNostrBech32("note1fntxtkcy9pjwucqwa9mddn7v03wwwsu9j330jj350nvhpky2tuaspk6nqc") == NNote(id: EventID.fromHex "4cd665db042864ee600ee976d6cfcc7c5ce743859462f94a347cd970d88a5f3b")
+
+  block secret_key_round_trip:
+    check fromNostrBech32(SkSecretKey.fromHex("67dea2ed018072d675f5415ecfaed7d2597555e202d85b3d65ea4e58d2d92ffa")[].toBech32) == SkSecretKey.fromHex("67dea2ed018072d675f5415ecfaed7d2597555e202d85b3d65ea4e58d2d92ffa")[]
+
+  block public_key_round_trip:
+    check fromNostrBech32(SkXOnlyPublicKey.fromHex("7e7e9c42a91bfef19fa929e5fda1b72e0ebc1a4c1141673e2794234d86addf4e")[].toBech32) == SkXOnlyPublicKey.fromHex("7e7e9c42a91bfef19fa929e5fda1b72e0ebc1a4c1141673e2794234d86addf4e")[]
