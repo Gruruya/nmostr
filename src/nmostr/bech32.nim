@@ -294,38 +294,28 @@ func toBech32*(seckey: SkSecretKey): string {.raises: [InvalidBech32Error].} =
 
 func toBech32*(nprofile: NProfile): string {.raises: [InvalidBech32Error].} =
   var encoded = @[byte 0, 32] & @(nprofile.pubkey.toRaw)
-
   for relay in nprofile.relays:
     encoded &= @[byte 1, byte relay.len] & relay.toBytes
-
   encode("nprofile", encoded)
 
 func toBech32*(nevent: NEvent): string {.raises: [InvalidBech32Error].} =
   var encoded = @[byte 0, 32] & @(nevent.id.bytes)
-
   for relay in nevent.relays:
     encoded &= @[byte 1, byte relay.len] & relay.toBytes
-
   if nevent.author != default(NEvent).author:
     encoded &= @[byte 2, 32] & @(nevent.author.toRaw)
-
   if nevent.kind != default(NEvent).kind:
     encoded &= @[byte 3, 4] & @(fromUInt32(nevent.kind))
-
   encode("nevent", encoded)  
 
 func toBech32*(naddr: NAddr): string {.raises: [InvalidBech32Error].} =
   var encoded = @[byte 0, byte naddr.id.len] & naddr.id.toBytes
-
   for relay in naddr.relays:
     encoded &= @[byte 1, byte relay.len] & relay.toBytes
-
   if naddr.author != default(NAddr).author:
     encoded &= @[byte 2, 32] & @(naddr.author.toRaw)
-
   if naddr.kind != default(NAddr).kind:
     encoded &= @[byte 3, 4] & @(fromUInt32(naddr.kind))
-
   encode("naddr", encoded)
 
 func toBech32*(nrelay: NRelay): string {.raises: [InvalidBech32Error].} =
