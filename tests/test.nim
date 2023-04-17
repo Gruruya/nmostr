@@ -148,10 +148,25 @@ suite "bech32":
   # I cannot find a single example of an nostr:nrelay being used in the wild.
 
   block parsing_note:
-    echo fromNostrBech32("note1fntxtkcy9pjwucqwa9mddn7v03wwwsu9j330jj350nvhpky2tuaspk6nqc") == NNote(id: EventID.fromHex "4cd665db042864ee600ee976d6cfcc7c5ce743859462f94a347cd970d88a5f3b")
+    check fromNostrBech32("note1fntxtkcy9pjwucqwa9mddn7v03wwwsu9j330jj350nvhpky2tuaspk6nqc") == NNote(id: EventID.fromHex "4cd665db042864ee600ee976d6cfcc7c5ce743859462f94a347cd970d88a5f3b")
 
   block secret_key_round_trip:
     check fromNostrBech32(SkSecretKey.fromHex("67dea2ed018072d675f5415ecfaed7d2597555e202d85b3d65ea4e58d2d92ffa")[].toBech32) == SkSecretKey.fromHex("67dea2ed018072d675f5415ecfaed7d2597555e202d85b3d65ea4e58d2d92ffa")[]
 
   block public_key_round_trip:
     check fromNostrBech32(SkXOnlyPublicKey.fromHex("7e7e9c42a91bfef19fa929e5fda1b72e0ebc1a4c1141673e2794234d86addf4e")[].toBech32) == SkXOnlyPublicKey.fromHex("7e7e9c42a91bfef19fa929e5fda1b72e0ebc1a4c1141673e2794234d86addf4e")[]
+
+  block nprofile_round_trip:
+    check fromNostrBech32(NProfile(pubkey: SkXOnlyPublicKey.fromHex("3bf0c63fcb93463407af97a5e5ee64fa883d107ef9e558472c4eb9aaaefa459d")[], relays: @["wss://r.x.com", "wss://djbas.sadkb.com"]).toBech32) == NProfile(pubkey: SkXOnlyPublicKey.fromHex("3bf0c63fcb93463407af97a5e5ee64fa883d107ef9e558472c4eb9aaaefa459d")[], relays: @["wss://r.x.com", "wss://djbas.sadkb.com"])
+
+  block nevent_round_trip:
+    check fromNostrBech32(NEvent(id: EventID.fromHex "b9f5441e45ca39179320e0031cfb18e34078673dcc3d3e3a3b3a981760aa5696", relays: @["wss://nostr-relay.untethr.me", "wss://nostr-pub.wellorder.net"], author: SkXOnlyPublicKey.fromHex("3bf0c63fcb93463407af97a5e5ee64fa883d107ef9e558472c4eb9aaaefa459d")[], kind: 1).toBech32) == NEvent(id: EventID.fromHex "b9f5441e45ca39179320e0031cfb18e34078673dcc3d3e3a3b3a981760aa5696", relays: @["wss://nostr-relay.untethr.me", "wss://nostr-pub.wellorder.net"], author: SkXOnlyPublicKey.fromHex("3bf0c63fcb93463407af97a5e5ee64fa883d107ef9e558472c4eb9aaaefa459d")[], kind: 1)
+
+  block naddr_round_trip:
+    check fromNostrBech32(NAddr(id: "ipsum", relays: @["wss://relay.nostr.org"], author: SkXOnlyPublicKey.fromHex("a695f6b60119d9521934a691347d9f78e8770b56da16bb255ee286ddf9fda919")[], kind: 30023).toBech32) == NAddr(id: "ipsum", relays: @["wss://relay.nostr.org"], author: SkXOnlyPublicKey.fromHex("a695f6b60119d9521934a691347d9f78e8770b56da16bb255ee286ddf9fda919")[], kind: 30023)
+
+  block nrelay_round_trip:
+    check fromNostrBech32(NRelay(url: "wss://nostr.nostr").toBech32) == NRelay(url: "wss://nostr.nostr")
+
+  block note_round_trip:
+    check fromNostrBech32(NNote(id: EventID.fromHex "4cd665db042864ee600ee976d6cfcc7c5ce743859462f94a347cd970d88a5f3b").toBech32) == NNote(id: EventID.fromHex "4cd665db042864ee600ee976d6cfcc7c5ce743859462f94a347cd970d88a5f3b")

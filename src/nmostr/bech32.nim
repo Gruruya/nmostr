@@ -153,7 +153,7 @@ type
     id*: string
     relays*: seq[string]
     author*: SkXOnlyPublicKey
-    kind*: int
+    kind*: uint32
 
   NRelay* = object
     url*: string
@@ -172,8 +172,12 @@ func toArray[T](N: static int, data: seq[T]): array[N, T] {.inline.} =
   doAssert data.len == N
   copyMem(addr result[0], unsafeAddr data[0], N)
 
-func fromUInt32(data: openArray[byte]): uint32 {.inline.} =
+func toUInt32(data: openArray[byte]): uint32 {.inline.} =
   for i in 0..<4: result = result or (uint32(data[3 - i]) shl (i * 8))
+
+func fromUInt32(data: uint32): array[4, byte] {.inline.} =
+  for i in 0..<4:
+    result[3 - i] = byte((data shr (i * 8)) and 0xFF)
 
 template parseData(address: openArray[byte], i: var int): tuple[kind: int8, data: seq[byte]] =
   if i + 1 >= address.len: break
@@ -219,7 +223,7 @@ func fromRaw*(T: type NEvent, address: openArray[byte]): T {.raises: [InvalidBec
       if pubkey.isOk: result.author = pubkey.unsafeGet
     of 3:
       if data.len == 4:
-        for i in 0..<4: result.kind = result.kind or (uint32(data[3 - i]) shl (i * 8))
+        result.kind = toUInt32(data)
     else:
       discard
 
@@ -237,7 +241,7 @@ func fromRaw*(T: type NAddr, address: openArray[byte]): T {.raises: [InvalidBech
       if pubkey.isOk: result.author = pubkey.unsafeGet
     of 3:
       if data.len == 4:
-        result.kind = int(fromUInt32(data))
+        result.kind = toUInt32(data)
     else:
       discard
 
@@ -287,3 +291,45 @@ func toBech32*(pubkey: SkXOnlyPublicKey): string {.raises: [InvalidBech32Error].
  
 func toBech32*(seckey: SkSecretKey): string {.raises: [InvalidBech32Error].} =
   encode("nsec", seckey.toRaw)
+
+func toBech32*(nprofile: NProfile): string {.raises: [InvalidBech32Error].} =
+  var encoded = @[byte 0, 32] & @(nprofile.pubkey.toRaw)
+
+  for relay in nprofile.relays:
+    encoded &= @[byte 1, byte relay.len] & relay.toBytes
+
+  encode("nprofile", encoded)
+
+func toBech32*(nevent: NEvent): string {.raises: [InvalidBech32Error].} =
+  var encoded = @[byte 0, 32] & @(nevent.id.bytes)
+
+  for relay in nevent.relays:
+    encoded &= @[byte 1, byte relay.len] & relay.toBytes
+
+  if nevent.author != default(NEvent).author:
+    encoded &= @[byte 2, 32] & @(nevent.author.toRaw)
+
+  if nevent.kind != default(NEvent).kind:
+    encoded &= @[byte 3, 4] & @(fromUInt32(nevent.kind))
+
+  encode("nevent", encoded)  
+
+func toBech32*(naddr: NAddr): string {.raises: [InvalidBech32Error].} =
+  var encoded = @[byte 0, byte naddr.id.len] & naddr.id.toBytes
+
+  for relay in naddr.relays:
+    encoded &= @[byte 1, byte relay.len] & relay.toBytes
+
+  if naddr.author != default(NAddr).author:
+    encoded &= @[byte 2, 32] & @(naddr.author.toRaw)
+
+  if naddr.kind != default(NAddr).kind:
+    encoded &= @[byte 3, 4] & @(fromUInt32(naddr.kind))
+
+  encode("naddr", encoded)
+
+func toBech32*(nrelay: NRelay): string {.raises: [InvalidBech32Error].} =
+  encode("nrelay", @[byte 0, byte nrelay.url.len] & nrelay.url.toBytes)
+
+func toBech32*(note: NNote): string {.raises: [InvalidBech32Error].} =
+  encode("note", note.id.bytes)

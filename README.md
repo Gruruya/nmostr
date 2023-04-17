@@ -5,7 +5,7 @@ Library for working with Nostr.
 Contained modules:
 * Events
 * Messages
-* Bech32 decoding
+* Bech32
 
 Stability: Early days. Functional.
 
