@@ -18,7 +18,7 @@
 ## Utilities for working with Nostr events.
 
 runnableExamples:
-  echo note("hello world!", newKeypair())
+  echo note(newKeypair(), "hello world!")
 
 import std/[times, strutils, sequtils, macros, sysrand, sugar]
 import pkg/[jsony, secp256k1, crunchy, stew/byteutils]
@@ -37,8 +37,8 @@ template toHex*(id: EventID): string = $id
 func fromHex*(T: type EventID, hex: string): EventID {.raises: [ValueError].} = EventID(bytes: array[32, byte].fromHex(hex))
 
 type Event* = object
-  id*: EventID              ## 32-bytes lowercase hex-encoded sha256 of the serialized event data
   pubkey*: SkXOnlyPublicKey ## 32-bytes lowercase hex-encoded public key of the event creator
+  id*: EventID              ## 32-bytes lowercase hex-encoded sha256 of the serialized event data
   kind*: int                ## The type of event this is.
   content*: string          ## Arbitrary string, what it is should be gleamed from this event's `kind`
   created_at*: Time         ## Received and transmitted as a Unix timestamp in seconds
@@ -231,16 +231,16 @@ proc init*(T: type Event, kind: int, content: string, keypair: Keypair, created_
   result.updateID
   result.sign(keypair)
 
-proc metadata*(name, about, picture: string, keypair: Keypair, created_at = getTime(), tags = default(seq[seq[string]])): Event {.raises: [ValueError].} =
+proc metadata*(keypair: Keypair, name, about, picture: string, created_at = getTime(), tags = default(seq[seq[string]])): Event {.raises: [ValueError].} =
   ## Describes the user who created the event.
   ## A relay may delete past metadata events once it gets a new one for the same pubkey.
   Event.init(0, Metadata(name: name, about: about, picture: picture).toJson, keypair, created_at, tags)
 
-proc note*(content: string, keypair: Keypair, created_at = getTime(), tags = default(seq[seq[string]])): Event {.raises: [ValueError].} =
+proc note*(keypair: Keypair, content: string, created_at = getTime(), tags = default(seq[seq[string]])): Event {.raises: [ValueError].} =
   ## Plaintext note (anything the user wants to say). Markdown links ([]() stuff) are not plaintext.
   Event.init(1, content, keypair, created_at, tags)
 
-proc recommendServer*(url: string, keypair: Keypair, created_at = getTime(), tags = default(seq[seq[string]])): Event {.raises: [ValueError].} =
+proc recommendServer*(keypair: Keypair, url: string, created_at = getTime(), tags = default(seq[seq[string]])): Event {.raises: [ValueError].} =
   ## URL (e.g., wss://somerelay.com) of a relay the event creator wants to recommend to its followers.
   Event.init(2, url, keypair, created_at, tags)
 

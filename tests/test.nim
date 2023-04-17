@@ -121,7 +121,7 @@ suite "messages":
 
 suite "signatures":
   block signing_and_verifying:
-    var e = note("hello world", newKeypair())
+    var e = note(newKeypair(), "hello world")
     check e.verify
     e.stamp(newKeypair())
     check e.verify
