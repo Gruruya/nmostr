@@ -256,7 +256,7 @@ func fromRaw*(T: type NNote, address: seq[byte]): T {.raises: [InvalidBech32Erro
   else:
     error "Event ID in bech32 encoded note should be 32 bytes, but was " & $address.len & " bytes instead"
 
-proc fromNostrBech32*(address: string): union(Bech32EncodedEntity) {.raises: [InvalidBech32Error, UnknownTLVError].} =
+func fromNostrBech32*(address: string): union(Bech32EncodedEntity) {.raises: [InvalidBech32Error, UnknownTLVError].} =
   let (kind, data) = decode(address)
   case kind:
   of "npub":
@@ -282,8 +282,8 @@ proc fromNostrBech32*(address: string): union(Bech32EncodedEntity) {.raises: [In
 
 # Encoding #
 
-proc toBech32*(pubkey: SkXOnlyPublicKey): string {.raises: [InvalidBech32Error].} =
+func toBech32*(pubkey: SkXOnlyPublicKey): string {.raises: [InvalidBech32Error].} =
   encode("npub", pubkey.toRaw)
  
-proc toBech32*(seckey: SkSecretKey): string {.raises: [InvalidBech32Error].} =
+func toBech32*(seckey: SkSecretKey): string {.raises: [InvalidBech32Error].} =
   encode("nsec", seckey.toRaw)
