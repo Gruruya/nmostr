@@ -17,7 +17,7 @@ What is Nostr?
 ---
 [Nostr](https://nostr.com) is a simple decentralized protocol. It defines a standard for sending and receiving messages between users identified by their public keys using generic servers or "relays" that handle storage and logic.
 
-It was made with the intent of being a decentralized alternative to Twitter and an alternative to the [Fediverse](https://www.fediverse.to) ([Mastodon](https://joinmastodon.org)/[Pleroma](https://pleroma.social)) that doesn't constrain users to one server that can be shut down or blocked.
+Its popularity grew with the goal of creating a decentralized alternative to Twitter and an alternative to the [Fediverse](https://www.fediverse.to) ([Mastodon](https://joinmastodon.org)/[Pleroma](https://pleroma.social)) that doesn't constrain users to one server that can be shut down or blocked.
 
 ---
 [![GitHub CI](../../actions/workflows/build.yml/badge.svg?branch=master)](../../actions/workflows/build.yml)
