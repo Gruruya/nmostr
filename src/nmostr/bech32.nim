@@ -36,19 +36,6 @@ const CHARSET_MAP = CHARSET.mapIt((it, CHARSET.find(it).int5)).toTable()
 
 {.push raises: [].}
 
-func bech32Decode(bech: sink string): tuple[hrp: string, data: seq[int5]] {.raises: [InvalidBech32Error].} =
-  bech = bech.toLower()
-  let pos = bech.rfind('1')
-  if pos < 1 or pos + 7 > bech.len: # or len(bech) > 90:
-    error "'1' not found in " & bech
-  result.hrp = bech[0..<pos]
-  try:
-    result.data = bech[pos + 1..^1].mapIt(CHARSET_MAP[it])
-  except KeyError: error "Invalid character in bech32 hash " & bech
-  # if not bech32VerifyChecksum(result.hrp, result.data):
-  #   error bech & " has an invalid checksum"
-  result.data.setLen(result.data.len - 6) # Cut off checksum
-
 func toWords*(data: openArray[byte]): seq[int5] {.raises: [InvalidBech32Error].} =
   ## int8 → int5 conversion
   var acc, bits = 0
@@ -102,9 +89,6 @@ func hrpExpand(hrp: string): seq[int5] =
     result[i] = int5(c) shr 5
     result[i + hrp.len + 1] = int5(c) and 31
 
-proc bech32VerifyChecksum*(hrp: string, data: seq[int5]): bool =
-  bech32Polymod(hrpExpand(hrp) & data) == 1
-
 func encode*(hrp: string, witprog: openArray[byte]): string {.raises: [InvalidBech32Error].} =
   ## Encode into a bech32 address
   func checksum(hrp: string, data: seq[int5]): seq[int5] =
@@ -123,6 +107,22 @@ func encode*(hrp: string, witprog: openArray[byte]): string {.raises: [InvalidBe
 template encode*(hrp, witprog: string): string =
   encode(hrp, witprog.toBytes)
   
+proc bech32VerifyChecksum*(hrp: string, data: seq[int5]): bool =
+  bech32Polymod(hrpExpand(hrp) & data) == 1
+
+func bech32Decode(bech: sink string): tuple[hrp: string, data: seq[int5]] {.raises: [InvalidBech32Error].} =
+  bech = bech.toLower()
+  let pos = bech.rfind('1')
+  if pos < 1 or pos + 7 > bech.len: # or len(bech) > 90:
+    error "'1' not found in " & bech
+  result.hrp = bech[0..<pos]
+  try:
+    result.data = bech[pos + 1..^1].mapIt(CHARSET_MAP[it])
+  except KeyError: error "Invalid character in bech32 hash " & bech
+  # if not bech32VerifyChecksum(result.hrp, result.data):
+  #   error bech & " has an invalid checksum"
+  result.data.setLen(result.data.len - 6) # Cut off checksum
+
 func decode*(address: string): tuple[hrp: string, data: seq[byte]] {.inline, raises: [InvalidBech32Error].} =
   let (hrp, data) = bech32Decode(address)
   result = (hrp, fromWords(data))
