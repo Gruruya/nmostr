@@ -102,13 +102,13 @@ func hrpExpand(hrp: string): seq[int5] =
     result[i] = int5(c) shr 5
     result[i + hrp.len + 1] = int5(c) and 31
 
-proc bech32VerifyChecksum*(hrp: string, data: openArray[int5]): bool =
-  bech32Polymod(hrpExpand(hrp) & @data) == 1
+proc bech32VerifyChecksum*(hrp: string, data: seq[int5]): bool =
+  bech32Polymod(hrpExpand(hrp) & data) == 1
 
 func encode*(hrp: string, witprog: openArray[byte]): string {.raises: [InvalidBech32Error].} =
   ## Encode into a bech32 address
-  func checksum(hrp: string, data: openArray[int5]): seq[int5] =
-    let values = hrpExpand(hrp) & @data
+  func checksum(hrp: string, data: seq[int5]): seq[int5] =
+    let values = hrpExpand(hrp) & data
     let polymod = bech32Polymod(values & @[int5 0, 0, 0, 0, 0, 0]) xor 1
     result = newSeqOfCap[int5](5)
     for i in 0 .. 5:
