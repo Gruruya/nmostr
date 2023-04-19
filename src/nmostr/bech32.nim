@@ -284,6 +284,31 @@ func fromNostrBech32*(address: string): union(Bech32EncodedEntity) {.raises: [In
   else:
     raise newException(UnknownTLVError, "Unknown TLV starting with " & kind)
 
+func fromBech32*(T: type SkSecretKey, address: string): T {.inline, raises: [InvalidBech32Error].} =
+  let sk = SkSecretKey.fromRaw(decode("nsec", address))
+  if sk.isOk: unsafeGet(sk)
+  else: bech32.error $sk.error
+
+func fromBech32*(T: type SkXOnlyPublicKey, address: string): T {.inline, raises: [InvalidBech32Error].} =
+  let pk = bech32.fromRaw(SkXOnlyPublicKey, (decode("npub", address)))
+  if pk.isOk: unsafeGet(pk)
+  else: bech32.error $pk.error
+
+func fromBech32*(T: type NNote, address: string): T {.inline, raises: [InvalidBech32Error].} =
+  NNote.fromRaw(decode("note", address))
+
+func fromBech32*(T: type NProfile, address: string): T {.inline, raises: [InvalidBech32Error].} =
+  NProfile.fromRaw(decode("nprofile", address))
+
+func fromBech32*(T: type NEvent, address: string): T {.inline, raises: [InvalidBech32Error].} =
+  NEvent.fromRaw(decode("nevent", address))
+
+func fromBech32*(T: type NAddr, address: string): T {.inline, raises: [InvalidBech32Error].} =
+  NAddr.fromRaw(decode("naddr", address))
+
+func fromBech32*(T: type NRelay, address: string): T {.inline, raises: [InvalidBech32Error].} =
+  NRelay.fromRaw(decode("nrelay", address))
+
 # Encoding #
 
 func toBech32*(pubkey: SkXOnlyPublicKey): string {.raises: [InvalidBech32Error].} =
