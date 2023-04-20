@@ -26,43 +26,39 @@ export events, union
 # Types
 
 type
-  Message* = object of RootObj
   # Use a variant object once they support duplicate fields
-  ClientMessage* = object of Message
-  ServerMessage* = object of Message
-
-  CMEvent* = object of ClientMessage   ## ["EVENT", <event JSON>]
+  CMEvent* = object   ## ["EVENT", <event JSON>]
     event*: Event
-  CMRequest* = object of ClientMessage ## ["REQ", <subscription_id>, <filters JSON>...]
+  CMRequest* = object ## ["REQ", <subscription_id>, <filters JSON>...]
     id*: string                        ## TODO: Find out wtf `...` means
     filter*: Filter
-  CMClose* = object of ClientMessage   ## ["CLOSE", <subscription_id>]
+  CMClose* = object   ## ["CLOSE", <subscription_id>]
     id*: string
-  CMAuth* = object of ServerMessage    ## ["AUTH", <event kind 2242 JSON>]
+  CMAuth* = object    ## ["AUTH", <event kind 2242 JSON>]
     event*: Event
-  CMCount* = object of ClientMessage   ## ["COUNT", <subscription_id>, <filters JSON>]
+  CMCount* = object   ## ["COUNT", <subscription_id>, <filters JSON>]
     id*: string
     filter*: Filter
 
-  SMEvent* = object of ServerMessage   ## ["EVENT", <subscription_id>, <event JSON>]
+  SMEvent* = object   ## ["EVENT", <subscription_id>, <event JSON>]
     id*: string
     event*: Event
-  SMNotice* = object of ServerMessage  ## ["NOTICE", <message>]
+  SMNotice* = object  ## ["NOTICE", <message>]
     message*: string
-  SMEose* = object of ServerMessage    ## ["EOSE", <subscription_id>]
+  SMEose* = object    ## ["EOSE", <subscription_id>]
     id*: string
-  SMOk* = object of ServerMessage      ## ["OK", <event_id>, <true|false>, <message>]
+  SMOk* = object      ## ["OK", <event_id>, <true|false>, <message>]
     id*: string
     saved*: bool
     message*: string
-  SMAuth* = object of ServerMessage    ## ["AUTH", <challenge-string>]
+  SMAuth* = object    ## ["AUTH", <challenge-string>]
     challenge*: string
-  SMCount* = object of ServerMessage   ## ["COUNT", <integer>]
+  SMCount* = object   ## ["COUNT", <integer>]
     count*: int64
 
-  ClientMessageClass* = (CMEvent | CMRequest | CMClose | CMAuth | CMCount)
-  ServerMessageClass* = (SMEvent | SMEose | SMNotice | SMOk | SMAuth | SMCount)
-  MessageClass* = (ClientMessageClass | ServerMessageClass)
+  ClientMessage* = (CMEvent | CMRequest | CMClose | CMAuth | CMCount)
+  ServerMessage* = (SMEvent | SMEose | SMNotice | SMOk | SMAuth | SMCount)
+  Message* = (ClientMessage | ServerMessage)
 
 type UnknownMessageError* = object of ValueError
 
@@ -74,77 +70,108 @@ proc randomID*(): string =
 # Modified `jsony.nim` procs to desrialize message arrays as object and serialize them back to arrays.
 
 template parseArrayAsObject(T: typedesc) =
-  ## Parse JSON array as object `T`.
-  func parseHook*(s: string, i: var int, v: var T) =
-    ## Parse message array as its corresponding `Message` object.
-    eatChar(s, i, '[')
-    skipValue(s, i)
-    for field in v.fields: # Every type is required to match in valid JSON or an error is raised, consider make this more forgiving
-      eatChar(s, i, ',')
-      parseHook(s, i, field)
-    eatSpace(s, i)
-    if likely s[i] == ']':
-      inc(i)
-    else:
-      # Skip unused/invalid values
-      var bracketCounter = 1
-      while bracketCounter > 0 and i < s.len:
-        eatSpace(s, i)
-        case s[i]
-        of ']':
-          inc(i)
-          bracketCounter -= 1
-        of '[':
-          inc(i)
-          bracketCounter += 1
-        of '\\':
-          inc(i)
-          if likely i < s.len: inc(i)
-        of '"':
-          inc(i)
-          while true:
-            if unlikely i >= s.len: break
-            if s[i] == '"': inc(i); break
-            if s[i] == '\\':
-              inc(i)
-              if likely i < s.len: inc(i)
-            else: inc(i)
-        else:
-          inc(i)
+  ## Parse message array as its corresponding `Message` object.
+  eatChar(s, i, '[')
+  skipValue(s, i)
+  for field in v.fields: # Every type is required to match in valid JSON or an error is raised, consider make this more forgiving
+    eatChar(s, i, ',')
+    parseHook(s, i, field)
+  eatSpace(s, i)
+  if likely s[i] == ']':
+    inc(i)
+  else:
+    # Skip unused/invalid values
+    var bracketCounter = 1
+    while bracketCounter > 0 and i < s.len:
+      eatSpace(s, i)
+      case s[i]
+      of ']':
+        inc(i)
+        bracketCounter -= 1
+      of '[':
+        inc(i)
+        bracketCounter += 1
+      of '\\':
+        inc(i)
+        if likely i < s.len: inc(i)
+      of '"':
+        inc(i)
+        while true:
+          if unlikely i >= s.len: break
+          if s[i] == '"': inc(i); break
+          if s[i] == '\\':
+            inc(i)
+            if likely i < s.len: inc(i)
+          else: inc(i)
+      else:
+        inc(i)
 
 template dumpObjectAsArray(T: typedesc, flag: string) =
-  func dumpHook*(s: var string, v: T) {.inline.} =
-    ## Serialize message as an array with `flag` as the first element.
-    s = "[\"" & flag & "\","
-    for field in v.fields:
-      s &= field.toJson
-      s &= ","
-    s.setLen(s.len - 1)
-    s &= "]"
+  ## Serialize message as an array with `flag` as the first element.
+  s = "[\"" & flag & "\","
+  for field in v.fields:
+    s &= field.toJson
+    s &= ","
+  s.setLen(s.len - 1)
+  s &= "]"
 
-template setupArrayObjectParsing(T: typedesc, flag: string) =
-  parseArrayAsObject(T)
-  dumpObjectAsArray(T, flag)
+{.push inline.}
 
-setupArrayObjectParsing(CMEvent, "EVENT")
-setupArrayObjectParsing(CMRequest, "REQ")
-setupArrayObjectParsing(CMClose, "CLOSE")
-setupArrayObjectParsing(CMAuth, "AUTH")
-setupArrayObjectParsing(CMCount, "COUNT")
-setupArrayObjectParsing(SMEvent, "EVENT")
-setupArrayObjectParsing(SMEose, "EOSE")
-setupArrayObjectParsing(SMNotice, "NOTICE")
-setupArrayObjectParsing(SMOk, "OK")
-setupArrayObjectParsing(SMAuth, "AUTH")
-setupArrayObjectParsing(SMCount, "COUNT")
+func parseHook*(s: string, i: var int, v: var CMEvent) =
+  parseArrayAsObject(CMEvent)
+func parseHook*(s: string, i: var int, v: var CMRequest) =
+  parseArrayAsObject(CMRequest)
+func parseHook*(s: string, i: var int, v: var CMClose) =
+  parseArrayAsObject(CMClose)
+func parseHook*(s: string, i: var int, v: var CMAuth) =
+  parseArrayAsObject(CMAuth)
+func parseHook*(s: string, i: var int, v: var CMCount) =
+  parseArrayAsObject(CMCount)
+func parseHook*(s: string, i: var int, v: var SMEvent) =
+  parseArrayAsObject(SMEvent)
+func parseHook*(s: string, i: var int, v: var SMNotice) =
+  parseArrayAsObject(SMNotice)
+func parseHook*(s: string, i: var int, v: var SMEose) =
+  parseArrayAsObject(SMEose)
+func parseHook*(s: string, i: var int, v: var SMOk) =
+  parseArrayAsObject(SMOk)
+func parseHook*(s: string, i: var int, v: var SMAuth) =
+  parseArrayAsObject(SMAuth)
+func parseHook*(s: string, i: var int, v: var SMCount) =
+  parseArrayAsObject(SMCount)
 
-func parseHook*(s: string, i: var int, v: var union(MessageClass)) =
+func dumpHook*(s: var string, v: CMEvent) =
+  dumpObjectAsArray(CMEvent, "EVENT")
+func dumpHook*(s: var string, v: CMRequest) =
+  dumpObjectAsArray(CMEvent, "REQ")
+func dumpHook*(s: var string, v: CMClose) =
+  dumpObjectAsArray(CMEvent, "CLOSE")
+func dumpHook*(s: var string, v: CMAuth) =
+  dumpObjectAsArray(CMAuth, "AUTH")
+func dumpHook*(s: var string, v: CMCount) =
+  dumpObjectAsArray(CMCount, "COUNT")
+func dumpHook*(s: var string, v: SMEvent) =
+  dumpObjectAsArray(SMEvent, "EVENT")
+func dumpHook*(s: var string, v: SMNotice) =
+  dumpObjectAsArray(SMNotice, "NOTICE")
+func dumpHook*(s: var string, v: SMEose) =
+  dumpObjectAsArray(SMEose, "EOSE")
+func dumpHook*(s: var string, v: SMOk) =
+  dumpObjectAsArray(SMOk, "OK")
+func dumpHook*(s: var string, v: SMAuth) =
+  dumpObjectAsArray(SMAuth, "AUTH")
+func dumpHook*(s: var string, v: SMCount) =
+  dumpObjectAsArray(SMCount, "COUNT")
+
+{.pop inline.}
+  
+func parseHook*(s: string, i: var int, v: var union(Message)) =
   ## Parses a message of unknown type into the `Message` object inferred by the array's first element and shape.
-  template parseAs(T: typedesc): union(MessageClass) =
+  template parseAs(T: typedesc): union(Message) =
     i = start
     var j: T
     s.parseHook(i, j)
-    j as union(MessageClass)
+    j as union(Message)
 
   let start = i
   eatChar(s, i, '[')
@@ -189,10 +216,10 @@ func parseHook*(s: string, i: var int, v: var union(MessageClass)) =
     raise newException(UnknownMessageError, "Unknown message starting with \"" & kind & "\"")
 
 template fromMessage*(s: string): untyped =
-  ## Alias for s.fromJson(union(MessageClass))
-  s.fromJson(union(MessageClass))
+  ## Alias for s.fromJson(union(Message))
+  s.fromJson(union(Message))
 
-func dumpHook*(s: var string, v: union(MessageClass)) {.inline.} =
+func dumpHook*(s: var string, v: union(Message)) {.inline.} =
   ## Serialize message union as its contained message.
   unpack v, msg:
     dumpHook(s, msg)
