@@ -41,7 +41,7 @@ func toWords*(data: openArray[byte]): seq[int5] {.raises: [InvalidBech32Error].}
   var acc, bits = 0
   const maxV = (1 shl 5) - 1
   let outputLen = (data.len * 8 + 4) div 5
-  result.setLen(outputLen)
+  result = newSeq[int5](outputLen)
   var idx = 0
   for value in data:
     acc = (acc shl 8) or ord(value)
@@ -62,7 +62,7 @@ func fromWords*(data: openArray[int5]): seq[byte] {.raises: [InvalidBech32Error]
   var bits = 0.int8
   const maxV = (1 shl 8) - 1
   let outputLen = (data.len * 5) div 8
-  result.setLen(outputLen)
+  result = newSeq[byte](outputLen)
   var idx = 0
   for value in data:
     acc = (acc shl 5.int5) or value
@@ -311,10 +311,10 @@ func fromBech32*(T: type NRelay, address: string): T {.inline, raises: [InvalidB
 
 # Encoding #
 
-func toBech32*(pubkey: SkXOnlyPublicKey): string {.raises: [InvalidBech32Error].} =
+func toBech32*(pubkey: SkXOnlyPublicKey): string {.inline, raises: [InvalidBech32Error].} =
   encode("npub", pubkey.toRaw)
  
-func toBech32*(seckey: SkSecretKey): string {.raises: [InvalidBech32Error].} =
+func toBech32*(seckey: SkSecretKey): string {.inline, raises: [InvalidBech32Error].} =
   encode("nsec", seckey.toRaw)
 
 func toBech32*(nprofile: NProfile): string {.raises: [InvalidBech32Error].} =
@@ -343,8 +343,8 @@ func toBech32*(naddr: NAddr): string {.raises: [InvalidBech32Error].} =
     encoded &= @[byte 3, 4] & @(fromUInt32(naddr.kind))
   encode("naddr", encoded)
 
-func toBech32*(nrelay: NRelay): string {.raises: [InvalidBech32Error].} =
+func toBech32*(nrelay: NRelay): string {.inline, raises: [InvalidBech32Error].} =
   encode("nrelay", @[byte 0, byte nrelay.url.len] & nrelay.url.toBytes)
 
-func toBech32*(note: NNote): string {.raises: [InvalidBech32Error].} =
+func toBech32*(note: NNote): string {.inline, raises: [InvalidBech32Error].} =
   encode("note", note.id.bytes)
