@@ -74,7 +74,7 @@ func fromWords*(data: openArray[int5]): seq[byte] {.raises: [InvalidBech32Error]
   if bits >= 5: error "Excess padding"
   elif ((acc shl (8 - bits)) and maxV) != 0: error "Non-zero padding"
 
-func bech32Polymod(values: openArray[int5]): int5 =
+func polymod(values: openArray[int5]): int5 =
   const generator = [int5 0x3b6a57b2, 0x26508e6d, 0x1ea119fa, 0x3d4233dd, 0x2a1462b3]
   result = 1
   for value in values:
@@ -93,7 +93,7 @@ func encode*(hrp: string, witprog: openArray[byte]): string {.raises: [InvalidBe
   ## Encode into a bech32 address
   func checksum(hrp: string, data: seq[int5]): seq[int5] {.inline.} =
     let values = hrpExpand(hrp) & data
-    let polymod = bech32Polymod(values & @[int5 0, 0, 0, 0, 0, 0]) xor 1
+    let polymod = polymod(values & @[int5 0, 0, 0, 0, 0, 0]) xor 1
     result = newSeqOfCap[int5](5)
     for i in 0 .. 5:
       result.add (polymod shr (5 * (5 - i))) and 31
@@ -107,28 +107,28 @@ func encode*(hrp: string, witprog: openArray[byte]): string {.raises: [InvalidBe
 template encode*(hrp, witprog: string): string =
   encode(hrp, witprog.toBytes)
   
-proc bech32VerifyChecksum*(hrp: string, data: seq[int5]): bool =
-  bech32Polymod(hrpExpand(hrp) & data) == 1
+proc verifyChecksum*(hrp: string, data: seq[int5]): bool =
+  polymod(hrpExpand(hrp) & data) == 1
 
-func bech32Decode(bech: sink string): tuple[hrp: string, data: seq[int5]] {.raises: [InvalidBech32Error].} =
-  bech = bech.toLower()
-  let pos = bech.rfind('1')
-  if pos < 1 or pos + 7 > bech.len: # or len(bech) > 90:
-    error "'1' not found in " & bech
-  result.hrp = bech[0..<pos]
+func decodeImpl(bech32: sink string): tuple[hrp: string, data: seq[int5]] {.raises: [InvalidBech32Error].} =
+  bech32 = bech32.toLower()
+  let pos = bech32.rfind('1')
+  if pos < 1 or pos + 7 > bech32.len: # or len(bech32) > 90:
+    error "'1' not found in " & bech32
+  result.hrp = bech32[0..<pos]
   try:
-    result.data = bech[pos + 1..^1].mapIt(CHARSET_MAP[it])
-  except KeyError: error "Invalid character in bech32 hash " & bech
-  # if not bech32VerifyChecksum(result.hrp, result.data):
-  #   error bech & " has an invalid checksum"
+    result.data = bech32[pos + 1..^1].mapIt(CHARSET_MAP[it])
+  except KeyError: error "Invalid character in bech32 hash " & bech32
+  # if not verifyChecksum(result.hrp, result.data):
+  #   error bech32 & " has an invalid checksum"
   result.data.setLen(result.data.len - 6) # Cut off checksum
 
 func decode*(address: string): tuple[hrp: string, data: seq[byte]] {.inline, raises: [InvalidBech32Error].} =
-  let (hrp, data) = bech32Decode(address)
+  let (hrp, data) = decodeImpl(address)
   result = (hrp, fromWords(data))
 
 func decode*(hrp, address: string): seq[byte] {.inline, raises: [InvalidBech32Error].} =
-  let (hrpGot, data) = bech32Decode(address)
+  let (hrpGot, data) = decodeImpl(address)
   if hrpGot != hrp:
     error "Incorrect hrp " & hrpGot & " in bech32 address, expected " & hrp
   result = fromWords(data)

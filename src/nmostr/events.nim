@@ -244,7 +244,7 @@ proc recommendServer*(keypair: Keypair, url: string, created_at = getTime(), tag
   ## URL (e.g., wss://somerelay.com) of a relay the event creator wants to recommend to its followers.
   Event.init(2, url, keypair, created_at, tags)
 
-template verify*(event: Event): bool =
+proc verify*(event: Event): bool {.inline.} =
   verify(event.sig, sha256(serialize event), event.pubkey)
 
 proc stamp*(event: var Event, keypair: Keypair, rng: Rng = sysRng) {.raises: [ValueError].} =
@@ -257,7 +257,7 @@ proc stamp*(event: var Event, keypair: Keypair, rng: Rng = sysRng) {.raises: [Va
 
 # Working with events
 
-template stripGeneric*(tag: string): string =
+template stripGeneric(tag: string): string =
   if likely tag.startsWith('#') and likely tag.len > 1: tag[1..^1]
   else: tag
 
