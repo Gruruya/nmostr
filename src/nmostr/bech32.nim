@@ -110,24 +110,26 @@ template encode*(hrp, witprog: string): string =
 proc verifyChecksum*(hrp: string, data: seq[int5]): bool =
   polymod(hrpExpand(hrp) & data) == 1
 
-func decodeImpl(bech32: sink string): tuple[hrp: string, data: seq[int5]] {.raises: [InvalidBech32Error].} =
+template decodeImpl(bech32: string): tuple[hrp: string, data: seq[int5]] =
   bech32 = bech32.toLower()
   let pos = bech32.rfind('1')
   if pos < 1 or pos + 7 > bech32.len: # or len(bech32) > 90:
     error "'1' not found in " & bech32
-  result.hrp = bech32[0..<pos]
-  try:
-    result.data = bech32[pos + 1..^1].mapIt(CHARSET_MAP[it])
-  except KeyError: error "Invalid character in bech32 hash " & bech32
-  # if not verifyChecksum(result.hrp, result.data):
+  var hrp = bech32[0..<pos]
+  var data =
+    try:
+      bech32[pos + 1..^1].mapIt(CHARSET_MAP[it])
+    except KeyError: error "Invalid character in bech32 hash " & bech32
+  # if not verifyChecksum(hrp, data):
   #   error bech32 & " has an invalid checksum"
-  result.data.setLen(result.data.len - 6) # Cut off checksum
+  data.setLen(data.len - 6) # Cut off checksum
+  (hrp, data)
 
-func decode*(address: string): tuple[hrp: string, data: seq[byte]] {.inline, raises: [InvalidBech32Error].} =
+func decode*(address: sink string): tuple[hrp: string, data: seq[byte]] {.inline, raises: [InvalidBech32Error].} =
   let (hrp, data) = decodeImpl(address)
   result = (hrp, fromWords(data))
 
-func decode*(hrp, address: string): seq[byte] {.inline, raises: [InvalidBech32Error].} =
+func decode*(hrp: string, address: sink string): seq[byte] {.inline, raises: [InvalidBech32Error].} =
   let (hrpGot, data) = decodeImpl(address)
   if hrpGot != hrp:
     error "Incorrect hrp " & hrpGot & " in bech32 address, expected " & hrp
