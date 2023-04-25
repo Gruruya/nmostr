@@ -117,8 +117,7 @@ template decodeImpl(bech32: string): tuple[hrp: string, data: seq[int5]] =
     error "'1' not found in " & bech32
   var hrp = bech32[0..<pos]
   var data =
-    try:
-      bech32[pos + 1..^1].mapIt(CHARSET_MAP[it])
+    try: bech32[pos + 1..^1].mapIt(CHARSET_MAP[it])
     except KeyError: error "Invalid character in bech32 hash " & bech32
   # if not verifyChecksum(hrp, data):
   #   error bech32 & " has an invalid checksum"
