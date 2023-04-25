@@ -9,7 +9,7 @@ inputs:
     description: 'Version of Nim.'
     required: false
     default: 'devel'
-  GITHUB_TOKEN:
+  token:
     description: 'Your GitHub token.'
     required: true
   arch:
@@ -48,7 +48,7 @@ runs:
       uses: jiro4989/setup-nim-action@v1
       with:
         nim-version: ${{ inputs.version }}
-        repo-token: ${{ inputs.GITHUB_TOKEN }}
+        repo-token: ${{ inputs.token }}
 
     - name: Run
       if: ${{ inputs.arch == 'x86_64' || inputs.arch == 'x86' }}
@@ -61,7 +61,7 @@ runs:
       with:
         arch: ${{ inputs.arch }}
         distro: ubuntu_devel
-        githubToken: ${{ inputs.GITHUB_TOKEN }}
+        githubToken: ${{ inputs.token }}
 
         dockerRunArgs: |
           --volume "$HOME/.nimble:/root/.nimble"

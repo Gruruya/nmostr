@@ -27,12 +27,14 @@ jobs:
       uses: './.github/workflows/nim-run'
       with:
         run: nimble doc -y --project src/nmostr.nim --outDir:htmldocs
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        token: ${{ secrets.GITHUB_TOKEN }}
 
     - run: ln -s nmostr.html htmldocs/index.html
 
     - name: Setup HTML for GitHub Pages
       uses: actions/configure-pages@v3
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
 
     - name: Upload Docs
       uses: actions/upload-pages-artifact@v1
