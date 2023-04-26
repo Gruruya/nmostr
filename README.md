@@ -22,7 +22,7 @@ echo "New secret key: " & keypair.seckey.toBech32
 echo "The public key: " & keypair.pubkey.toBech32
 
 # Post a note
-let socket = waitFor newWebSocket("wss://ephemerelay.mostr.pub") # Build -d:ssl
+let socket = waitFor newWebSocket("wss://ephemerelay.mostr.pub") # Remember to build with -d:ssl
 waitFor socket.send CMEvent(event: note(keypair, "Hello world from nmostr!")).toJson
 let response = waitFor socket.receiveStrPacket()
 echo response
