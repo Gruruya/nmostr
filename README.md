@@ -11,7 +11,31 @@ Stability: Early days. Functional.
 
 Usage
 ---
-See the reference client [niomo](https://github.com/Gruruya/niomo) and [tests/test.nim](tests/test.nim).
+
+Compile with `-d:ssl` for `wss://` secure connections
+```nim
+import std/asyncdispatch
+import pkg/[nmostr, ws]
+
+let keypair = newKeypair()
+echo "New secret key: " & keypair.seckey.toBech32
+echo "The public key: " & keypair.pubkey.toBech32
+
+# Post a note
+let socket = waitFor newWebSocket("wss://ephemerelay.mostr.pub") # Build -d:ssl
+waitFor socket.send CMEvent(event: note(keypair, "Hello world from nmostr!")).toJson
+let response = waitFor socket.receiveStrPacket()
+echo response
+
+# Read the note
+let parsed = fromMessage(response)
+unpack parsed, msg:
+  when msg is SMOk:
+    waitFor socket.send CMRequest(id: randomID(), filter: Filter(ids: @[msg.id])).toJson
+    echo waitFor socket.receiveStrPacket()
+```
+
+For more, see the reference client [niomo](https://github.com/Gruruya/niomo) and [tests/test.nim](tests/test.nim).
 
 What is Nostr?
 ---
