@@ -28,7 +28,7 @@ waitFor socket.send CMEvent(event: note(keypair, "Hello world from nmostr!")).to
 let response = waitFor socket.receiveStrPacket()
 echo response
 
-# Read the note
+# Read the note back
 let parsed = fromMessage(response)
 unpack parsed, msg:
   when msg is SMOk:
