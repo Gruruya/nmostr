@@ -12,7 +12,7 @@ Stability: Early days. Functional.
 Usage
 ---
 
-Compile with `-d:ssl` for `wss://` secure connections
+Compile with `-d:ssl` for `wss://` connections
 ```nim
 import std/asyncdispatch
 import pkg/[nmostr, ws]
