@@ -12,7 +12,8 @@ Stability: Early days. Functional.
 Usage
 ---
 
-Compile with `-d:ssl` for `wss://` connections
+Compile with `-d:ssl` for `wss://` connections  
+Example uses [treeform's ws](https://github.com/treeform/ws) i.e. `nimble install ws`
 ```nim
 import std/asyncdispatch
 import pkg/[nmostr, ws]
