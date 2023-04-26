@@ -33,6 +33,8 @@ unpack parsed, msg:
   when msg is SMOk:
     waitFor socket.send CMRequest(id: randomID(), filter: Filter(ids: @[msg.id])).toJson
     echo waitFor socket.receiveStrPacket()
+
+socket.close()
 ```
 
 For more, see the reference client [niomo](https://github.com/Gruruya/niomo) and [tests/test.nim](tests/test.nim).
