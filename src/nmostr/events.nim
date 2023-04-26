@@ -18,7 +18,7 @@
 ## Utilities for working with Nostr events.
 
 runnableExamples:
-  echo note(newKeypair(), "hello world!")
+  echo note(newKeypair(), "hello world!").toJson
 
 import std/[times, strutils, sequtils, macros, sysrand, sugar]
 import pkg/[jsony, secp256k1, crunchy, stew/byteutils]
