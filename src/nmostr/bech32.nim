@@ -50,7 +50,7 @@ func toWords*(data: openArray[byte]): seq[int5] {.raises: [InvalidBech32Error].}
       bits -= 5
       result[idx] = int5((acc shr bits) and maxV)
       inc(idx)
-  if bits > 0:
+  if likely bits > 0:
     result[idx] = int5((acc shl (5 - bits)) and maxV)
   else:
     if bits >= 8: error "Excess padding"
@@ -71,8 +71,8 @@ func fromWords*(data: openArray[int5]): seq[byte] {.raises: [InvalidBech32Error]
       bits -= 8
       result[idx] = ((acc shr bits) and maxV).byte
       inc(idx)
-  if bits >= 5: error "Excess padding"
-  elif ((acc shl (8 - bits)) and maxV) != 0: error "Non-zero padding"
+  if unlikely bits >= 5: error "Excess padding"
+  elif unlikely ((acc shl (8 - bits)) and maxV) != 0: error "Non-zero padding"
 
 func polymod(values: openArray[int5]): int5 =
   const generator = [int5 0x3b6a57b2, 0x26508e6d, 0x1ea119fa, 0x3d4233dd, 0x2a1462b3]
@@ -113,7 +113,7 @@ proc verifyChecksum*(hrp: string, data: seq[int5]): bool =
 template decodeImpl(bech32: string): tuple[hrp: string, data: seq[int5]] =
   bech32 = bech32.toLower()
   let pos = bech32.rfind('1')
-  if pos < 1 or pos + 7 > bech32.len: # or len(bech32) > 90:
+  if unlikely pos < 1 or unlikely pos + 7 > bech32.len: # or len(bech32) > 90:
     error "'1' not found in " & bech32
   var hrp = bech32[0..<pos]
   var data =
@@ -130,7 +130,7 @@ func decode*(address: sink string): tuple[hrp: string, data: seq[byte]] {.inline
 
 func decode*(hrp: string, address: sink string): seq[byte] {.inline, raises: [InvalidBech32Error].} =
   let (hrpGot, data) = decodeImpl(address)
-  if hrpGot != hrp:
+  if unlikely hrpGot != hrp:
     error "Incorrect hrp " & hrpGot & " in bech32 address, expected " & hrp
   result = fromWords(data)
   
@@ -184,14 +184,14 @@ template parseData(address: openArray[byte], i: var int): tuple[kind: int8, data
   if i + 1 >= address.len: break
   let (kind, length) = (cast[int8](address[i]), cast[int8](address[i + 1]))
   i += 2
-  if i + length - 1 > address.len: error "End of value " & $(i + length - 1) & " exceeds bech32 address length " & $address.len
+  if unlikely i + length - 1 > address.len: error "End of value " & $(i + length - 1) & " exceeds bech32 address length " & $address.len
   let data = address[i..<i + length]
   i += length
   (kind, data)
 
 func fromRaw*(T: type SkXOnlyPublicKey, data: openArray[byte]): SkResult[SkXOnlyPublicKey] {.inline.} =
-  if data.len == 33: secp256k1.fromRaw(SkXOnlyPublicKey, data[0..^2])
-  elif data.len == 32: secp256k1.fromRaw(SkXOnlyPublicKey, data)
+  if likely data.len == 32: secp256k1.fromRaw(SkXOnlyPublicKey, data)
+  elif data.len == 33: secp256k1.fromRaw(SkXOnlyPublicKey, data[0..^2])
   else: err("bech32: x-only public key must be 32 or 33 bytes")
 
 func fromRaw*(T: type NProfile, address: openArray[byte]): T {.raises: [InvalidBech32Error].} =
@@ -201,7 +201,7 @@ func fromRaw*(T: type NProfile, address: openArray[byte]): T {.raises: [InvalidB
     case kind:
     of 0:
       let pk = SkXOnlyPublicKey.fromRaw(data)
-      if pk.isOk: result.pubkey = pk.unsafeGet
+      if likely pk.isOk: result.pubkey = pk.unsafeGet
       else: error $pk.error
     of 1:
       result.relays.add string.fromBytes(data)
@@ -214,16 +214,16 @@ func fromRaw*(T: type NEvent, address: openArray[byte]): T {.raises: [InvalidBec
     let (kind, data) = parseData(address, i)
     case kind:
     of 0:
-      if data.len == 32:
+      if likely data.len == 32:
         result.id = EventID(bytes: toArray(32, data))
       else: error "Invalid event id in nevent bech32 address"
     of 1:
       result.relays.add string.fromBytes(data)
     of 2:
       let pubkey = SkXOnlyPublicKey.fromRaw(data)
-      if pubkey.isOk: result.author = pubkey.unsafeGet
+      if likely pubkey.isOk: result.author = pubkey.unsafeGet
     of 3:
-      if data.len == 4:
+      if likely data.len == 4:
         result.kind = toUInt32(data)
     else:
       discard
@@ -239,9 +239,9 @@ func fromRaw*(T: type NAddr, address: openArray[byte]): T {.raises: [InvalidBech
       result.relays.add string.fromBytes(data)
     of 2:
       let pubkey = SkXOnlyPublicKey.fromRaw(data)
-      if pubkey.isOk: result.author = pubkey.unsafeGet
+      if likely pubkey.isOk: result.author = pubkey.unsafeGet
     of 3:
-      if data.len == 4:
+      if likely data.len == 4:
         result.kind = toUInt32(data)
     else:
       discard
@@ -250,13 +250,13 @@ func fromRaw*(T: type NRelay, address: openArray[byte]): T {.raises: [InvalidBec
   var i = 0
   while true:
     let (kind, data) = parseData(address, i)
-    if kind == 0:
+    if likely kind == 0:
       return NRelay(url: string.fromBytes(data))
 
 func fromRaw*(T: type NNote, address: seq[byte]): T {.raises: [InvalidBech32Error].} =
-  if address.len == 32:
+  if likely address.len == 32:
     NNote(id: EventID(bytes: toArray(32, address)))
-  elif address.len > 32:
+  elif unlikely address.len > 32:
     NNote(id: EventID(bytes: toArray(32, address[0..31]))) # WARNING: Maybe? Silent failure.
   else:
     error "Event ID in bech32 encoded note should be 32 bytes, but was " & $address.len & " bytes instead"
@@ -266,11 +266,11 @@ func fromNostrBech32*(address: string): union(Bech32EncodedEntity) {.raises: [In
   case kind:
   of "npub":
     let pk = SkXOnlyPublicKey.fromRaw(data)
-    if pk.isOk: unsafeGet(pk) as union(Bech32EncodedEntity)
+    if likely pk.isOk: unsafeGet(pk) as union(Bech32EncodedEntity)
     else: error $pk.error
   of "nsec":
     let sk = SkSecretKey.fromRaw(data)
-    if sk.isOk: unsafeGet(sk) as union(Bech32EncodedEntity)
+    if likely sk.isOk: unsafeGet(sk) as union(Bech32EncodedEntity)
     else: error $sk.error
   of "note":
     NNote.fromRaw(data) as union(Bech32EncodedEntity)
@@ -287,12 +287,12 @@ func fromNostrBech32*(address: string): union(Bech32EncodedEntity) {.raises: [In
 
 func fromBech32*(T: type SkSecretKey, address: string): T {.inline, raises: [InvalidBech32Error].} =
   let sk = SkSecretKey.fromRaw(decode("nsec", address))
-  if sk.isOk: unsafeGet(sk)
+  if likely sk.isOk: unsafeGet(sk)
   else: bech32.error $sk.error
 
 func fromBech32*(T: type SkXOnlyPublicKey, address: string): T {.inline, raises: [InvalidBech32Error].} =
   let pk = bech32.fromRaw(SkXOnlyPublicKey, (decode("npub", address)))
-  if pk.isOk: unsafeGet(pk)
+  if likely pk.isOk: unsafeGet(pk)
   else: bech32.error $pk.error
 
 func fromBech32*(T: type NNote, address: string): T {.inline, raises: [InvalidBech32Error].} =
