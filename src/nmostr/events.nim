@@ -210,7 +210,7 @@ template check*[T, E](x: Result[T, E]): auto =
 
 proc sign*(event: var Event, sk: SkSecretKey, rng: Rng = sysRng) {.raises: [ValueError].} =
   let sig = signSchnorr(sk, event.serialize.sha256, rng)
-  if sig.isOk: event.sig = sig.unsafeGet
+  if likely sig.isOk: event.sig = sig.unsafeGet
   else: raise newException(ValueError, $sig.error())
 
 template sign*(event: var Event, sk: Keypair, rng: Rng = sysRng) =
