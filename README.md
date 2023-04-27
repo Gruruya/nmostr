@@ -13,27 +13,26 @@ Usage
 ---
 
 Compile with `-d:ssl` for `wss://` connections  
-Example uses [treeform's ws](https://github.com/treeform/ws) i.e. `nimble install ws`
+Example uses [guzba's whisky](https://github.com/guzba/whisky) i.e. `nimble install whisky`
 ```nim
-import std/asyncdispatch
-import pkg/[nmostr, ws]
+import pkg/[nmostr, whisky]
 
 let keypair = newKeypair()
 echo "New secret key: " & keypair.seckey.toBech32
 echo "The public key: " & keypair.pubkey.toBech32
 
 # Post a note
-let socket = waitFor newWebSocket("wss://ephemerelay.mostr.pub") # Remember to build with -d:ssl
-waitFor socket.send CMEvent(event: note(keypair, "Hello world from nmostr!")).toJson
-let response = waitFor socket.receiveStrPacket()
+let socket = newWebSocket("wss://ephemerelay.mostr.pub") # Remember to build with -d:ssl
+socket.send CMEvent(event: note(keypair, "Hello world from nmostr!")).toJson
+let response = socket.receiveMessage().get.data
 echo response
 
 # Read the note back
 let parsed = fromMessage(response)
 unpack parsed, msg:
   when msg is SMOk:
-    waitFor socket.send CMRequest(id: randomID(), filter: Filter(ids: @[msg.id])).toJson
-    echo waitFor socket.receiveStrPacket()
+    socket.send CMRequest(id: randomID(), filter: Filter(ids: @[msg.id])).toJson
+    echo socket.receiveMessage().get.data
 
 socket.close()
 ```
