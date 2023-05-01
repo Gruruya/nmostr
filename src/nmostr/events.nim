@@ -193,8 +193,10 @@ converter toKeypair*(keypair: SkKeyPair): Keypair =
 converter toKeypair*(seckey: SkSecretKey): Keypair =
   Keypair(seckey: seckey, pubkey: seckey.toPublicKey.toXOnly)
 
-proc newKeypair*(rng: Rng = sysRng): Keypair =
-  toKeypair SkKeyPair.random(rng)[]
+proc newKeypair*(rng: Rng = sysRng): Keypair {.raises: [OSError].} =
+  let secretKey = SkKeyPair.random(rng)
+  if secretKey.isOk: toKeypair secretKey.unsafeGet
+  else: raise newException(OSError, $secretKey.error())
 
 func serialize*(e: Event): string =
   ## Serialize `event` into JSON so that it can be hashed in accordance with NIP-01.
