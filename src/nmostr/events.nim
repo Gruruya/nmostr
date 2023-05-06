@@ -171,7 +171,7 @@ proc dumpHook*(s: var string, v: Filter) {.raises: [JsonError, ValueError].} =
       if i > 1: s.add ','
       s.dumpKey(k)
       s.dumpHook(e)
-      inc(i)
+      inc i
     else:
       skipValue(s, i)
   s.add '}'
