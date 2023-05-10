@@ -258,7 +258,7 @@ proc stamp*(event: var Event, keypair: Keypair, rng: Rng = sysRng) {.raises: [Va
 # Working with events
 
 template stripGeneric(tag: string): string =
-  if likely tag.startsWith('#') and likely tag.len > 1: tag[1..^1]
+  if likely tag.len > 1 and likely tag[0] == '#': tag[1..^1]
   else: tag
 
 func matches*(event: Event, filter: Filter): bool =
