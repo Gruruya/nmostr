@@ -22,14 +22,13 @@ echo "New secret key: " & keypair.seckey.toBech32
 echo "The public key: " & keypair.pubkey.toBech32
 
 # Post a note
-let socket = newWebSocket("wss://ephemerelay.mostr.pub") # Remember to build with -d:ssl
+let socket = newWebSocket("wss://nostr.oxtr.dev") # Remember to build with -d:ssl
 socket.send CMEvent(event: note(keypair, "Hello world from nmostr!")).toJson
 let response = socket.receiveMessage().get.data
 echo response
 
 # Read the note back
-let parsed = fromMessage(response)
-unpack parsed, msg:
+unpack fromMessage(response), msg:
   when msg is SMOk:
     socket.send CMRequest(id: randomID(), filter: Filter(ids: @[msg.id])).toJson
     echo socket.receiveMessage().get.data
