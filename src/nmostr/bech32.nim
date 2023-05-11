@@ -373,3 +373,8 @@ func toFilter*(naddr: NAddr): Filter =
 
 func toFilter*(nnote: NNote): Filter =
   Filter(ids: @[nnote.id.toHex])
+
+func toFilter*(union: union(Bech32EncodedEntity)): Filter =
+  unpack union, entity:
+    when (compiles do: entity.toFilter): entity.toFilter
+    else: Filter()
