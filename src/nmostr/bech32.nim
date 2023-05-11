@@ -134,7 +134,7 @@ func decode*(hrp: string, address: sink string): seq[byte] {.inline, raises: [In
     error "Incorrect hrp " & hrpGot & " in bech32 address, expected " & hrp
   result = fromWords(data)
   
-template toString*(bech32: tuple[hrp: string, data: openArray[byte]]): string =
+template toString*(bech32: tuple[hrp: string, data: seq[byte]]): string =
   string.fromBytes bech32.data
 
 # Nostr specific. NIP-19 #
