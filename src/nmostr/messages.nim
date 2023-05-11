@@ -23,8 +23,6 @@ import ./events
 
 export events, union
 
-# Types
-
 type
   # Use a variant object once they support duplicate fields
   CMEvent* = object   ## ["EVENT", <event JSON>]
