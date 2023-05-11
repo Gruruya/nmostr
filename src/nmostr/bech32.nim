@@ -376,5 +376,5 @@ func toFilter*(nnote: NNote): Filter =
 
 func toFilter*(union: union(Bech32EncodedEntity)): Filter =
   unpack union, entity:
-    when (compiles do: entity.toFilter): entity.toFilter
+    when (compiles entity.toFilter): entity.toFilter
     else: Filter()
