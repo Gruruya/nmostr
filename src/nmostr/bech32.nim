@@ -369,7 +369,9 @@ func toFilter*(nevent: NEvent): Filter =
     result.kinds = @[int nevent.kind]
 
 func toFilter*(naddr: NAddr): Filter =
-  Filter(tags: @[@["#d", naddr.id]], authors: @[naddr.author.toHex], kinds: @[int naddr.kind])
+  Filter(tags: @[@["#d", naddr.id]],
+         authors: @[naddr.author.toHex],
+         kinds: @[int naddr.kind])
 
 func toFilter*(nnote: NNote): Filter =
   Filter(ids: @[nnote.id.toHex])
