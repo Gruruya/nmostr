@@ -143,7 +143,7 @@ suite "bech32":
     check fromNostrBech32("nevent1qqstna2yrezu5wghjvswqqculvvwxsrcvu7uc0f78gan4xqhvz49d9spr3mhxue69uhkummnw3ez6un9d3shjtn4de6x2argwghx6egpr4mhxue69uhkummnw3ez6ur4vgh8wetvd3hhyer9wghxuet5nxnepm") == NEvent(id: EventID.fromHex "b9f5441e45ca39179320e0031cfb18e34078673dcc3d3e3a3b3a981760aa5696", relays: @["wss://nostr-relay.untethr.me", "wss://nostr-pub.wellorder.net"])
 
   block parsing_naddr:
-    check fromNostrBech32("naddr1qqzkjurnw4ksz9thwden5te0wfjkccte9ehx7um5wghx7un8qgs2d90kkcq3nk2jry62dyf50k0h36rhpdtd594my40w9pkal876jxgrqsqqqa28pccpzu") == NAddr(id: "ipsum", relays: @["wss://relay.nostr.org"], author: SkXOnlyPublicKey.fromHex("a695f6b60119d9521934a691347d9f78e8770b56da16bb255ee286ddf9fda919")[], kind: 30023)
+    check fromNostrBech32("naddr1qqxnzd3cxqmrzv3exgmr2wfeqy08wumn8ghj7mn0wd68yttsw43zuam9d3kx7unyv4ezumn9wshszyrhwden5te0dehhxarj9ekk7mf0qy88wumn8ghj7mn0wvhxcmmv9uq3zamnwvaz7tmwdaehgu3wwa5kuef0qy2hwumn8ghj7un9d3shjtnwdaehgu3wvfnj7q3qdergggklka99wwrs92yz8wdjs952h2ux2ha2ed598ngwu9w7a6fsxpqqqp65wy2vhhv") == NAddr(id: "1680612926599", relays: @["wss://nostr-pub.wellorder.net/", "wss://nostr.mom/", "wss://nos.lol/", "wss://nostr.wine/", "wss://relay.nostr.bg/"], author: SkXOnlyPublicKey.fromHex("6e468422dfb74a5738702a8823b9b28168abab8655faacb6853cd0ee15deee93")[], kind: 30023)
 
   # I cannot find a single example of an nostr:nrelay being used in the wild.
 
