@@ -349,3 +349,25 @@ func toBech32*(nrelay: NRelay): string {.inline, raises: [InvalidBech32Error].} 
 
 func toBech32*(note: NNote): string {.inline, raises: [InvalidBech32Error].} =
   encode("note", note.id.bytes)
+
+func toFilter*(pubkey: SkXOnlyPublicKey): Filter =
+  Filter(authors: @[pubkey.toHex])
+
+func toFilter*(seckey: SkSecretKey): Filter =
+  Filter(authors: @[seckey.toPublicKey.toXOnly.toHex])
+
+func toFilter*(nprofile: NProfile): Filter =
+  Filter(authors: @[nprofile.pubkey.toHex])
+
+func toFilter*(nevent: NEvent): Filter =
+  result.ids = @[nevent.id.toHex]
+  if nevent.author != default(NEvent.author):
+    result.authors = @[nevent.author.toHex]
+  if nevent.kind != default(NEvent.kind):
+    result.kinds = @[int nevent.kind]
+
+func toFilter*(naddr: NAddr): Filter =
+  Filter(tags: @[@["#d", naddr.id]], authors: @[naddr.author.toHex], kinds: @[int naddr.kind])
+
+func toFilter*(nnote: NNote): Filter =
+  Filter(ids: @[nnote.id.toHex])
