@@ -58,7 +58,7 @@ func fromHex*(T: type SchnorrSignature, data: string): SkResult[T] =
   T.fromRaw(? seq[byte].fromHex(data))
 
 func toRaw*(pubkey: PublicKey): array[SkRawXOnlyPublicKeySize, byte] =
-  ## Wrapper to check if pubkey is uninitialized
+  ## Wrapper that checks if `pubkey` is uninitialized
   if pubkey == default(PublicKey): return
   secp256k1.toRaw(pubkey)
 
@@ -66,11 +66,11 @@ func toHex*(pubkey: PublicKey): string =
   toHex(toRaw(pubkey))
 
 func verify*(sig: SchnorrSignature, msg: SkMessage, pubkey: PublicKey): bool =
-  ## Wrapper to check if pubkey is uninitialized
+  ## Wrapper that checks if `pubkey` is uninitialized
   if pubkey == default(typeof pubkey): return false
   secp256k1.verify(sig, msg, pubkey)
 
 func verify*(sig: SchnorrSignature, msg: openArray[byte], pubkey: PublicKey): bool =
-  ## Wrapper to check if pubkey is uninitialized
+  ## Wrapper that checks if `pubkey` is uninitialized
   if pubkey == default(typeof pubkey): return false
   secp256k1.verify(sig, msg, pubkey)
