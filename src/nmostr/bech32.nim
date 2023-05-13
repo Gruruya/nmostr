@@ -119,8 +119,8 @@ template decodeImpl(bech32: string): tuple[hrp: string, data: seq[int5]] =
   var data =
     try: bech32[pos + 1..^1].mapIt(CHARSET_MAP[it])
     except KeyError: error "Invalid character in bech32 address " & address
-    # if not verifyChecksum(hrp, data):
-    #   error bech32 & " has an invalid checksum"
+  # if not verifyChecksum(hrp, data):
+  #   error bech32 & " has an invalid checksum"
   (hrp, data[0..^7]) # [0..^7] cuts off checksum
 
 func decode*(address: sink string): tuple[hrp: string, data: seq[byte]] {.inline, raises: [InvalidBech32Error].} =
