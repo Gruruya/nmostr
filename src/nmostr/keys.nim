@@ -19,7 +19,7 @@
 
 import pkg/secp256k1, pkg/secp256k1/abi
 from pkg/stew/byteutils import toHex
-export secp256k1 except default
+export secp256k1
 
 {.push raises: [], inline.}
 
