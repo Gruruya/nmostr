@@ -36,7 +36,7 @@ type
     ## Modified from `secp256k1` to not have `{.requiresInit.}`
     data: array[SkRawSchnorrSignatureSize, byte]
 
-# Equivalent to `secp256k1` types minues {.requireInit.}, so allow casting for interop
+# Equivalent to `secp256k1` types minus {.requireInit.}, so allow casting for interop
 converter toPublicKey*(pubkey: SkXOnlyPublicKey): PublicKey = cast[PublicKey](pubkey)
 converter toSkXOnlyPublicKey*(pubkey: PublicKey): SkXOnlyPublicKey = cast[SkXOnlyPublicKey](pubkey)
 converter toSchnorrSignature*(sig: SkSchnorrSignature): SchnorrSignature = cast[SchnorrSignature](sig)
