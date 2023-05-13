@@ -118,20 +118,19 @@ template decodeImpl(bech32: string): tuple[hrp: string, data: seq[int5]] =
   var hrp = bech32[0..<pos]
   var data =
     try: bech32[pos + 1..^1].mapIt(CHARSET_MAP[it])
-    except KeyError: error "Invalid character in bech32 hash " & bech32
-  # if not verifyChecksum(hrp, data):
-  #   error bech32 & " has an invalid checksum"
-  data.setLen(data.len - 6) # Cut off checksum
-  (hrp, data)
+    except KeyError: error "Invalid character in bech32 address " & address
+    # if not verifyChecksum(hrp, data):
+    #   error bech32 & " has an invalid checksum"
+  (hrp, data[0..^7]) # [0..^7] cuts off checksum
 
 func decode*(address: sink string): tuple[hrp: string, data: seq[byte]] {.inline, raises: [InvalidBech32Error].} =
   let (hrp, data) = decodeImpl(address)
   result = (hrp, fromWords(data))
 
 func decode*(hrp: string, address: sink string): seq[byte] {.inline, raises: [InvalidBech32Error].} =
-  let (hrpGot, data) = decodeImpl(address)
-  if unlikely hrpGot != hrp:
-    error "Incorrect hrp " & hrpGot & " in bech32 address, expected " & hrp
+  let (hrpFound, data) = decodeImpl(address)
+  if unlikely hrpFound != hrp:
+    error "Incorrect hrp " & hrpFound & " in bech32 address, expected " & hrp
   result = fromWords(data)
 
 template toString*(bech32: tuple[hrp: string, data: seq[byte]]): string =
