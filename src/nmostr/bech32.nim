@@ -18,11 +18,11 @@
 ## Modified from Pieter Wuille's reference Python implementation `sipa/bech32/python/segwit_addr.py`
 ## Nostr-style Bech32 addresses use no witness version or m-encoding.
 
-import pkg/[secp256k1, union, stew/byteutils]
+import pkg/[union, stew/byteutils]
 from std/tables import toTable, `[]`
 from std/sequtils import mapIt
 from std/strutils import toLower, rfind, join
-import ./events
+import ./events, ./keys
 
 type int5* = int
 
@@ -30,6 +30,12 @@ type InvalidBech32Error* = object of ValueError
 
 template error(reason: string) =
   raise newException(InvalidBech32Error, reason)
+
+func fromRaw(T: type PublicKey, data: openArray[byte]): SkResult[T] {.inline.} =
+  ## Same as `keys/fromRaw` but with `InvalidBech32Error`
+  if likely data.len == 32: cast[SkResult[PublicKey]](SkXOnlyPublicKey.fromRaw(data))
+  elif data.len == 33: cast[SkResult[PublicKey]](SkXOnlyPublicKey.fromRaw(data))
+  else: raise newException(InvalidBech32Error, "Raw x-only public key must be 32 or 33 bytes")
 
 const CHARSET = "qpzry9x8gf2tvdw0s3jn54khce6mua7l"
 const CHARSET_MAP = CHARSET.mapIt((it, CHARSET.find(it).int5)).toTable()
@@ -140,19 +146,19 @@ template toString*(bech32: tuple[hrp: string, data: seq[byte]]): string =
 
 type
   NProfile* = object
-    pubkey*: SkXOnlyPublicKey
+    pubkey*: PublicKey
     relays*: seq[string]
 
   NEvent* = object
     id*: EventID
     relays*: seq[string]
-    author*: SkXOnlyPublicKey
+    author*: PublicKey
     kind*: uint32
 
   NAddr* = object
     id*: string
     relays*: seq[string]
-    author*: SkXOnlyPublicKey
+    author*: PublicKey
     kind*: uint32
 
   NRelay* = object
@@ -161,7 +167,7 @@ type
   NNote* = object
     id*: EventID
 
-  Bech32EncodedEntity* = (NProfile | NEvent | NAddr | NRelay | NNote | SkSecretKey | SkXOnlyPublicKey)
+  Bech32EncodedEntity* = (NProfile | NEvent | NAddr | NRelay | NNote | SkSecretKey | PublicKey)
 
   UnknownTLVError* = object of ValueError
 
@@ -188,18 +194,13 @@ template parseData(address: openArray[byte], i: var int): tuple[kind: int8, data
   i += length
   (kind, data)
 
-func fromRaw*(T: type SkXOnlyPublicKey, data: openArray[byte]): SkResult[SkXOnlyPublicKey] {.inline.} =
-  if likely data.len == 32: secp256k1.fromRaw(SkXOnlyPublicKey, data)
-  elif data.len == 33: secp256k1.fromRaw(SkXOnlyPublicKey, data[0..^2])
-  else: err("bech32: x-only public key must be 32 or 33 bytes")
-
 func fromRaw*(T: type NProfile, address: openArray[byte]): T {.raises: [InvalidBech32Error].} =
   var i = 0
   while true:
     let (kind, data) = parseData(address, i)
     case kind:
     of 0:
-      let pk = SkXOnlyPublicKey.fromRaw(data)
+      let pk = PublicKey.fromRaw(data)
       if likely pk.isOk: result.pubkey = pk.unsafeGet
       else: error $pk.error
     of 1:
@@ -219,7 +220,7 @@ func fromRaw*(T: type NEvent, address: openArray[byte]): T {.raises: [InvalidBec
     of 1:
       result.relays.add string.fromBytes(data)
     of 2:
-      let pubkey = SkXOnlyPublicKey.fromRaw(data)
+      let pubkey = PublicKey.fromRaw(data)
       if likely pubkey.isOk: result.author = pubkey.unsafeGet
     of 3:
       if likely data.len == 4:
@@ -237,7 +238,7 @@ func fromRaw*(T: type NAddr, address: openArray[byte]): T {.raises: [InvalidBech
     of 1:
       result.relays.add string.fromBytes(data)
     of 2:
-      let pubkey = SkXOnlyPublicKey.fromRaw(data)
+      let pubkey = PublicKey.fromRaw(data)
       if likely pubkey.isOk: result.author = pubkey.unsafeGet
     of 3:
       if likely data.len == 4:
@@ -264,7 +265,7 @@ func fromNostrBech32*(address: string): union(Bech32EncodedEntity) {.raises: [In
   let (kind, data) = decode(address)
   case kind:
   of "npub":
-    let pk = SkXOnlyPublicKey.fromRaw(data)
+    let pk = PublicKey.fromRaw(data)
     if likely pk.isOk: unsafeGet(pk) as union(Bech32EncodedEntity)
     else: error $pk.error
   of "nsec":
@@ -289,8 +290,8 @@ func fromBech32*(T: type SkSecretKey, address: string): T {.inline, raises: [Inv
   if likely sk.isOk: unsafeGet(sk)
   else: bech32.error $sk.error
 
-func fromBech32*(T: type SkXOnlyPublicKey, address: string): T {.inline, raises: [InvalidBech32Error].} =
-  let pk = bech32.fromRaw(SkXOnlyPublicKey, (decode("npub", address)))
+func fromBech32*(T: type PublicKey, address: string): T {.inline, raises: [InvalidBech32Error].} =
+  let pk = bech32.fromRaw(PublicKey, (decode("npub", address)))
   if likely pk.isOk: unsafeGet(pk)
   else: bech32.error $pk.error
 
@@ -311,7 +312,7 @@ func fromBech32*(T: type NRelay, address: string): T {.inline, raises: [InvalidB
 
 # Encoding ##################################################################
 
-func toBech32*(pubkey: SkXOnlyPublicKey): string {.inline, raises: [InvalidBech32Error].} =
+func toBech32*(pubkey: PublicKey): string {.inline, raises: [InvalidBech32Error].} =
   encode("npub", pubkey.toRaw)
  
 func toBech32*(seckey: SkSecretKey): string {.inline, raises: [InvalidBech32Error].} =
@@ -351,7 +352,7 @@ func toBech32*(note: NNote): string {.inline, raises: [InvalidBech32Error].} =
 
 # Convenience ##################################################################
 
-func toFilter*(pubkey: SkXOnlyPublicKey): Filter =
+func toFilter*(pubkey: PublicKey): Filter =
   Filter(authors: @[pubkey.toHex])
 
 func toFilter*(seckey: SkSecretKey): Filter =

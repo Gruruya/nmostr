@@ -20,10 +20,12 @@
 runnableExamples:
   echo note(newKeypair(), "hello world!").toJson
 
-import std/[times, strutils, sequtils, macros, sysrand, sugar]
-import pkg/[jsony, secp256k1, crunchy, stew/byteutils]
+import
+  std/[times, strutils, sequtils, macros, sysrand, sugar],
+  pkg/[jsony, crunchy, stew/byteutils],
+  ./keys
 
-export jsony, times, secp256k1
+export jsony, times, keys
 
 {.push raises: [].}
 
@@ -37,13 +39,13 @@ template toHex*(id: EventID): string = $id
 func fromHex*(T: type EventID, hex: string): EventID {.raises: [ValueError].} = EventID(bytes: array[32, byte].fromHex(hex))
 
 type Event* = object
-  pubkey*: SkXOnlyPublicKey ## 32-bytes lowercase hex-encoded public key of the event creator
+  pubkey*: PublicKey ## 32-bytes lowercase hex-encoded public key of the event creator
   id*: EventID              ## 32-bytes lowercase hex-encoded sha256 of the serialized event data
   kind*: int                ## The type of event this is.
   content*: string          ## Arbitrary string, what it is should be gleamed from this event's `kind`
   created_at*: Time         ## Received and transmitted as a Unix timestamp in seconds
   tags*: seq[seq[string]]   ## A sequence of tags. This first item is the key and the rest is the content.
-  sig*: SkSchnorrSignature  ## 64-bytes hex of the signature of the sha256 hash of the serialized event data, which is the same as the "id" field
+  sig*: SchnorrSignature  ## 64-bytes hex of the signature of the sha256 hash of the serialized event data, which is the same as the "id" field
 
 type Filter* = object
   ids*: seq[string]       ## List of event ids or prefixes.
@@ -62,7 +64,7 @@ type Metadata* = object ## Content of kind 0 (metadata) event
 type Keypair* = object
   ## Representation of private/public key pair.
   seckey*: SkSecretKey
-  pubkey*: SkXOnlyPublicKey
+  pubkey*: PublicKey
 
 # JSON interop
 {.push inline.}
@@ -73,21 +75,21 @@ func parseHook*(s: string, i: var int, v: var EventID) {.raises: [JsonError, Val
   parseHook(s, i, j)
   v = EventID.fromHex j
 
-func parseHook*(s: string, i: var int, v: var SkXOnlyPublicKey) {.raises: [JsonError, ValueError].} =
+func parseHook*(s: string, i: var int, v: var PublicKey) {.raises: [JsonError, ValueError].} =
   ## Parse `id` as a hexadecimal encoding [of a sha256 hash].
   var j: string
   parseHook(s, i, j)
   # WARNING: Silently failing, replacing incorrect with nulled pubkeys
-  v = (SkXOnlyPublicKey.fromHex j).valueOr: default(typeof v)
+  v = (PublicKey.fromHex j).valueOr: default(typeof v)
 
-func parseHook*(s: string, i: var int, v: var SkSchnorrSignature) {.raises: [JsonError, ValueError].} =
+func parseHook*(s: string, i: var int, v: var SchnorrSignature) {.raises: [JsonError, ValueError].} =
   ## Parse `id` as a hexadecimal encoding [of a sha256 hash.]
   var j: string
   parseHook(s, i, j)
   # FIXME: Silently failing, replacing incorrect with nulled signature
-  v = (SkSchnorrSignature.fromHex j).valueOr: default(typeof v)
+  v = (SchnorrSignature.fromHex j).valueOr: default(typeof v)
 
-func dumpHook*(s: var string, v: EventID | SkXOnlyPublicKey | SkSchnorrSignature) =
+func dumpHook*(s: var string, v: EventID | PublicKey | SchnorrSignature) =
   ## Serialize `id`, `pubkey`, and `sig` into hexadecimal.
   dumpHook(s, v.toHex)
 
