@@ -202,14 +202,6 @@ func serialize*(e: Event): string =
   ## Serialize `event` into JSON so that it can be hashed in accordance with NIP-01.
   "[0," & e.pubkey.toJson & "," & e.created_at.toJson & "," & e.kind.toJson & "," & e.tags.toJson & "," & e.content.toJson & "]"
 
-template check*[T, E](x: Result[T, E]): auto =
-  ## Early return - if `x` is an error the calling proc returns false, else you get the value.
-  ## Modified from `stew/results.nim`
-  if not x.oResultPrivate:
-    return false
-  else:
-    x[]
-
 proc sign*(event: var Event, sk: SkSecretKey, rng: Rng = sysRng) {.raises: [ValueError].} =
   let sig = signSchnorr(sk, event.serialize.sha256, rng)
   if likely sig.isOk: event.sig = sig.unsafeGet
