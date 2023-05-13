@@ -63,7 +63,7 @@ type Metadata* = object ## Content of kind 0 (metadata) event
 
 type Keypair* = object
   ## Representation of private/public key pair.
-  seckey*: SkSecretKey
+  seckey*: SecretKey
   pubkey*: PublicKey
 
 # JSON interop
@@ -192,7 +192,7 @@ proc sysRng*(data: var openArray[byte]): bool =
 converter toKeypair*(keypair: SkKeyPair): Keypair =
   Keypair(seckey: keypair.seckey, pubkey: keypair.pubkey.toXOnly)
 
-converter toKeypair*(seckey: SkSecretKey): Keypair =
+converter toKeypair*(seckey: SecretKey): Keypair =
   Keypair(seckey: seckey, pubkey: seckey.toPublicKey.toXOnly)
 
 proc newKeypair*(rng: Rng = sysRng): Keypair {.raises: [OSError].} =
@@ -204,7 +204,7 @@ func serialize*(e: Event): string =
   ## Serialize `event` into JSON so that it can be hashed in accordance with NIP-01.
   "[0," & e.pubkey.toJson & "," & e.created_at.toJson & "," & e.kind.toJson & "," & e.tags.toJson & "," & e.content.toJson & "]"
 
-proc sign*(event: var Event, sk: SkSecretKey, rng: Rng = sysRng) {.raises: [ValueError].} =
+proc sign*(event: var Event, sk: SecretKey, rng: Rng = sysRng) {.raises: [ValueError].} =
   let sig = signSchnorr(sk, event.serialize.sha256, rng)
   if likely sig.isOk: event.sig = sig.unsafeGet
   else: raise newException(ValueError, $sig.error())

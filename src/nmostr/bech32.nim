@@ -32,7 +32,7 @@ template error(reason: string) =
   raise newException(InvalidBech32Error, reason)
 
 func fromRaw(T: type PublicKey, data: openArray[byte]): SkResult[T] {.inline.} =
-  ## Same as `keys/fromRaw` but with `InvalidBech32Error`
+  ## Same as `./keys/fromRaw` but with `InvalidBech32Error`
   if likely data.len == 32: cast[SkResult[PublicKey]](SkXOnlyPublicKey.fromRaw(data))
   elif data.len == 33: cast[SkResult[PublicKey]](SkXOnlyPublicKey.fromRaw(data))
   else: raise newException(InvalidBech32Error, "Raw x-only public key must be 32 or 33 bytes")
@@ -167,7 +167,7 @@ type
   NNote* = object
     id*: EventID
 
-  Bech32EncodedEntity* = (NProfile | NEvent | NAddr | NRelay | NNote | SkSecretKey | PublicKey)
+  Bech32EncodedEntity* = (NProfile | NEvent | NAddr | NRelay | NNote | SecretKey | PublicKey)
 
   UnknownTLVError* = object of ValueError
 
@@ -269,7 +269,7 @@ func fromNostrBech32*(address: string): union(Bech32EncodedEntity) {.raises: [In
     if likely pk.isOk: unsafeGet(pk) as union(Bech32EncodedEntity)
     else: error $pk.error
   of "nsec":
-    let sk = SkSecretKey.fromRaw(data)
+    let sk = SecretKey.fromRaw(data)
     if likely sk.isOk: unsafeGet(sk) as union(Bech32EncodedEntity)
     else: error $sk.error
   of "note":
@@ -285,8 +285,8 @@ func fromNostrBech32*(address: string): union(Bech32EncodedEntity) {.raises: [In
   else:
     raise newException(UnknownTLVError, "Unknown TLV starting with " & kind)
 
-func fromBech32*(T: type SkSecretKey, address: string): T {.inline, raises: [InvalidBech32Error].} =
-  let sk = SkSecretKey.fromRaw(decode("nsec", address))
+func fromBech32*(T: type SecretKey, address: string): T {.inline, raises: [InvalidBech32Error].} =
+  let sk = SecretKey.fromRaw(decode("nsec", address))
   if likely sk.isOk: unsafeGet(sk)
   else: bech32.error $sk.error
 
@@ -315,7 +315,7 @@ func fromBech32*(T: type NRelay, address: string): T {.inline, raises: [InvalidB
 func toBech32*(pubkey: PublicKey): string {.inline, raises: [InvalidBech32Error].} =
   encode("npub", pubkey.toRaw)
  
-func toBech32*(seckey: SkSecretKey): string {.inline, raises: [InvalidBech32Error].} =
+func toBech32*(seckey: SecretKey): string {.inline, raises: [InvalidBech32Error].} =
   encode("nsec", seckey.toRaw)
 
 func toBech32*(nprofile: NProfile): string {.raises: [InvalidBech32Error].} =
@@ -355,7 +355,7 @@ func toBech32*(note: NNote): string {.inline, raises: [InvalidBech32Error].} =
 func toFilter*(pubkey: PublicKey): Filter =
   Filter(authors: @[pubkey.toHex])
 
-func toFilter*(seckey: SkSecretKey): Filter =
+func toFilter*(seckey: SecretKey): Filter =
   Filter(authors: @[seckey.toPublicKey.toXOnly.toHex])
 
 func toFilter*(nprofile: NProfile): Filter =
