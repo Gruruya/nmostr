@@ -24,6 +24,8 @@ from std/sequtils import mapIt
 from std/strutils import toLower, rfind, join
 import ./events
 
+{.push raises: [].}
+
 type int5* = int
 
 type InvalidBech32Error* = object of ValueError
@@ -31,7 +33,7 @@ type InvalidBech32Error* = object of ValueError
 template error(reason: string) =
   raise newException(InvalidBech32Error, reason)
 
-func fromRaw(T: type PublicKey, data: openArray[byte]): SkResult[T] {.inline.} =
+func fromRaw(T: type PublicKey, data: openArray[byte]): SkResult[T] {.inline, raises: [InvalidBech32Error].} =
   ## Same as `./keys/fromRaw` but with `InvalidBech32Error`
   if likely data.len == 32: cast[SkResult[PublicKey]](SkXOnlyPublicKey.fromRaw(data))
   elif data.len == 33: cast[SkResult[PublicKey]](SkXOnlyPublicKey.fromRaw(data))
@@ -39,8 +41,6 @@ func fromRaw(T: type PublicKey, data: openArray[byte]): SkResult[T] {.inline.} =
 
 const CHARSET = "qpzry9x8gf2tvdw0s3jn54khce6mua7l"
 const CHARSET_MAP = CHARSET.mapIt((it, CHARSET.find(it).int5)).toTable()
-
-{.push raises: [].}
 
 func toWords*(data: openArray[byte]): seq[int5] {.raises: [InvalidBech32Error].} =
   ## int8 → int5 conversion
@@ -110,7 +110,7 @@ func encode*(hrp: string, witprog: openArray[byte]): string {.raises: [InvalidBe
 
   # discard decode(hrp, result) # Verify
 
-template encode*(hrp, witprog: string): string =
+func encode*(hrp, witprog: string): string {.inline, raises: [InvalidBech32Error].} =
   encode(hrp, witprog.toBytes)
   
 proc verifyChecksum*(hrp: string, data: seq[int5]): bool =

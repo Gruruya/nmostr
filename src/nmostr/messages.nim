@@ -213,11 +213,13 @@ func parseHook*(s: string, i: var int, v: var union(Message)) =
   else:
     raise newException(UnknownMessageError, "Unknown message starting with \"" & kind & "\"")
 
-template fromMessage*(s: string): untyped =
+{.push inline.}
+
+func fromMessage*(s: string): union(Message) =
   ## Alias for s.fromJson(union(Message))
   s.fromJson(union(Message))
 
-func dumpHook*(s: var string, v: union(Message)) {.inline.} =
+func dumpHook*(s: var string, v: union(Message)) =
   ## Serialize message union as its contained message.
   unpack v, msg:
     dumpHook(s, msg)

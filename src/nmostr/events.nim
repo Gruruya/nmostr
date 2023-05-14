@@ -27,15 +27,15 @@ import
 
 export jsony, times, keys
 
-{.push raises: [].}
+{.push inline, raises: [].}
 
 # Types
 
 type EventID* = object
   bytes*: array[32, byte]
 
-func `$`*(id: EventID): string {.inline.} = toHex(id.bytes)
-template toHex*(id: EventID): string = $id
+func `$`*(id: EventID): string = toHex(id.bytes)
+func toHex*(id: EventID): string = $id
 func fromHex*(T: type EventID, hex: string): EventID {.raises: [ValueError].} = EventID(bytes: array[32, byte].fromHex(hex))
 
 type Event* = object
@@ -67,7 +67,6 @@ type Keypair* = object
   pubkey*: PublicKey
 
 # JSON interop
-{.push inline.}
 
 func parseHook*(s: string, i: var int, v: var EventID) {.raises: [JsonError, ValueError].} =
   ## Parse `id` as a hexadecimal encoding [of a sha256 hash.]
@@ -209,7 +208,7 @@ proc sign*(event: var Event, sk: SecretKey, rng: Rng = sysRng) {.raises: [ValueE
   if likely sig.isOk: event.sig = sig.unsafeGet
   else: raise newException(ValueError, $sig.error())
 
-template sign*(event: var Event, sk: Keypair, rng: Rng = sysRng) =
+proc sign*(event: var Event, sk: Keypair, rng: Rng = sysRng) {.raises: [ValueError].} =
   sign(event, sk.seckey, rng)
 
 proc updateID*(event: var Event) =
@@ -247,13 +246,13 @@ proc stamp*(event: var Event, keypair: Keypair, rng: Rng = sysRng) {.raises: [Va
   event.updateID
   event.sign(keypair.seckey, rng)
 
-{.pop inline.}
-
 # Working with events
 
-template stripGeneric(tag: string): string =
+func stripGeneric(tag: string): string =
   if likely tag.len > 1 and likely tag[0] == '#': tag[1..^1]
   else: tag
+
+{.pop inline.}
 
 func matches*(event: Event, filter: Filter): bool =
   ## Determine if `event` matches `filter`.
