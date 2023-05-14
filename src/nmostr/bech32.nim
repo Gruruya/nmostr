@@ -142,7 +142,7 @@ func decode*(hrp: string, address: sink string): seq[byte] {.inline, raises: [In
 template toString*(bech32: tuple[hrp: string, data: seq[byte]]): string =
   string.fromBytes bech32.data
 
-# Nostr specific. NIP-19 ##################################################################
+#[___ Nostr specific. NIP-19 _________________________________________________________________]#
 
 type
   NProfile* = object
@@ -171,7 +171,7 @@ type
 
   UnknownTLVError* = object of ValueError
 
-# Parsing ##################################################################
+#[___ Parsing _________________________________________________________________]#
 
 func toArray[T](N: static int, data: seq[T]): array[N, T] {.inline.} =
   # Taken from `stew/objects.nim`
@@ -310,7 +310,7 @@ func fromBech32*(T: type NAddr, address: string): T {.inline, raises: [InvalidBe
 func fromBech32*(T: type NRelay, address: string): T {.inline, raises: [InvalidBech32Error].} =
   NRelay.fromRaw(decode("nrelay", address))
 
-# Encoding ##################################################################
+#[___ Encoding _________________________________________________________________]#
 
 func toBech32*(pubkey: PublicKey): string {.inline, raises: [InvalidBech32Error].} =
   encode("npub", pubkey.toRaw)
@@ -350,7 +350,7 @@ func toBech32*(nrelay: NRelay): string {.inline, raises: [InvalidBech32Error].} 
 func toBech32*(note: NNote): string {.inline, raises: [InvalidBech32Error].} =
   encode("note", note.id.bytes)
 
-# Convenience ##################################################################
+#[___ Convenience _________________________________________________________________]#
 
 func toFilter*(pubkey: PublicKey): Filter =
   Filter(authors: @[pubkey.toHex])
