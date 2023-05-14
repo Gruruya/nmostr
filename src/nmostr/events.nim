@@ -39,13 +39,13 @@ template toHex*(id: EventID): string = $id
 func fromHex*(T: type EventID, hex: string): EventID {.raises: [ValueError].} = EventID(bytes: array[32, byte].fromHex(hex))
 
 type Event* = object
-  pubkey*: PublicKey ## 32-bytes lowercase hex-encoded public key of the event creator
+  pubkey*: PublicKey        ## 32-bytes lowercase hex-encoded public key of the event creator
   id*: EventID              ## 32-bytes lowercase hex-encoded sha256 of the serialized event data
   kind*: int                ## The type of event this is.
   content*: string          ## Arbitrary string, what it is should be gleamed from this event's `kind`
   created_at*: Time         ## Received and transmitted as a Unix timestamp in seconds
   tags*: seq[seq[string]]   ## A sequence of tags. This first item is the key and the rest is the content.
-  sig*: SchnorrSignature  ## 64-bytes hex of the signature of the sha256 hash of the serialized event data, which is the same as the "id" field
+  sig*: SchnorrSignature    ## 64-bytes hex of the signature of the sha256 hash of the serialized event data, which is the same as the "id" field
 
 type Filter* = object
   ids*: seq[string]       ## List of event ids or prefixes.
