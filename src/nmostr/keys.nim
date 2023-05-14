@@ -74,3 +74,6 @@ func verify*(sig: SchnorrSignature, msg: openArray[byte], pubkey: PublicKey): bo
   ## Wrapper that checks if `pubkey` is uninitialized
   if pubkey == default(typeof pubkey): return false
   secp256k1.verify(sig, msg, pubkey)
+
+func `$`*(v: PublicKey | SchnorrSignature): string =
+  toHex(v)
