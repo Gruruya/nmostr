@@ -74,12 +74,12 @@ func fromWords*(data: openArray[uint5]): seq[byte] =
       result[idx] = ((acc shr bits) and maxV).byte
       inc(idx)
 
-func polymod(values: openArray[uint5]): int =
-  const generator = [int 0x3b6a57b2, 0x26508e6d, 0x1ea119fa, 0x3d4233dd, 0x2a1462b3]
+func polymod(values: openArray[uint5]): uint32 =
+  const generator = [uint32 0x3b6a57b2, 0x26508e6d, 0x1ea119fa, 0x3d4233dd, 0x2a1462b3]
   result = 1
   for value in values:
     let top = result shr 25
-    result = (result and 0x1ffffff) shl 5 xor value.int
+    result = (result and 0x1ffffff) shl 5 xor value.uint32
     for i in 0 ..< 5:
       result = result xor (if (top shr i and 1) == 1: generator[i] else: 0)
 
