@@ -22,7 +22,7 @@ import pkg/[union, stew/byteutils]
 from std/tables import toTable, `[]`
 from std/sequtils import mapIt
 from std/strutils import toLower, rfind, join
-import ./events, ./keys
+import ./events
 
 type int5* = int
 
