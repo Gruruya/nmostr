@@ -42,7 +42,7 @@ func fromRaw(T: type PublicKey, data: openArray[byte]): SkResult[T] {.inline, ra
 const CHARSET = "qpzry9x8gf2tvdw0s3jn54khce6mua7l"
 const CHARSET_MAP = CHARSET.mapIt((it, CHARSET.find(it).int5)).toTable()
 
-func toWords*(data: openArray[byte]): seq[int5] {.raises: [InvalidBech32Error].} =
+func toWords*(data: openArray[byte]): seq[int5] =
   ## int8 → int5 conversion
   var acc, bits = 0
   const maxV = (1 shl 5) - 1
@@ -56,11 +56,7 @@ func toWords*(data: openArray[byte]): seq[int5] {.raises: [InvalidBech32Error].}
       bits -= 5
       result[idx] = int5((acc shr bits) and maxV)
       inc(idx)
-  if likely bits > 0:
-    result[idx] = int5((acc shl (5 - bits)) and maxV)
-  else:
-    if bits >= 8: error "Excess padding"
-    elif ((acc shl (5 - bits)) and maxV) != 0: error "Non-zero padding"
+  result[idx] = int5((acc shl (5 - bits)) and maxV)
 
 func fromWords*(data: openArray[int5]): seq[byte] {.raises: [InvalidBech32Error].} =
   ## int5 → int8 conversion
@@ -95,7 +91,7 @@ func hrpExpand(hrp: string): seq[int5] =
     result[i] = int5(c) shr 5
     result[i + hrp.len + 1] = int5(c) and 31
 
-func encode*(hrp: string, witprog: openArray[byte]): string {.raises: [InvalidBech32Error].} =
+func encode*(hrp: string, witprog: openArray[byte]): string =
   ## Encode into a bech32 address
   func checksum(hrp: string, data: seq[int5]): seq[int5] {.inline.} =
     let values = hrpExpand(hrp) & data
@@ -110,10 +106,10 @@ func encode*(hrp: string, witprog: openArray[byte]): string {.raises: [InvalidBe
 
   # discard decode(hrp, result) # Verify
 
-func encode*(hrp, witprog: string): string {.inline, raises: [InvalidBech32Error].} =
+func encode*(hrp, witprog: string): string {.inline.} =
   encode(hrp, witprog.toBytes)
   
-proc verifyChecksum*(hrp: string, data: seq[int5]): bool =
+proc verifyChecksum*(hrp: string, data: seq[int5]): bool {.inline.} =
   polymod(hrpExpand(hrp) & data) == 1
 
 template decodeImpl(bech32: string): tuple[hrp: string, data: seq[int5]] =
@@ -285,46 +281,48 @@ func fromNostrBech32*(address: string): union(Bech32EncodedEntity) {.raises: [In
   else:
     raise newException(UnknownTLVError, "Unknown TLV starting with " & kind)
 
-func fromBech32*(T: type SecretKey, address: string): T {.inline, raises: [InvalidBech32Error].} =
+{.push inline.}
+
+func fromBech32*(T: type SecretKey, address: string): T {.raises: [InvalidBech32Error].} =
   let sk = SecretKey.fromRaw(decode("nsec", address))
   if likely sk.isOk: unsafeGet(sk)
   else: bech32.error $sk.error
 
-func fromBech32*(T: type PublicKey, address: string): T {.inline, raises: [InvalidBech32Error].} =
+func fromBech32*(T: type PublicKey, address: string): T {.raises: [InvalidBech32Error].} =
   let pk = bech32.fromRaw(PublicKey, (decode("npub", address)))
   if likely pk.isOk: unsafeGet(pk)
   else: bech32.error $pk.error
 
-func fromBech32*(T: type NNote, address: string): T {.inline, raises: [InvalidBech32Error].} =
+func fromBech32*(T: type NNote, address: string): T {.raises: [InvalidBech32Error].} =
   NNote.fromRaw(decode("note", address))
 
-func fromBech32*(T: type NProfile, address: string): T {.inline, raises: [InvalidBech32Error].} =
+func fromBech32*(T: type NProfile, address: string): T {.raises: [InvalidBech32Error].} =
   NProfile.fromRaw(decode("nprofile", address))
 
-func fromBech32*(T: type NEvent, address: string): T {.inline, raises: [InvalidBech32Error].} =
+func fromBech32*(T: type NEvent, address: string): T {.raises: [InvalidBech32Error].} =
   NEvent.fromRaw(decode("nevent", address))
 
-func fromBech32*(T: type NAddr, address: string): T {.inline, raises: [InvalidBech32Error].} =
+func fromBech32*(T: type NAddr, address: string): T {.raises: [InvalidBech32Error].} =
   NAddr.fromRaw(decode("naddr", address))
 
-func fromBech32*(T: type NRelay, address: string): T {.inline, raises: [InvalidBech32Error].} =
+func fromBech32*(T: type NRelay, address: string): T {.raises: [InvalidBech32Error].} =
   NRelay.fromRaw(decode("nrelay", address))
 
 #[___ Encoding _________________________________________________________________]#
 
-func toBech32*(pubkey: PublicKey): string {.inline, raises: [InvalidBech32Error].} =
+func toBech32*(pubkey: PublicKey): string =
   encode("npub", pubkey.toRaw)
  
-func toBech32*(seckey: SecretKey): string {.inline, raises: [InvalidBech32Error].} =
+func toBech32*(seckey: SecretKey): string =
   encode("nsec", seckey.toRaw)
 
-func toBech32*(nprofile: NProfile): string {.raises: [InvalidBech32Error].} =
+func toBech32*(nprofile: NProfile): string =
   var encoded = @[byte 0, 32] & @(nprofile.pubkey.toRaw)
   for relay in nprofile.relays:
     encoded &= @[byte 1, byte relay.len] & relay.toBytes
   encode("nprofile", encoded)
 
-func toBech32*(nevent: NEvent): string {.raises: [InvalidBech32Error].} =
+func toBech32*(nevent: NEvent): string  =
   var encoded = @[byte 0, 32] & @(nevent.id.bytes)
   for relay in nevent.relays:
     encoded &= @[byte 1, byte relay.len] & relay.toBytes
@@ -334,7 +332,7 @@ func toBech32*(nevent: NEvent): string {.raises: [InvalidBech32Error].} =
     encoded &= @[byte 3, 4] & @(fromUInt32(nevent.kind))
   encode("nevent", encoded)  
 
-func toBech32*(naddr: NAddr): string {.raises: [InvalidBech32Error].} =
+func toBech32*(naddr: NAddr): string =
   var encoded = @[byte 0, byte naddr.id.len] & naddr.id.toBytes
   for relay in naddr.relays:
     encoded &= @[byte 1, byte relay.len] & relay.toBytes
@@ -344,10 +342,10 @@ func toBech32*(naddr: NAddr): string {.raises: [InvalidBech32Error].} =
     encoded &= @[byte 3, 4] & @(fromUInt32(naddr.kind))
   encode("naddr", encoded)
 
-func toBech32*(nrelay: NRelay): string {.inline, raises: [InvalidBech32Error].} =
+func toBech32*(nrelay: NRelay): string =
   encode("nrelay", @[byte 0, byte nrelay.url.len] & nrelay.url.toBytes)
 
-func toBech32*(note: NNote): string {.inline, raises: [InvalidBech32Error].} =
+func toBech32*(note: NNote): string =
   encode("note", note.id.bytes)
 
 #[___ Convenience _________________________________________________________________]#
