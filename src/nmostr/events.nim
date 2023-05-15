@@ -260,4 +260,4 @@ func matches*(event: Event, filter: Filter): bool =
   (filter.kinds == @[] or anyIt(filter.kinds, event.kind == it)) and
   (filter.ids == @[] or anyIt(filter.ids, event.id.`$`.startsWith it)) and
   (filter.authors == @[] or anyIt(filter.authors, event.pubkey.toHex.startsWith it)) and
-  (filter.tags == @[] or any(filter.tags, ftags => ftags.len > 1 and any(event.tags, etags => etags.len > 1 and etags[0] == ftags[0].stripGeneric and any(etags[1..^1], item => item in ftags[1..^1]))))
+  (filter.tags == @[] or any(filter.tags, ftags => likely ftags.len > 1 and any(event.tags, etags => likely etags.len > 1 and etags[0] == ftags[0].stripGeneric and etags[1] == ftags[1])))
