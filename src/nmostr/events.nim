@@ -219,16 +219,16 @@ proc init*(T: type Event, kind: int, content: string, keypair: Keypair, created_
   result.updateID
   result.sign(keypair)
 
-proc metadata*(keypair: Keypair, name, about, picture: string, created_at = getTime(), tags = default(seq[seq[string]])): Event {.inline, raises: [ValueError].} =
+proc metadata*(keypair: Keypair, name, about, picture: string, created_at = getTime(), tags = default(Event.tags)): Event {.inline, raises: [ValueError].} =
   ## Describes the user who created the event.
   ## A relay may delete past metadata events once it gets a new one for the same pubkey.
   Event.init(0, Metadata(name: name, about: about, picture: picture).toJson, keypair, created_at, tags)
 
-proc note*(keypair: Keypair, content: string, created_at = getTime(), tags = default(seq[seq[string]])): Event {.inline, raises: [ValueError].} =
+proc note*(keypair: Keypair, content: string, created_at = getTime(), tags = default(Event.tags)): Event {.inline, raises: [ValueError].} =
   ## Plaintext note (anything the user wants to say). Markdown links ([]() stuff) are not plaintext.
   Event.init(1, content, keypair, created_at, tags)
 
-proc recommendServer*(keypair: Keypair, url: string, created_at = getTime(), tags = default(seq[seq[string]])): Event {.inline, raises: [ValueError].} =
+proc recommendServer*(keypair: Keypair, url: string, created_at = getTime(), tags = default(Event.tags)): Event {.inline, raises: [ValueError].} =
   ## URL (e.g., wss://somerelay.com) of a relay the event creator wants to recommend to its followers.
   Event.init(2, url, keypair, created_at, tags)
 
