@@ -95,9 +95,9 @@ func encode*(hrp: string, witprog: openArray[byte]): string =
     let values = hrpExpand(hrp) & data
     let polymod = polymod(values & @[uint5 0, 0, 0, 0, 0, 0]) xor 1
     result = newSeqOfCap[uint5](5)
-    for i in 0 .. 5:
+    for i in 0 ..< 6:
       result.add uint5((polymod shr (5 * (5 - i))) and 31)
-  
+
   let data = toWords(witprog)
   let combined = data & checksum(hrp, data)
   result = hrp & '1' & combined.mapIt(CHARSET[it]).join("")
@@ -110,15 +110,15 @@ func encode*(hrp, witprog: string): string {.inline.} =
 proc verifyChecksum*(hrp: string, data: seq[uint5]): bool {.inline.} =
   polymod(hrpExpand(hrp) & data) == 1
 
-template decodeImpl(bech32: string): tuple[hrp: string, data: seq[uint5]] =
-  bech32 = bech32.toLower()
+func decodeImpl(bech32: string): tuple[hrp: string, data: seq[uint5]] {.raises: [InvalidBech32Error].} =
+  let bech32 = bech32.toLower()
   let pos = bech32.rfind('1')
   if unlikely pos < 1 or unlikely pos + 7 > bech32.len: # or len(bech32) > 90:
     error "'1' not found in " & bech32
-  var hrp = bech32[0..<pos]
+  var hrp = bech32[0 ..< pos]
   var data =
     try: bech32[pos + 1..^1].mapIt(CHARSET_MAP[it])
-    except KeyError: error "Invalid character in bech32 address " & address
+    except KeyError: error "Invalid character in bech32 address " & bech32
   # if not verifyChecksum(hrp, data):
   #   error bech32 & " has an invalid checksum"
   (hrp, data[0..^7]) # [0..^7] cuts off checksum
@@ -132,9 +132,6 @@ func decode*(hrp: string, address: sink string): seq[byte] {.inline, raises: [In
   if unlikely hrpFound != hrp:
     error "Incorrect hrp " & hrpFound & " in bech32 address, expected " & hrp
   result = fromWords(data)
-
-template toString*(bech32: tuple[hrp: string, data: seq[byte]]): string =
-  string.fromBytes bech32.data
 
 #[___ Nostr specific. NIP-19 _________________________________________________________________]#
 
@@ -161,7 +158,7 @@ type
   NNote* = object
     id*: EventID
 
-  Bech32EncodedEntity* = (NProfile | NEvent | NAddr | NRelay | NNote | SecretKey | PublicKey)
+  Bech32EncodedEntity* = NProfile | NEvent | NAddr | NRelay | NNote | SecretKey | PublicKey
 
   UnknownTLVError* = object of ValueError
 
@@ -173,10 +170,10 @@ func toArray[T](N: static int, data: seq[T]): array[N, T] {.inline.} =
   copyMem(addr result[0], unsafeAddr data[0], N)
 
 func toUInt32(data: openArray[byte]): uint32 {.inline.} =
-  for i in 0..<4: result = result or (uint32(data[3 - i]) shl (i * 8))
+  for i in 0 ..< 4: result = result or (uint32(data[3 - i]) shl (i * 8))
 
 func fromUInt32(data: uint32): array[4, byte] {.inline.} =
-  for i in 0..<4:
+  for i in 0 ..< 4:
     result[3 - i] = byte((data shr (i * 8)) and 0xFF)
 
 template parseData(address: openArray[byte], i: var uint32): tuple[kind: uint8, data: seq[byte]] =
@@ -251,7 +248,7 @@ func fromRaw*(T: type NNote, address: seq[byte]): T {.raises: [InvalidBech32Erro
   if likely address.len == 32:
     NNote(id: EventID(bytes: toArray(32, address)))
   elif unlikely address.len > 32:
-    NNote(id: EventID(bytes: toArray(32, address[0..31]))) # WARNING: Maybe? Silent failure.
+    NNote(id: EventID(bytes: toArray(32, address[0..31]))) #WARNING: Maybe? Silent failure.
   else:
     error "Event ID in bech32 encoded note should be 32 bytes, but was " & $address.len & " bytes instead"
 
@@ -279,8 +276,6 @@ func fromNostrBech32*(address: string): union(Bech32EncodedEntity) {.raises: [In
   else:
     raise newException(UnknownTLVError, "Unknown TLV starting with " & kind)
 
-{.push inline.}
-
 func fromBech32*(T: type SecretKey, address: string): T {.raises: [InvalidBech32Error].} =
   let sk = SecretKey.fromRaw(decode("nsec", address))
   if likely sk.isOk: unsafeGet(sk)
@@ -291,27 +286,27 @@ func fromBech32*(T: type PublicKey, address: string): T {.raises: [InvalidBech32
   if likely pk.isOk: unsafeGet(pk)
   else: bech32.error $pk.error
 
-func fromBech32*(T: type NNote, address: string): T {.raises: [InvalidBech32Error].} =
+func fromBech32*(T: type NNote, address: string): T {.inline, raises: [InvalidBech32Error].} =
   NNote.fromRaw(decode("note", address))
 
-func fromBech32*(T: type NProfile, address: string): T {.raises: [InvalidBech32Error].} =
+func fromBech32*(T: type NProfile, address: string): T {.inline, raises: [InvalidBech32Error].} =
   NProfile.fromRaw(decode("nprofile", address))
 
-func fromBech32*(T: type NEvent, address: string): T {.raises: [InvalidBech32Error].} =
+func fromBech32*(T: type NEvent, address: string): T {.inline, raises: [InvalidBech32Error].} =
   NEvent.fromRaw(decode("nevent", address))
 
-func fromBech32*(T: type NAddr, address: string): T {.raises: [InvalidBech32Error].} =
+func fromBech32*(T: type NAddr, address: string): T {.inline, raises: [InvalidBech32Error].} =
   NAddr.fromRaw(decode("naddr", address))
 
-func fromBech32*(T: type NRelay, address: string): T {.raises: [InvalidBech32Error].} =
+func fromBech32*(T: type NRelay, address: string): T {.inline, raises: [InvalidBech32Error].} =
   NRelay.fromRaw(decode("nrelay", address))
 
 #[___ Encoding _________________________________________________________________]#
 
-func toBech32*(pubkey: PublicKey): string =
+func toBech32*(pubkey: PublicKey): string {.inline.} =
   encode("npub", pubkey.toRaw)
  
-func toBech32*(seckey: SecretKey): string =
+func toBech32*(seckey: SecretKey): string {.inline.} =
   encode("nsec", seckey.toRaw)
 
 func toBech32*(nprofile: NProfile): string =
@@ -340,21 +335,21 @@ func toBech32*(naddr: NAddr): string =
     encoded &= @[byte 3, 4] & @(fromUInt32(naddr.kind))
   encode("naddr", encoded)
 
-func toBech32*(nrelay: NRelay): string =
+func toBech32*(nrelay: NRelay): string {.inline.} =
   encode("nrelay", @[byte 0, byte nrelay.url.len] & nrelay.url.toBytes)
 
-func toBech32*(note: NNote): string =
+func toBech32*(note: NNote): string {.inline.} =
   encode("note", note.id.bytes)
 
 #[___ Convenience _________________________________________________________________]#
 
-func toFilter*(pubkey: PublicKey): Filter =
+func toFilter*(pubkey: PublicKey): Filter {.inline.} =
   Filter(authors: @[pubkey.toHex])
 
-func toFilter*(seckey: SecretKey): Filter =
+func toFilter*(seckey: SecretKey): Filter {.inline.} =
   Filter(authors: @[seckey.toPublicKey.toXOnly.toHex])
 
-func toFilter*(nprofile: NProfile): Filter =
+func toFilter*(nprofile: NProfile): Filter {.inline.}  =
   Filter(authors: @[nprofile.pubkey.toHex])
 
 func toFilter*(nevent: NEvent): Filter =
@@ -364,12 +359,12 @@ func toFilter*(nevent: NEvent): Filter =
   if nevent.kind != default(NEvent.kind):
     result.kinds = @[int nevent.kind]
 
-func toFilter*(naddr: NAddr): Filter =
+func toFilter*(naddr: NAddr): Filter {.inline.} =
   Filter(tags: @[@["#d", naddr.id]],
          authors: @[naddr.author.toHex],
          kinds: @[int naddr.kind])
 
-func toFilter*(nnote: NNote): Filter =
+func toFilter*(nnote: NNote): Filter {.inline.} =
   Filter(ids: @[nnote.id.toHex])
 
 func toFilter*(union: union(Bech32EncodedEntity)): Filter =

@@ -54,9 +54,9 @@ type
   SMCount* = object   ## ["COUNT", <integer>]
     count*: int64
 
-  ClientMessage* = (CMEvent | CMRequest | CMClose | CMAuth | CMCount)
-  ServerMessage* = (SMEvent | SMEose | SMNotice | SMOk | SMAuth | SMCount)
-  Message* = (ClientMessage | ServerMessage)
+  ClientMessage* = CMEvent | CMRequest | CMClose | CMAuth | CMCount
+  ServerMessage* = SMEvent | SMEose | SMNotice | SMOk | SMAuth | SMCount
+  Message* = ClientMessage | ServerMessage
 
 type UnknownMessageError* = object of ValueError
 
@@ -113,8 +113,6 @@ template dumpObjectAsArray(T: typedesc, flag: string) =
   s.setLen(s.len - 1)
   s &= "]"
 
-{.push inline.}
-
 func parseHook*(s: string, i: var int, v: var CMEvent) =
   parseArrayAsObject(CMEvent)
 func parseHook*(s: string, i: var int, v: var CMRequest) =
@@ -161,8 +159,6 @@ func dumpHook*(s: var string, v: SMAuth) =
 func dumpHook*(s: var string, v: SMCount) =
   dumpObjectAsArray(SMCount, "COUNT")
 
-{.pop inline.}
-  
 func parseHook*(s: string, i: var int, v: var union(Message)) =
   ## Parses a message of unknown type into the `Message` object inferred by the array's first element and shape.
   template parseAs(T: typedesc): union(Message) =
@@ -213,13 +209,11 @@ func parseHook*(s: string, i: var int, v: var union(Message)) =
   else:
     raise newException(UnknownMessageError, "Unknown message starting with \"" & kind & "\"")
 
-{.push inline.}
-
-func fromMessage*(s: string): union(Message) =
+func fromMessage*(s: string): union(Message) {.inline.} =
   ## Alias for s.fromJson(union(Message))
   s.fromJson(union(Message))
 
-func dumpHook*(s: var string, v: union(Message)) =
+func dumpHook*(s: var string, v: union(Message)) {.inline.} =
   ## Serialize message union as its contained message.
   unpack v, msg:
     dumpHook(s, msg)

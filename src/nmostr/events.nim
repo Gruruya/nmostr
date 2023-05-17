@@ -27,16 +27,17 @@ import
 
 export jsony, times, keys
 
-{.push inline, raises: [].}
+{.push raises: [].}
 
 # Types
 
 type EventID* = object
   bytes*: array[32, byte]
 
-func `$`*(id: EventID): string = toHex(id.bytes)
-func toHex*(id: EventID): string = $id
-func fromHex*(T: type EventID, hex: string): EventID {.raises: [ValueError].} = EventID(bytes: array[32, byte].fromHex(hex))
+func `$`*(id: EventID): string {.inline.} = toHex(id.bytes)
+func toHex*(id: EventID): string {.inline.} = $id
+func fromHex*(T: type EventID, hex: string): EventID {.inline, raises: [ValueError].} =
+  EventID(bytes: array[32, byte].fromHex(hex))
 
 type Event* = object
   pubkey*: PublicKey        ## 32-bytes lowercase hex-encoded public key of the event creator
@@ -68,42 +69,39 @@ type Keypair* = object
 
 # JSON interop
 
-func parseHook*(s: string, i: var int, v: var EventID) {.raises: [JsonError, ValueError].} =
+func parseHook*(s: string, i: var int, v: var EventID) {.inline, raises: [JsonError, ValueError].} =
   ## Parse `id` as a hexadecimal encoding [of a sha256 hash.]
   var j: string
   parseHook(s, i, j)
   v = EventID.fromHex j
 
-func parseHook*(s: string, i: var int, v: var PublicKey) {.raises: [JsonError, ValueError].} =
+func parseHook*(s: string, i: var int, v: var PublicKey) {.inline, raises: [JsonError, ValueError].} =
   ## Parse `id` as a hexadecimal encoding [of a sha256 hash].
   var j: string
   parseHook(s, i, j)
   # WARNING: Silently failing, replacing incorrect with nulled pubkeys
   v = (PublicKey.fromHex j).valueOr: default(typeof v)
 
-func parseHook*(s: string, i: var int, v: var SchnorrSignature) {.raises: [JsonError, ValueError].} =
+func parseHook*(s: string, i: var int, v: var SchnorrSignature) {.inline, raises: [JsonError, ValueError].} =
   ## Parse `id` as a hexadecimal encoding [of a sha256 hash.]
   var j: string
   parseHook(s, i, j)
   # FIXME: Silently failing, replacing incorrect with nulled signature
   v = (SchnorrSignature.fromHex j).valueOr: default(typeof v)
 
-func dumpHook*(s: var string, v: EventID | PublicKey | SchnorrSignature) =
+func dumpHook*(s: var string, v: EventID | PublicKey | SchnorrSignature) {.inline.} =
   ## Serialize `id`, `pubkey`, and `sig` into hexadecimal.
   dumpHook(s, v.toHex)
 
-func parseHook*(s: string, i: var int, v: var Time) {.raises: [JsonError, ValueError].} =
+func parseHook*(s: string, i: var int, v: var Time) {.inline, raises: [JsonError, ValueError].} =
   ## Parse `created_at` as a `Time`.
   var j: int64
   parseHook(s, i, j)
   v = fromUnix(j)
 
-func dumpHook*(s: var string, v: Time) =
+func dumpHook*(s: var string, v: Time) {.inline.} =
   ## Serialize `created_at` into a Unix timestamp.
   dumpHook(s, v.toUnix)
-
-{.pop inline.}
-{.push raises: [].}
 
 macro fieldAccess(o: object, s: string): untyped =
   newDotExpr(o, newIdentNode(s.strVal))
@@ -159,7 +157,6 @@ proc parseHook*(s: string, i: var int, v: var Filter) {.raises: [JsonError, Valu
 
 proc dumpHook*(s: var string, v: Filter) {.raises: [JsonError, ValueError].} =
   ## Dump filters exactly the same as a normal object, but empty fields are left out and its `tags` are split into seperate fields.
-
   template dumpKey(s: var string, v: string) =
     ## Taken from `jsony.nim`
     const v2 = v.toJson() & ":"
@@ -186,12 +183,10 @@ proc sysRng*(data: var openArray[byte]): bool =
   except OSError: return false
   return true
 
-{.push inline.}
-
-converter toKeypair*(keypair: SkKeyPair): Keypair =
+converter toKeypair*(keypair: SkKeyPair): Keypair {.inline.} =
   Keypair(seckey: keypair.seckey, pubkey: keypair.pubkey.toXOnly)
 
-converter toKeypair*(seckey: SecretKey): Keypair =
+converter toKeypair*(seckey: SecretKey): Keypair {.inline.} =
   Keypair(seckey: seckey, pubkey: seckey.toPublicKey.toXOnly)
 
 proc newKeypair*(rng: Rng = sysRng): Keypair {.raises: [OSError].} =
@@ -208,7 +203,7 @@ proc sign*(event: var Event, sk: SecretKey, rng: Rng = sysRng) {.raises: [ValueE
   if likely sig.isOk: event.sig = sig.unsafeGet
   else: raise newException(ValueError, $sig.error())
 
-proc sign*(event: var Event, sk: Keypair, rng: Rng = sysRng) {.raises: [ValueError].} =
+proc sign*(event: var Event, sk: Keypair, rng: Rng = sysRng) {.inline, raises: [ValueError].} =
   sign(event, sk.seckey, rng)
 
 proc updateID*(event: var Event) =
@@ -224,16 +219,16 @@ proc init*(T: type Event, kind: int, content: string, keypair: Keypair, created_
   result.updateID
   result.sign(keypair)
 
-proc metadata*(keypair: Keypair, name, about, picture: string, created_at = getTime(), tags = default(seq[seq[string]])): Event {.raises: [ValueError].} =
+proc metadata*(keypair: Keypair, name, about, picture: string, created_at = getTime(), tags = default(seq[seq[string]])): Event {.inline, raises: [ValueError].} =
   ## Describes the user who created the event.
   ## A relay may delete past metadata events once it gets a new one for the same pubkey.
   Event.init(0, Metadata(name: name, about: about, picture: picture).toJson, keypair, created_at, tags)
 
-proc note*(keypair: Keypair, content: string, created_at = getTime(), tags = default(seq[seq[string]])): Event {.raises: [ValueError].} =
+proc note*(keypair: Keypair, content: string, created_at = getTime(), tags = default(seq[seq[string]])): Event {.inline, raises: [ValueError].} =
   ## Plaintext note (anything the user wants to say). Markdown links ([]() stuff) are not plaintext.
   Event.init(1, content, keypair, created_at, tags)
 
-proc recommendServer*(keypair: Keypair, url: string, created_at = getTime(), tags = default(seq[seq[string]])): Event {.raises: [ValueError].} =
+proc recommendServer*(keypair: Keypair, url: string, created_at = getTime(), tags = default(seq[seq[string]])): Event {.inline, raises: [ValueError].} =
   ## URL (e.g., wss://somerelay.com) of a relay the event creator wants to recommend to its followers.
   Event.init(2, url, keypair, created_at, tags)
 
@@ -248,11 +243,9 @@ proc stamp*(event: var Event, keypair: Keypair, rng: Rng = sysRng) {.raises: [Va
 
 # Working with events
 
-func stripGeneric(tag: string): string =
+func stripGeneric(tag: string): string {.inline.} =
   if likely tag.len > 1 and likely tag[0] == '#': tag[1..^1]
   else: tag
-
-{.pop inline.}
 
 func matches*(event: Event, filter: Filter): bool =
   ## Determine if `event` matches `filter`.
