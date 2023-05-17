@@ -56,7 +56,8 @@ func toWords*(data: openArray[byte]): seq[uint5] =
       bits -= 5
       result[idx] = uint5((acc shr bits) and maxV)
       inc(idx)
-  result[idx] = uint5((acc shl (5 - bits)) and maxV)
+  if likely bits > 0:
+    result[idx] = uint5((acc shl (5 - bits)) and maxV)
 
 func fromWords*(data: openArray[uint5]): seq[byte] =
   ## uint5 → uint8 conversion
