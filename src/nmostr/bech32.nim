@@ -47,7 +47,7 @@ func toWords*(data: openArray[byte]): seq[uint5] =
   var acc, bits = 0
   const maxV = (1 shl 5) - 1
   let outputLen = (data.len * 8 + 4) div 5
-  result = newSeq[uint5](outputLen)
+  result = newSeqUninitialized[uint5](outputLen)
   var idx = 0
   for value in data:
     acc = (acc shl 8) or ord(value)
@@ -65,7 +65,7 @@ func fromWords*(data: openArray[uint5]): seq[byte] =
   var bits = 0.uint8
   const maxV = (1 shl 8) - 1
   let outputLen = (data.len * 5) div 8
-  result = newSeq[byte](outputLen)
+  result = newSeqUninitialized[byte](outputLen)
   var idx = 0
   for value in data:
     acc = (acc shl 5.uint5) or value
@@ -85,7 +85,7 @@ func polymod(values: openArray[uint5]): uint32 =
       result = result xor (if (top shr i and 1) == 1: generator[i] else: 0)
 
 func hrpExpand(hrp: string): seq[uint5] =
-  result = newSeq[uint5](hrp.len * 2 + 1)
+  result = newSeqUninitialized[uint5](hrp.len * 2 + 1)
   for i, c in hrp:
     result[i] = uint5(ord(c) shr 5)
     result[i + hrp.len + 1] = uint5(ord(c) and 31)
