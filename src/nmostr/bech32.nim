@@ -26,10 +26,14 @@ import ./events, ./filters
 
 {.push raises: [].}
 
-type uint5* = range[0'u32..31'u32]
+type
+  uint5* =
+    range[0'u32..31'u32]
+  Bech32Entity* = object
+    hrp: string
+    data: seq[byte]
 
 type InvalidBech32Error* = object of ValueError
-
 template error(reason: string) =
   raise newException(InvalidBech32Error, reason)
 
@@ -105,9 +109,9 @@ func decodeImpl(bech32: sink string): tuple[hrp: string, data: seq[uint5]] {.rai
   #   error bech32 & " has an invalid checksum"
   (hrp, data[0..^7]) # [0..^7] cuts off checksum
 
-func decode*(address: string): tuple[hrp: string, data: seq[byte]] {.inline, raises: [InvalidBech32Error].} =
+func decode*(address: string): Bech32Entity {.inline, raises: [InvalidBech32Error].} =
   let (hrp, data) = decodeImpl(address)
-  result = (hrp, fromWords(data))
+  Bech32Entity(hrp: hrp, data: fromWords(data))
 
 func decode*(hrp: string, address: string): seq[byte] {.inline, raises: [InvalidBech32Error].} =
   let (hrpFound, data) = decodeImpl(address)
@@ -158,7 +162,7 @@ type
   NNote* = object
     id*: EventID
 
-  Bech32EncodedEntity* = NProfile | NEvent | NAddr | NRelay | NNote | SecretKey | PublicKey | tuple[hrp: string, data: seq[byte]]
+  NostrTLV* = NProfile | NEvent | NAddr | NRelay | NNote | SecretKey | PublicKey
 
 #[___ Parsing _________________________________________________________________]#
 
@@ -250,29 +254,29 @@ func fromRaw*(T: type NNote, address: seq[byte]): T {.raises: [InvalidBech32Erro
   else:
     error "Event ID in bech32 encoded note should be 32 bytes, but was " & $address.len & " bytes instead"
 
-func fromNostrBech32*(address: string): union(Bech32EncodedEntity) {.raises: [InvalidBech32Error].} =
-  let (kind, data) = decode(address)
-  case kind:
+func fromNostrBech32*(address: string): union(NostrTLV | Bech32Entity) {.raises: [InvalidBech32Error].} =
+  let decoded = decode(address)
+  case decoded.hrp:
   of "npub":
-    let pk = PublicKey.fromRaw(data)
+    let pk = PublicKey.fromRaw(decoded.data)
     if likely pk.isOk: unsafeGet(pk) as typeof result
     else: error $pk.error
   of "nsec":
-    let sk = SecretKey.fromRaw(data)
+    let sk = SecretKey.fromRaw(decoded.data)
     if likely sk.isOk: unsafeGet(sk) as typeof result
     else: error $sk.error
   of "note":
-    NNote.fromRaw(data) as typeof result
+    NNote.fromRaw(decoded.data) as typeof result
   of "nprofile":
-    NProfile.fromRaw(data) as typeof result
+    NProfile.fromRaw(decoded.data) as typeof result
   of "nevent":
-    NEvent.fromRaw(data) as typeof result
+    NEvent.fromRaw(decoded.data) as typeof result
   of "naddr":
-    NAddr.fromRaw(data) as typeof result
+    NAddr.fromRaw(decoded.data) as typeof result
   of "nrelay":
-    NRelay.fromRaw(data) as typeof result
+    NRelay.fromRaw(decoded.data) as typeof result
   else:
-    (hrp: kind, data: data) as typeof result
+    decoded as typeof result
 
 func fromBech32*(T: type SecretKey, address: string): T {.raises: [InvalidBech32Error].} =
   let sk = SecretKey.fromRaw(decode("nsec", address))
@@ -365,7 +369,7 @@ func toFilter*(naddr: NAddr): Filter {.inline.} =
 func toFilter*(nnote: NNote): Filter {.inline.} =
   Filter(ids: @[nnote.id.toHex])
 
-func toFilter*(union: union(Bech32EncodedEntity)): Filter =
+func toFilter*(union: union(NostrTLV | Bech32Entity)): Filter =
   unpack union, entity:
     when (compiles entity.toFilter): entity.toFilter
     else: Filter()
