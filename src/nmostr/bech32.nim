@@ -44,31 +44,34 @@ const CHARSET_MAP = CHARSET.mapIt((it, CHARSET.find(it).uint5)).toTable()
 
 func toWords*(data: openArray[byte]): seq[uint5] =
   ## uint8 → uint5 conversion
-  var acc, bits = 0
   const maxV = (1 shl 5) - 1
   let outputLen = (data.len * 8 + 4) div 5
   result = newSeqUninitialized[uint5](outputLen)
-  var idx = 0
+  var
+    acc = 0.uint32
+    bits = 0.uint32
+    idx = 0
   for value in data:
-    acc = (acc shl 8) or ord(value)
+    acc = (acc shl 8) or uint8(value)
     bits += 8
     while bits >= 5:
       bits -= 5
-      result[idx] = uint5((acc shr bits) and maxV)
+      result[idx] = ((acc shr bits) and maxV).uint5
       inc(idx)
   if likely bits > 0:
-    result[idx] = uint5((acc shl (5 - bits)) and maxV)
+    result[idx] = ((acc shl (5 - bits)) and maxV).uint5
 
 func fromWords*(data: openArray[uint5]): seq[byte] =
   ## uint5 → uint8 conversion
-  var acc = 0.uint5
-  var bits = 0.uint8
   const maxV = (1 shl 8) - 1
   let outputLen = (data.len * 5) div 8
   result = newSeqUninitialized[byte](outputLen)
-  var idx = 0
+  var
+    acc = 0.uint32
+    bits = 0.uint32
+    idx = 0
   for value in data:
-    acc = (acc shl 5.uint5) or value
+    acc = (acc shl 5) or value
     bits += 5
     while bits >= 8:
       bits -= 8
