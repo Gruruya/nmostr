@@ -160,8 +160,6 @@ type
 
   Bech32EncodedEntity* = NProfile | NEvent | NAddr | NRelay | NNote | SecretKey | PublicKey
 
-  UnknownTLVError* = object of ValueError
-
 #[___ Parsing _________________________________________________________________]#
 
 func toArray[T](N: static int, data: seq[T]): array[N, T] {.inline.} =
@@ -252,29 +250,29 @@ func fromRaw*(T: type NNote, address: seq[byte]): T {.raises: [InvalidBech32Erro
   else:
     error "Event ID in bech32 encoded note should be 32 bytes, but was " & $address.len & " bytes instead"
 
-func fromNostrBech32*(address: string): union(Bech32EncodedEntity) {.raises: [InvalidBech32Error, UnknownTLVError].} =
+func fromNostrBech32*(address: string): union(Bech32EncodedEntity | tuple[hrp: string, data: seq[byte]]) {.raises: [InvalidBech32Error].} =
   let (kind, data) = decode(address)
   case kind:
   of "npub":
     let pk = PublicKey.fromRaw(data)
-    if likely pk.isOk: unsafeGet(pk) as union(Bech32EncodedEntity)
+    if likely pk.isOk: unsafeGet(pk) as typeof result
     else: error $pk.error
   of "nsec":
     let sk = SecretKey.fromRaw(data)
-    if likely sk.isOk: unsafeGet(sk) as union(Bech32EncodedEntity)
+    if likely sk.isOk: unsafeGet(sk) as typeof result
     else: error $sk.error
   of "note":
-    NNote.fromRaw(data) as union(Bech32EncodedEntity)
+    NNote.fromRaw(data) as typeof result
   of "nprofile":
-    NProfile.fromRaw(data) as union(Bech32EncodedEntity)
+    NProfile.fromRaw(data) as typeof result
   of "nevent":
-    NEvent.fromRaw(data) as union(Bech32EncodedEntity)
+    NEvent.fromRaw(data) as typeof result
   of "naddr":
-    NAddr.fromRaw(data) as union(Bech32EncodedEntity)
+    NAddr.fromRaw(data) as typeof result
   of "nrelay":
-    NRelay.fromRaw(data) as union(Bech32EncodedEntity)
+    NRelay.fromRaw(data) as typeof result
   else:
-    raise newException(UnknownTLVError, "Unknown TLV starting with " & kind)
+    (hrp: kind, data: data) as typeof result
 
 func fromBech32*(T: type SecretKey, address: string): T {.raises: [InvalidBech32Error].} =
   let sk = SecretKey.fromRaw(decode("nsec", address))
