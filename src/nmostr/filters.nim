@@ -32,7 +32,7 @@ type Filter* = object
   until*: Time = initTime(high(int64), 0)  ## Events must be older than this to pass.
   limit*: int             ## Maximum number of events to be returned in the initial query.
 
-func stripGeneric(tag: sink string): string {.inline.} =
+func stripGeneric(tag: string): string {.inline.} =
   if likely tag.len > 1 and likely tag[0] == '#': tag[1..^1]
   else: tag
 

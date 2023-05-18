@@ -33,8 +33,8 @@ type InvalidBech32Error* = object of ValueError
 template error(reason: string) =
   raise newException(InvalidBech32Error, reason)
 
-func fromRaw(T: type PublicKey, data: sink seq[byte]): SkResult[T] {.inline, raises: [InvalidBech32Error].} =
-  ## Same as `./keys/fromRaw` but with `InvalidBech32Error` and `data: sink seq[byte]`
+func fromRaw(T: type PublicKey, data: openArray[byte]): SkResult[T] {.inline, raises: [InvalidBech32Error].} =
+  ## Same as `./keys/fromRaw` but with `InvalidBech32Error`
   if likely data.len == 32: cast[SkResult[PublicKey]](SkXOnlyPublicKey.fromRaw(data))
   elif data.len == 33: cast[SkResult[PublicKey]](SkXOnlyPublicKey.fromRaw(data))
   else: raise newException(InvalidBech32Error, "Raw x-only public key must be 32 or 33 bytes")
@@ -75,7 +75,7 @@ func fromWords*(data: openArray[uint5]): seq[byte] =
       result[idx] = ((acc shr bits) and maxV).byte
       inc(idx)
 
-func polymod(values: sink seq[uint5]): uint32 =
+func polymod(values: openArray[uint5]): uint32 =
   const generator = [uint32 0x3b6a57b2, 0x26508e6d, 0x1ea119fa, 0x3d4233dd, 0x2a1462b3]
   result = 1
   for value in values:
@@ -94,7 +94,7 @@ proc verifyChecksum*(hrp: string, data: seq[uint5]): bool {.inline.} =
   polymod(hrpExpand(hrp) & data) == 1
 
 func decodeImpl(bech32: sink string): tuple[hrp: string, data: seq[uint5]] {.raises: [InvalidBech32Error].} =
-  let bech32 = bech32.toLower()
+  bech32 = bech32.toLower()
   let pos = bech32.rfind('1')
   if unlikely pos < 1 or unlikely pos + 7 > bech32.len: # or len(bech32) > 90:
     error "'1' not found in " & bech32
@@ -118,7 +118,7 @@ func decode*(hrp: string, address: string): seq[byte] {.inline, raises: [Invalid
 
 func encode*(hrp: string, witprog: openArray[byte]): string =
   ## Encode into a bech32 address
-  func checksum(hrp: string, data: sink seq[uint5]): seq[uint5] {.inline.} =
+  func checksum(hrp: string, data: seq[uint5]): seq[uint5] {.inline.} =
     let values = hrpExpand(hrp) & data
     let polymod = polymod(values & @[uint5 0, 0, 0, 0, 0, 0]) xor 1
     result = newSeqOfCap[uint5](5)
@@ -165,15 +165,15 @@ type
 
 #[___ Parsing _________________________________________________________________]#
 
-func toArray[T](N: static int, data: sink seq[T]): array[N, T] {.inline.} =
+func toArray[T](N: static int, data: seq[T]): array[N, T] {.inline.} =
   # Taken from `stew/objects.nim`
   doAssert data.len == N
   copyMem(addr result[0], unsafeAddr data[0], N)
 
-func toUInt32(data: sink seq[byte]): uint32 {.inline.} =
+func toUInt32(data: seq[byte]): uint32 {.inline.} =
   for i in 0 ..< 4: result = result or (uint32(data[3 - i]) shl (i * 8))
 
-func fromUInt32(data: sink uint32): array[4, byte] {.inline.} =
+func fromUInt32(data: uint32): array[4, byte] {.inline.} =
   for i in 0 ..< 4:
     result[3 - i] = byte((data shr (i * 8)) and 0xFF)
 
