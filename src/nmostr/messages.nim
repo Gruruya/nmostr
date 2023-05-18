@@ -60,14 +60,14 @@ type
 
 type UnknownMessageError* = object of ValueError
 
-proc randomID*(): string =
+proc randomID*(): string {.raises: [OSError].} =
   ## Get a random ID to identify your messages
   urandom(32).toHex
   
 # JSON interop
 # Modified `jsony.nim` procs to desrialize message arrays as object and serialize them back to arrays.
 
-template parseArrayAsObject(T: typedesc) =
+func parseArrayAsObject[T](s: string, i: var int, v: var T) =
   ## Parse message array as its corresponding `Message` object.
   eatChar(s, i, '[')
   skipValue(s, i)
@@ -104,7 +104,7 @@ template parseArrayAsObject(T: typedesc) =
       else:
         inc(i)
 
-template dumpObjectAsArray(T: typedesc, flag: string) =
+func dumpObjectAsArray[T](s: var string, v: T, flag: string) =
   ## Serialize message as an array with `flag` as the first element.
   s = "[\"" & flag & "\","
   for field in v.fields:
@@ -113,51 +113,55 @@ template dumpObjectAsArray(T: typedesc, flag: string) =
   s.setLen(s.len - 1)
   s &= "]"
 
+{.push inline.}
+
 func parseHook*(s: string, i: var int, v: var CMEvent) =
-  parseArrayAsObject(CMEvent)
+  parseArrayAsObject(s, i, v)
 func parseHook*(s: string, i: var int, v: var CMRequest) =
-  parseArrayAsObject(CMRequest)
+  parseArrayAsObject(s, i, v)
 func parseHook*(s: string, i: var int, v: var CMClose) =
-  parseArrayAsObject(CMClose)
+  parseArrayAsObject(s, i, v)
 func parseHook*(s: string, i: var int, v: var CMAuth) =
-  parseArrayAsObject(CMAuth)
+  parseArrayAsObject(s, i, v)
 func parseHook*(s: string, i: var int, v: var CMCount) =
-  parseArrayAsObject(CMCount)
+  parseArrayAsObject(s, i, v)
 func parseHook*(s: string, i: var int, v: var SMEvent) =
-  parseArrayAsObject(SMEvent)
+  parseArrayAsObject(s, i, v)
 func parseHook*(s: string, i: var int, v: var SMNotice) =
-  parseArrayAsObject(SMNotice)
+  parseArrayAsObject(s, i, v)
 func parseHook*(s: string, i: var int, v: var SMEose) =
-  parseArrayAsObject(SMEose)
+  parseArrayAsObject(s, i, v)
 func parseHook*(s: string, i: var int, v: var SMOk) =
-  parseArrayAsObject(SMOk)
+  parseArrayAsObject(s, i, v)
 func parseHook*(s: string, i: var int, v: var SMAuth) =
-  parseArrayAsObject(SMAuth)
+  parseArrayAsObject(s, i, v)
 func parseHook*(s: string, i: var int, v: var SMCount) =
-  parseArrayAsObject(SMCount)
+  parseArrayAsObject(s, i, v)
 
 func dumpHook*(s: var string, v: CMEvent) =
-  dumpObjectAsArray(CMEvent, "EVENT")
+  dumpObjectAsArray(s, v, "EVENT")
 func dumpHook*(s: var string, v: CMRequest) =
-  dumpObjectAsArray(CMEvent, "REQ")
+  dumpObjectAsArray(s, v, "REQ")
 func dumpHook*(s: var string, v: CMClose) =
-  dumpObjectAsArray(CMEvent, "CLOSE")
+  dumpObjectAsArray(s, v, "CLOSE")
 func dumpHook*(s: var string, v: CMAuth) =
-  dumpObjectAsArray(CMAuth, "AUTH")
+  dumpObjectAsArray(s, v, "AUTH")
 func dumpHook*(s: var string, v: CMCount) =
-  dumpObjectAsArray(CMCount, "COUNT")
+  dumpObjectAsArray(s, v, "COUNT")
 func dumpHook*(s: var string, v: SMEvent) =
-  dumpObjectAsArray(SMEvent, "EVENT")
+  dumpObjectAsArray(s, v, "EVENT")
 func dumpHook*(s: var string, v: SMNotice) =
-  dumpObjectAsArray(SMNotice, "NOTICE")
+  dumpObjectAsArray(s, v, "NOTICE")
 func dumpHook*(s: var string, v: SMEose) =
-  dumpObjectAsArray(SMEose, "EOSE")
+  dumpObjectAsArray(s, v, "EOSE")
 func dumpHook*(s: var string, v: SMOk) =
-  dumpObjectAsArray(SMOk, "OK")
+  dumpObjectAsArray(s, v, "OK")
 func dumpHook*(s: var string, v: SMAuth) =
-  dumpObjectAsArray(SMAuth, "AUTH")
+  dumpObjectAsArray(s, v, "AUTH")
 func dumpHook*(s: var string, v: SMCount) =
-  dumpObjectAsArray(SMCount, "COUNT")
+  dumpObjectAsArray(s, v, "COUNT")
+
+{.pop inline.}
 
 func parseHook*(s: string, i: var int, v: var union(Message)) =
   ## Parses a message of unknown type into the `Message` object inferred by the array's first element and shape.

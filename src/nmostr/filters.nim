@@ -18,9 +18,10 @@
 ## Nostr filters and utilities for using them.
 
 import std/[strutils, sequtils, sugar, macros]
-import pkg/jsony
 import ./events
 export events
+
+{.push raises: [].}
 
 type Filter* = object
   ids*: seq[string]       ## List of event ids or prefixes.
