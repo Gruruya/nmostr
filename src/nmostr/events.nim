@@ -36,29 +36,28 @@ type EventID* = object
 
 func `$`*(id: EventID): string {.inline.} = toHex(id.bytes)
 func toHex*(id: EventID): string {.inline.} = $id
-func fromHex*(T: type EventID, hex: string): EventID {.inline, raises: [ValueError].} =
-  EventID(bytes: array[32, byte].fromHex(hex))
+func fromHex*(T: type EventID, hex: string): EventID {.inline, raises: [ValueError].} = EventID(bytes: array[32, byte].fromHex(hex))
 
 type Event* = object
-  pubkey*: PublicKey        ## 32-bytes lowercase hex-encoded public key of the event creator
-  id*: EventID              ## 32-bytes lowercase hex-encoded sha256 of the serialized event data
-  kind*: int                ## The type of event this is.
-  content*: string          ## Arbitrary string, what it is should be gleamed from this event's `kind`
-  created_at*: Time         ## Received and transmitted as a Unix timestamp in seconds
-  tags*: seq[seq[string]]   ## A sequence of tags. This first item is the key and the rest is the content.
-  sig*: SchnorrSignature    ## 64-bytes hex of the signature of the sha256 hash of the serialized event data, which is the same as the "id" field
+  pubkey*: PublicKey      ## 32-bytes lowercase hex-encoded public key of the event creator
+  id*: EventID            ## 32-bytes lowercase hex-encoded sha256 of the serialized event data
+  kind*: int              ## The type of event this is.
+  content*: string        ## Arbitrary string, what it is should be gleamed from this event's `kind`
+  created_at*: Time       ## Received and transmitted as a Unix timestamp in seconds
+  tags*: seq[seq[string]] ## A sequence of tags. This first item is the key and the rest is the content.
+  sig*: SchnorrSignature  ## 64-bytes hex of the signature of the sha256 hash of the serialized event data, which is the same as the "id" field
 
 type Metadata* = object ## Content of kind 0 (metadata) event
-  name*: string    ## username
-  about*: string   ## description
-  picture*: string ## url
+  name*: string         ## username
+  about*: string        ## description
+  picture*: string      ## url
 
 func serialize*(e: Event): string =
   ## Serialize `event` into JSON so that it can be hashed in accordance with NIP-01.
   "[0," & e.pubkey.toJson & "," & e.created_at.toJson & "," & e.kind.toJson & "," & e.tags.toJson & "," & e.content.toJson & "]"
 
 proc sign*(event: var Event, sk: SecretKey, rng: Rng = sysRng) {.raises: [ValueError].} =
-  let sig = signSchnorr(sk, event.serialize.sha256, rng)
+  let sig = signSchnorr(sk, sha256(serialize event), rng)
   if likely sig.isOk: event.sig = sig.unsafeGet
   else: raise newException(ValueError, $sig.error())
 
@@ -66,15 +65,10 @@ proc sign*(event: var Event, sk: Keypair, rng: Rng = sysRng) {.inline, raises: [
   sign(event, sk.seckey, rng)
 
 proc updateID*(event: var Event) =
-  event.id = EventID(bytes: sha256 event.serialize)
+  event.id = EventID(bytes: sha256(serialize event))
 
 proc init*(T: type Event, kind: int, content: string, keypair: Keypair, created_at = getTime(), tags = default(seq[seq[string]])): Event {.raises: [ValueError].} =
-  result = Event(
-    kind: kind,
-    content: content,
-    pubkey: keypair.pubkey,
-    created_at: created_at,
-    tags: tags)
+  result = Event(kind: kind, content: content, pubkey: keypair.pubkey, created_at: created_at, tags: tags)
   result.updateID
   result.sign(keypair)
 

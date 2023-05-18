@@ -38,7 +38,8 @@ func stripGeneric(tag: string): string {.inline.} =
 
 func matches*(event: Event, filter: Filter): bool =
   ## Determine if `event` matches `filter`.
-  filter.since < event.created_at and event.created_at < filter.until and
+  filter.since < event.created_at and
+  filter.until > event.created_at and
   (filter.kinds == @[] or anyIt(filter.kinds, event.kind == it)) and
   (filter.ids == @[] or anyIt(filter.ids, event.id.`$`.startsWith it)) and
   (filter.authors == @[] or anyIt(filter.authors, event.pubkey.toHex.startsWith it)) and
