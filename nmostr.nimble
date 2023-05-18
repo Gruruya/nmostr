@@ -1,4 +1,4 @@
-version     = "0.0.8.1"
+version     = "0.0.8.2"
 author      = "Gruruya"
 description = "Library for working with the Nostr protocol."
 license     = "AGPL-3.0-only"

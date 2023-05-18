@@ -47,6 +47,26 @@ type Event* = object
   tags*: seq[seq[string]] ## A sequence of tags. This first item is the key and the rest is the content.
   sig*: SchnorrSignature  ## 64-bytes hex of the signature of the sha256 hash of the serialized event data, which is the same as the "id" field
 
+func parseHook*(s: string, i: var int, v: var EventID) {.inline, raises: [JsonError, ValueError].} =
+  ## Parse `id` as a hexadecimal encoding [of a sha256 hash.]
+  var j: string
+  parseHook(s, i, j)
+  v = EventID.fromHex j
+
+func dumpHook*(s: var string, v: EventID) {.inline.} =
+  ## Serialize `id`, `pubkey`, and `sig` into hexadecimal.
+  dumpHook(s, v.toHex)
+
+func parseHook*(s: string, i: var int, v: var Time) {.inline, raises: [JsonError, ValueError].} =
+  ## Parse `created_at` as a `Time`.
+  var j: int64
+  parseHook(s, i, j)
+  v = fromUnix(j)
+
+func dumpHook*(s: var string, v: Time) {.inline.} =
+  ## Serialize `created_at` into a Unix timestamp.
+  dumpHook(s, v.toUnix)
+
 func serialize*(e: Event): string =
   ## Serialize `event` into JSON so that it can be hashed in accordance with NIP-01.
   "[0," & e.pubkey.toJson & "," & e.created_at.toJson & "," & e.kind.toJson & "," & e.tags.toJson & "," & e.content.toJson & "]"
@@ -93,25 +113,3 @@ proc stamp*(event: var Event, keypair: Keypair, rng: Rng = sysRng) {.raises: [Va
   event.pubkey = keypair.pubkey
   event.updateID
   event.sign(keypair.seckey, rng)
-
-# JSON interop
-
-func parseHook*(s: string, i: var int, v: var EventID) {.inline, raises: [JsonError, ValueError].} =
-  ## Parse `id` as a hexadecimal encoding [of a sha256 hash.]
-  var j: string
-  parseHook(s, i, j)
-  v = EventID.fromHex j
-
-func dumpHook*(s: var string, v: EventID) {.inline.} =
-  ## Serialize `id`, `pubkey`, and `sig` into hexadecimal.
-  dumpHook(s, v.toHex)
-
-func parseHook*(s: string, i: var int, v: var Time) {.inline, raises: [JsonError, ValueError].} =
-  ## Parse `created_at` as a `Time`.
-  var j: int64
-  parseHook(s, i, j)
-  v = fromUnix(j)
-
-func dumpHook*(s: var string, v: Time) {.inline.} =
-  ## Serialize `created_at` into a Unix timestamp.
-  dumpHook(s, v.toUnix)
