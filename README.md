@@ -4,6 +4,7 @@ Library for working with Nostr.
 
 Contained modules:
 * Events
+* Keys
 * Messages
 * Bech32
 
