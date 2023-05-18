@@ -47,11 +47,6 @@ type Event* = object
   tags*: seq[seq[string]] ## A sequence of tags. This first item is the key and the rest is the content.
   sig*: SchnorrSignature  ## 64-bytes hex of the signature of the sha256 hash of the serialized event data, which is the same as the "id" field
 
-type Metadata* = object ## Content of kind 0 (metadata) event
-  name*: string         ## username
-  about*: string        ## description
-  picture*: string      ## url
-
 func serialize*(e: Event): string =
   ## Serialize `event` into JSON so that it can be hashed in accordance with NIP-01.
   "[0," & e.pubkey.toJson & "," & e.created_at.toJson & "," & e.kind.toJson & "," & e.tags.toJson & "," & e.content.toJson & "]"
@@ -71,6 +66,11 @@ proc init*(T: type Event, kind: int, content: string, keypair: Keypair, created_
   result = Event(kind: kind, content: content, pubkey: keypair.pubkey, created_at: created_at, tags: tags)
   result.updateID
   result.sign(keypair)
+
+type Metadata* = object ## Content of kind 0 (metadata) event
+  name*: string         ## username
+  about*: string        ## description
+  picture*: string      ## url
 
 proc metadata*(keypair: Keypair, name, about, picture: string, created_at = getTime(), tags = default(Event.tags)): Event {.inline, raises: [ValueError].} =
   ## Describes the user who created the event.

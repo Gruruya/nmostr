@@ -67,7 +67,7 @@ proc randomID*(): string {.raises: [OSError].} =
 # JSON interop
 # Modified `jsony.nim` procs to desrialize message arrays as object and serialize them back to arrays.
 
-func parseArrayAsObject[T](s: string, i: var int, v: var T) =
+func parseArrayAsObject[T](s: sink string, i: var int, v: var T) =
   ## Parse message array as its corresponding `Message` object.
   eatChar(s, i, '[')
   skipValue(s, i)
@@ -104,7 +104,7 @@ func parseArrayAsObject[T](s: string, i: var int, v: var T) =
       else:
         inc(i)
 
-func dumpObjectAsArray[T](s: var string, v: T, flag: string) =
+func dumpObjectAsArray[T](s: var string, v: sink T, flag: sink string) =
   ## Serialize message as an array with `flag` as the first element.
   s = "[\"" & flag & "\","
   for field in v.fields:
