@@ -17,5 +17,5 @@
 
 ## Library for Nostr.
 
-import nmostr/[events, messages, bech32]
-export events, messages, bech32
+import nmostr/[events, filters, messages, bech32]
+export events, filters, messages, bech32

@@ -19,7 +19,7 @@
 ## Implements NIP-01, NIP-20, NIP-42, NIP-45
 
 import std/sysrand, pkg/[jsony, union, stew/byteutils]
-import ./events
+import ./events, ./filters
 
 export events, union
 

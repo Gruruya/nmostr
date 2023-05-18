@@ -21,11 +21,11 @@ runnableExamples:
   echo note(newKeypair(), "hello world!").toJson
 
 import
-  std/[times, strutils, sequtils, macros, sugar],
+  std/[times, strutils, macros],
   pkg/[jsony, crunchy, stew/byteutils],
   ./keys
 
-export jsony, times, keys
+export times, keys, jsony
 
 {.push raises: [].}
 
@@ -48,128 +48,10 @@ type Event* = object
   tags*: seq[seq[string]]   ## A sequence of tags. This first item is the key and the rest is the content.
   sig*: SchnorrSignature    ## 64-bytes hex of the signature of the sha256 hash of the serialized event data, which is the same as the "id" field
 
-type Filter* = object
-  ids*: seq[string]       ## List of event ids or prefixes.
-  authors*: seq[string]   ## List of pubkeys or prefixes, the pubkey of an event must be one of these.
-  kinds*: seq[int]        ## A list of event kinds.
-  tags*: seq[seq[string]] ## A sequence of tags. This first item is the key and the rest is the content.
-  since*: Time            ## Events must be newer than this to pass.
-  until*: Time = initTime(high(int64), 0)  ## Events must be older than this to pass.
-  limit*: int             ## Maximum number of events to be returned in the initial query.
-
 type Metadata* = object ## Content of kind 0 (metadata) event
   name*: string    ## username
   about*: string   ## description
   picture*: string ## url
-
-# JSON interop
-
-func parseHook*(s: string, i: var int, v: var EventID) {.inline, raises: [JsonError, ValueError].} =
-  ## Parse `id` as a hexadecimal encoding [of a sha256 hash.]
-  var j: string
-  parseHook(s, i, j)
-  v = EventID.fromHex j
-
-func parseHook*(s: string, i: var int, v: var PublicKey) {.inline, raises: [JsonError, ValueError].} =
-  ## Parse `id` as a hexadecimal encoding [of a sha256 hash].
-  var j: string
-  parseHook(s, i, j)
-  # WARNING: Silently failing, replacing incorrect with nulled pubkeys
-  v = (PublicKey.fromHex j).valueOr: default(typeof v)
-
-func parseHook*(s: string, i: var int, v: var SchnorrSignature) {.inline, raises: [JsonError, ValueError].} =
-  ## Parse `id` as a hexadecimal encoding [of a sha256 hash.]
-  var j: string
-  parseHook(s, i, j)
-  # WARNING: Silently failing, replacing incorrect with nulled signature
-  v = (SchnorrSignature.fromHex j).valueOr: default(typeof v)
-
-func dumpHook*(s: var string, v: EventID | PublicKey | SchnorrSignature) {.inline.} =
-  ## Serialize `id`, `pubkey`, and `sig` into hexadecimal.
-  dumpHook(s, v.toHex)
-
-func parseHook*(s: string, i: var int, v: var Time) {.inline, raises: [JsonError, ValueError].} =
-  ## Parse `created_at` as a `Time`.
-  var j: int64
-  parseHook(s, i, j)
-  v = fromUnix(j)
-
-func dumpHook*(s: var string, v: Time) {.inline.} =
-  ## Serialize `created_at` into a Unix timestamp.
-  dumpHook(s, v.toUnix)
-
-macro fieldAccess(o: object, s: string): untyped =
-  newDotExpr(o, newIdentNode(s.strVal))
-
-proc parseHook*(s: string, i: var int, v: var Filter) {.raises: [JsonError, ValueError].} =
-  ## Parse filters exactly the same as a normal object, but add each field starting with # as an entry in `tags`.
-
-  eatSpace(s, i)
-  if i + 3 < s.len and
-      s[i+0] == 'n' and
-      s[i+1] == 'u' and
-      s[i+2] == 'l' and
-      s[i+3] == 'l':
-    i += 4
-    return
-  eatChar(s, i, '{')
-  when compiles(newHook(v)):
-    newHook(v)
-  # Set `until`'s default, `jsony` should implement a generic version of this, such as v = default(typeof v)
-  v.until = Filter().until
-  while i < s.len:
-    eatSpace(s, i)
-    if i < s.len and s[i] == '}':
-      break
-    var key: string
-    parseHook(s, i, key)
-    eatChar(s, i, ':')
-    when compiles(renameHook(v, key)):
-      renameHook(v, key)
-    # NIP-12: Generic tag
-    if key.startsWith('#'):
-      # Parses each field that starts with a # as an entry in `tags`
-      var j: seq[string]
-      parseHook(s, i, j)
-      v.tags.add key & j
-    else:
-      block all:
-        for k, v in v.fieldPairs:
-          if k == key:
-            var v2: type(v)
-            parseHook(s, i, v2)
-            v = v2
-            break all
-        skipValue(s, i)
-    eatSpace(s, i)
-    if i < s.len and s[i] == ',':
-      inc i
-    else:
-      break
-  when compiles(postHook(v)):
-    postHook(v)
-  eatChar(s, i, '}')
-
-proc dumpHook*(s: var string, v: Filter) {.raises: [JsonError, ValueError].} =
-  ## Dump filters exactly the same as a normal object, but empty fields are left out and its `tags` are split into seperate fields.
-  template dumpKey(s: var string, v: string) =
-    ## Taken from `jsony.nim`
-    const v2 = v.toJson() & ":"
-    s.add v2
-
-  var i = 1
-  s.add '{'
-  for k, e in v.fieldPairs:
-    if e != default(Filter).fieldAccess(k) and (when k == "until": e.toUnix != high(int64) else: true): # Complex way of checking if the field is empty
-      if i > 1: s.add ','
-      s.dumpKey(k)
-      s.dumpHook(e)
-      inc i
-    else:
-      skipValue(s, i)
-  s.add '}'
-
-# End of JSON interop
 
 func serialize*(e: Event): string =
   ## Serialize `event` into JSON so that it can be hashed in accordance with NIP-01.
@@ -218,16 +100,24 @@ proc stamp*(event: var Event, keypair: Keypair, rng: Rng = sysRng) {.raises: [Va
   event.updateID
   event.sign(keypair.seckey, rng)
 
-# Working with events
+# JSON interop
 
-func stripGeneric(tag: string): string {.inline.} =
-  if likely tag.len > 1 and likely tag[0] == '#': tag[1..^1]
-  else: tag
+func parseHook*(s: string, i: var int, v: var EventID) {.inline, raises: [JsonError, ValueError].} =
+  ## Parse `id` as a hexadecimal encoding [of a sha256 hash.]
+  var j: string
+  parseHook(s, i, j)
+  v = EventID.fromHex j
 
-func matches*(event: Event, filter: Filter): bool =
-  ## Determine if `event` matches `filter`.
-  filter.since < event.created_at and event.created_at < filter.until and
-  (filter.kinds == @[] or anyIt(filter.kinds, event.kind == it)) and
-  (filter.ids == @[] or anyIt(filter.ids, event.id.`$`.startsWith it)) and
-  (filter.authors == @[] or anyIt(filter.authors, event.pubkey.toHex.startsWith it)) and
-  (filter.tags == @[] or any(filter.tags, ftags => likely ftags.len > 1 and any(event.tags, etags => likely etags.len > 1 and etags[0] == ftags[0].stripGeneric and etags[1] == ftags[1])))
+func dumpHook*(s: var string, v: EventID) {.inline.} =
+  ## Serialize `id`, `pubkey`, and `sig` into hexadecimal.
+  dumpHook(s, v.toHex)
+
+func parseHook*(s: string, i: var int, v: var Time) {.inline, raises: [JsonError, ValueError].} =
+  ## Parse `created_at` as a `Time`.
+  var j: int64
+  parseHook(s, i, j)
+  v = fromUnix(j)
+
+func dumpHook*(s: var string, v: Time) {.inline.} =
+  ## Serialize `created_at` into a Unix timestamp.
+  dumpHook(s, v.toUnix)

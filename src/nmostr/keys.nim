@@ -22,6 +22,7 @@
 import pkg/secp256k1, pkg/secp256k1/abi
 from pkg/stew/byteutils import toHex, `[]=`
 from std/sysrand import urandom
+import pkg/jsony
 export secp256k1
 
 {.push raises: [], inline.}
@@ -81,7 +82,7 @@ func verify*(sig: SchnorrSignature, msg: openArray[byte], pubkey: PublicKey): bo
 func `$`*(v: PublicKey | SchnorrSignature): string =
   toHex(v)
 
-#[___ Keypairs _________________________________________________________________]#
+# Keypairs
 
 type Keypair* = object
   ## Representation of private/public key pair.
@@ -107,3 +108,23 @@ proc newKeypair*(rng: Rng = sysRng): Keypair {.raises: [OSError].} =
   let secretKey = SkKeyPair.random(rng)
   if secretKey.isOk: toKeypair secretKey.unsafeGet
   else: raise newException(OSError, $secretKey.error()) # Assumes OSError
+
+# JSON interop
+
+func parseHook*(s: string, i: var int, v: var PublicKey) {.inline, raises: [JsonError, ValueError].} =
+  ## Parse `id` as a hexadecimal encoding [of a sha256 hash].
+  var j: string
+  parseHook(s, i, j)
+  # WARNING: Silently failing, replacing incorrect with nulled pubkeys
+  v = (PublicKey.fromHex j).valueOr: default(typeof v)
+
+func parseHook*(s: string, i: var int, v: var SchnorrSignature) {.inline, raises: [JsonError, ValueError].} =
+  ## Parse `id` as a hexadecimal encoding [of a sha256 hash.]
+  var j: string
+  parseHook(s, i, j)
+  # WARNING: Silently failing, replacing incorrect with nulled signature
+  v = (SchnorrSignature.fromHex j).valueOr: default(typeof v)
+
+func dumpHook*(s: var string, v: PublicKey | SchnorrSignature) {.inline.} =
+  ## Serialize `id`, `pubkey`, and `sig` into hexadecimal.
+  dumpHook(s, v.toHex)
