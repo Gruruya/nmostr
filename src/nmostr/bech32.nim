@@ -158,7 +158,7 @@ type
   NNote* = object
     id*: EventID
 
-  Bech32EncodedEntity* = NProfile | NEvent | NAddr | NRelay | NNote | SecretKey | PublicKey
+  Bech32EncodedEntity* = NProfile | NEvent | NAddr | NRelay | NNote | SecretKey | PublicKey | tuple[hrp: string, data: seq[byte]]
 
 #[___ Parsing _________________________________________________________________]#
 
@@ -250,7 +250,7 @@ func fromRaw*(T: type NNote, address: seq[byte]): T {.raises: [InvalidBech32Erro
   else:
     error "Event ID in bech32 encoded note should be 32 bytes, but was " & $address.len & " bytes instead"
 
-func fromNostrBech32*(address: string): union(Bech32EncodedEntity | tuple[hrp: string, data: seq[byte]]) {.raises: [InvalidBech32Error].} =
+func fromNostrBech32*(address: string): union(Bech32EncodedEntity) {.raises: [InvalidBech32Error].} =
   let (kind, data) = decode(address)
   case kind:
   of "npub":
