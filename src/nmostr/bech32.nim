@@ -137,6 +137,10 @@ func encode*(hrp: string, witprog: openArray[byte]): string =
 func encode*(hrp, witprog: string): string {.inline.} =
   encode(hrp, witprog.toBytes)
 
+func toString*(entity: Bech32Entity): string {.inline.} =
+  # Not `$` as it's not always correct
+  string.fromBytes(entity.data)
+
 #[___ Nostr specific. NIP-19 _________________________________________________________________]#
 
 type
