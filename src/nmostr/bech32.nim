@@ -29,6 +29,7 @@ import ./events, ./filters
 type
   uint5* =
     range[0'u32..31'u32]
+
   Bech32Entity* = object
     hrp: string
     data: seq[byte]
@@ -167,6 +168,7 @@ type
     id*: EventID
 
   NostrTLV* = NProfile | NEvent | NAddr | NRelay | NNote | SecretKey | PublicKey
+  UnknownTLVError* = object of ValueError
 
 #[___ Parsing _________________________________________________________________]#
 
@@ -258,7 +260,7 @@ func fromRaw*(T: type NNote, address: seq[byte]): T {.raises: [InvalidBech32Erro
   else:
     error "Event ID in bech32 encoded note should be 32 bytes, but was " & $address.len & " bytes instead"
 
-func fromNostrBech32*(address: string): union(NostrTLV | Bech32Entity) {.raises: [InvalidBech32Error].} =
+func fromNostrBech32*(address: string): union(NostrTLV) {.raises: [InvalidBech32Error, UnknownTLVError].} =
   let decoded = decode(address)
   case decoded.hrp:
   of "npub":
@@ -280,7 +282,7 @@ func fromNostrBech32*(address: string): union(NostrTLV | Bech32Entity) {.raises:
   of "nrelay":
     NRelay.fromRaw(decoded.data) as typeof result
   else:
-    decoded as typeof result
+    raise newException(UnknownTLVError, "Unknown TLV starting with " & decoded.hrp)
 
 func fromBech32*(T: type SecretKey, address: string): T {.raises: [InvalidBech32Error].} =
   let sk = SecretKey.fromRaw(decode("nsec", address))
@@ -373,7 +375,7 @@ func toFilter*(naddr: NAddr): Filter {.inline.} =
 func toFilter*(nnote: NNote): Filter {.inline.} =
   Filter(ids: @[nnote.id.toHex])
 
-func toFilter*(union: union(NostrTLV | Bech32Entity)): Filter =
+func toFilter*(union: union(NostrTLV)): Filter =
   unpack union, entity:
     when (compiles entity.toFilter): entity.toFilter
     else: Filter()
