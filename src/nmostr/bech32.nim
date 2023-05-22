@@ -28,7 +28,7 @@ import ./events, ./filters
 
 type
   uint5* =
-    range[0'u32..31'u32]
+    range[0'u8..31'u8]
 
   Bech32Entity* = object
     hrp: string
