@@ -168,7 +168,6 @@ type
     id*: EventID
 
   NostrTLV* = NProfile | NEvent | NAddr | NRelay | NNote | SecretKey | PublicKey
-  UnknownTLVError* = object of ValueError
 
 #[___ Parsing _________________________________________________________________]#
 
@@ -260,7 +259,7 @@ func fromRaw*(T: type NNote, address: seq[byte]): T {.raises: [InvalidBech32Erro
   else:
     error "Event ID in bech32 encoded note should be 32 bytes, but was " & $address.len & " bytes instead"
 
-func fromNostrBech32*(address: string): union(NostrTLV) {.raises: [InvalidBech32Error, UnknownTLVError].} =
+func fromNostrBech32*(address: string): union(NostrTLV) {.raises: [InvalidBech32Error, ValueError].} =
   let decoded = decode(address)
   case decoded.hrp:
   of "npub":
@@ -282,7 +281,7 @@ func fromNostrBech32*(address: string): union(NostrTLV) {.raises: [InvalidBech32
   of "nrelay":
     NRelay.fromRaw(decoded.data) as typeof result
   else:
-    raise newException(UnknownTLVError, "Unknown TLV starting with " & decoded.hrp)
+    raise newException(ValueError, "Unknown TLV starting with " & decoded.hrp)
 
 func fromBech32*(T: type SecretKey, address: string): T {.raises: [InvalidBech32Error].} =
   let sk = SecretKey.fromRaw(decode("nsec", address))
