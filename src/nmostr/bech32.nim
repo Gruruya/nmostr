@@ -133,8 +133,6 @@ func encode*(hrp: string, witprog: openArray[byte]): string =
   let combined = data & checksum(hrp, data)
   result = hrp & '1' & combined.mapIt(CHARSET[it]).join("")
 
-  # discard decode(hrp, result) # Verify
-
 func encode*(hrp, witprog: string): string {.inline.} =
   encode(hrp, witprog.toBytes)
 
