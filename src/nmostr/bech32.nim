@@ -53,16 +53,16 @@ func toWords*(data: openArray[byte]): seq[uint5] =
   var
     acc = 0.uint32
     bits = 0.uint32
-    idx = 0
+    i = 0
   for value in data:
     acc = (acc shl 8) or (value).uint8
     bits += 8
     while bits >= 5:
       bits -= 5
-      result[idx] = ((acc shr bits) and uint5.high).uint5
-      inc(idx)
+      result[i] = ((acc shr bits) and uint5.high).uint5
+      inc(i)
   if likely bits > 0:
-    result[idx] = ((acc shl (5 - bits)) and uint5.high).uint5
+    result[i] = ((acc shl (5 - bits)) and uint5.high).uint5
 
 func fromWords*(data: openArray[uint5]): seq[byte] =
   ## uint5 → uint8 conversion
@@ -70,14 +70,14 @@ func fromWords*(data: openArray[uint5]): seq[byte] =
   var
     acc = 0.uint32
     bits = 0.uint32
-    idx = 0
+    i = 0
   for value in data:
     acc = (acc shl 5) or value
     bits += 5
     while bits >= 8:
       bits -= 8
-      result[idx] = ((acc shr bits) and uint8.high).byte
-      inc(idx)
+      result[i] = ((acc shr bits) and uint8.high).byte
+      inc(i)
 
 func polymod(values: openArray[uint5]): uint32 =
   const generator = [uint32 0x3b6a57b2, 0x26508e6d, 0x1ea119fa, 0x3d4233dd, 0x2a1462b3]
