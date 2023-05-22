@@ -262,22 +262,22 @@ func fromNostrBech32*(address: string): union(NostrTLV) {.raises: [InvalidBech32
   case decoded.hrp:
   of "npub":
     let pk = PublicKey.fromRaw(decoded.data)
-    if likely pk.isOk: unsafeGet(pk) as typeof result
+    if likely pk.isOk: unsafeGet(pk) as union(NostrTLV)
     else: error $pk.error
   of "nsec":
     let sk = SecretKey.fromRaw(decoded.data)
-    if likely sk.isOk: unsafeGet(sk) as typeof result
+    if likely sk.isOk: unsafeGet(sk) as union(NostrTLV)
     else: error $sk.error
   of "note":
-    NNote.fromRaw(decoded.data) as typeof result
+    NNote.fromRaw(decoded.data) as union(NostrTLV)
   of "nprofile":
-    NProfile.fromRaw(decoded.data) as typeof result
+    NProfile.fromRaw(decoded.data) as union(NostrTLV)
   of "nevent":
-    NEvent.fromRaw(decoded.data) as typeof result
+    NEvent.fromRaw(decoded.data) as union(NostrTLV)
   of "naddr":
-    NAddr.fromRaw(decoded.data) as typeof result
+    NAddr.fromRaw(decoded.data) as union(NostrTLV)
   of "nrelay":
-    NRelay.fromRaw(decoded.data) as typeof result
+    NRelay.fromRaw(decoded.data) as union(NostrTLV)
   else:
     raise newException(ValueError, "Unknown TLV starting with " & decoded.hrp)
 
