@@ -18,10 +18,9 @@
 ## Utilities for working with Nostr events.
 
 import
-  times, strutils, macros, locks,
-  pkg/[jsony, crunchy, stew/byteutils, weave],
+  times, strutils, macros,
+  pkg/[jsony, crunchy, stew/byteutils],
   ./keys
-from sequtils import repeat
 
 export times, keys, jsony
 
@@ -111,51 +110,3 @@ proc stamp*(event: var Event, keypair: Keypair, rng: Rng = sysRng) {.raises: [Va
   event.pubkey = keypair.pubkey
   event.updateID
   event.sign(keypair.seckey, rng)
-
-{.pop.}
-proc pow*(event: var Event, difficulty: range[0..256]) {.raises: [ValueError, ResourceExhaustedError, Exception].} =
-  ## Increment the second filed of a nonce tag in the event until its ID has `difficulty` leading 0 bits (NIP-13 POW)
-  let
-    numZeroBytes = difficulty div 8
-    numZeroBits = difficulty - (numZeroBytes * 8)
-    target = repeat(0.byte, numZeroBytes)
-    serialized = serialize(event)
-    tagIndex = serialized[0..^3].rfind(",\"") - 1
-    sStart =
-      if serialized[tagIndex - 1] == '[':
-            serialized[0..<tagIndex] & "[\"nonce\",\""
-      else: serialized[0..<tagIndex] & ",[\"nonce\",\""
-    sEnd = "\",\"" & $difficulty & "\"]" & serialized[tagIndex..^1]
-
-  var
-    iteration = 1
-    found = 0
-    foundLock: Lock
-  let
-    foundPtr = addr found
-    foundLockPtr = addr foundLock
-
-  init(Weave)
-  while found == 0:
-    let next = iteration + 4096
-    syncScope():
-      parallelForStaged i in iteration ..< next:
-        captures: {numZeroBytes, numZeroBits, target, sStart, sEnd, foundPtr, foundLockPtr}
-        prologue:
-          var localFound = 0
-        loop:
-          let hash = sha256(sStart & $i & sEnd)
-          if unlikely hash[0 ..< numZeroBytes] == target and (numZeroBits == 0 or unlikely (hash[numZeroBytes] and (0xFF'u8 shl (8 - numZeroBits))) == 0):
-            localFound = i
-        epilogue:
-          if unlikely localFound != 0:
-            acquire foundLockPtr[]
-            foundPtr[] = localFound
-            release foundLockPtr[]
-            return
-
-    iteration = next
-
-  exit(Weave)
-  event.tags.add @["nonce", $found, $difficulty]
-  event.updateID
