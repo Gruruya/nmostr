@@ -3,6 +3,9 @@ from strutils import rfind
 from sequtils import repeat
 export events
 
+const powChunkSize {.intdefine.} = 4096 ## How many nonces to iterate over in `powMulti`
+const powMultiCutoff {.intdefine.} = 13 ## Minimum difficulty before `pow` points to `powMulti`
+
 template powImpl(findNonce: untyped) {.dirty.} =
   let
     numZeroBytes = difficulty div 8
@@ -24,21 +27,21 @@ template powImpl(findNonce: untyped) {.dirty.} =
   event.tags.add @["nonce", $found, $difficulty]
   event.updateID
 
+template hasLeadingZeroes(hash: array[32, uint8], difficulty: int): bool = # difficulty param is for show
+  unlikely hash[0 ..< numZeroBytes] == target and (numZeroBits == 0 or unlikely (hash[numZeroBytes] and (0xFF'u8 shl (8 - numZeroBits))) == 0)
+
 proc powSingle*(event: var Event, difficulty: range[0..256]) {.raises: [].} =
-  ## Increment the second filed of a nonce tag in the event until its ID has `difficulty` leading 0 bits (NIP-13 POW)
+  ## Increment the second filed of a nonce tag in the event until its ID has `difficulty` leading 0 bits (NIP-13 POW), single threaded
   powImpl:
     while true:
       let hash = sha256(prefix & $iteration & suffix)
-      if unlikely hash[0 ..< numZeroBytes] == target and (numZeroBits == 0 or unlikely (hash[numZeroBytes] and (0xFF'u8 shl (8 - numZeroBits))) == 0):
+      if unlikely hash.hasLeadingZeroes(difficulty):
         found = iteration
         break
       inc iteration
 
-const powChunkSize {.intdefine.} = 4096
-const powMultiCutoff {.intdefine.} = 13
-
 proc powMulti*(event: var Event, difficulty: range[0..256]) {.raises: [ValueError, ResourceExhaustedError, Exception].} =
-  ## Increment the second filed of a nonce tag in the event until its ID has `difficulty` leading 0 bits (NIP-13 POW)
+  ## Increment the second filed of a nonce tag in the event until its ID has `difficulty` leading 0 bits (NIP-13 POW), multithreaded
   powImpl:
     var
       foundLock: Lock
@@ -56,7 +59,7 @@ proc powMulti*(event: var Event, difficulty: range[0..256]) {.raises: [ValueErro
             var localFound = 0
           loop:
             let hash = sha256(prefix & $i & suffix)
-            if unlikely hash[0 ..< numZeroBytes] == target and (numZeroBits == 0 or unlikely (hash[numZeroBytes] and (0xFF'u8 shl (8 - numZeroBits))) == 0):
+            if unlikely hash.hasLeadingZeroes(difficulty):
               localFound = i
               break
           epilogue:
@@ -72,6 +75,7 @@ proc powMulti*(event: var Event, difficulty: range[0..256]) {.raises: [ValueErro
     exit(Weave)
 
 proc pow*(event: var Event, difficulty: range[0..256]) {.inline, raises: [ValueError, ResourceExhaustedError, Exception].} =
+  ## Increment the second filed of a nonce tag in the event until its ID has `difficulty` leading 0 bits (NIP-13 POW)
   if difficulty >= powMultiCutoff:
         event.powMulti(difficulty)
   else: event.powSingle(difficulty)
