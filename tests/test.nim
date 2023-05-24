@@ -170,3 +170,10 @@ suite "bech32":
   block note:
     check fromNostrBech32("note1fntxtkcy9pjwucqwa9mddn7v03wwwsu9j330jj350nvhpky2tuaspk6nqc") == NNote(id: EventID.fromHex "4cd665db042864ee600ee976d6cfcc7c5ce743859462f94a347cd970d88a5f3b")
     check fromNostrBech32(NNote(id: EventID.fromHex "4cd665db042864ee600ee976d6cfcc7c5ce743859462f94a347cd970d88a5f3b").toBech32) == NNote(id: EventID.fromHex "4cd665db042864ee600ee976d6cfcc7c5ce743859462f94a347cd970d88a5f3b")
+
+suite "pow":
+  when defined(useMalloc): skip("weave seems to be busted under valgrind")
+  else:
+    var note = note(newKeypair(), "Test note")
+    note.pow(2)
+    check note.id.bytes[0] shr 6 == 0'u8
