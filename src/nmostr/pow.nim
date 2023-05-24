@@ -22,8 +22,8 @@ from strutils import rfind
 from sequtils import repeat
 export events
 
-const powChunkSize {.intdefine.} = 4096 ## How many nonces to iterate over in `powMulti`
-const powMultiCutoff {.intdefine.} = 13 ## Minimum difficulty before `pow` points to `powMulti`
+const powChunkSize {.intdefine.} = 4096 ## How many nonces to iterate over at once in `powMulti`
+const powMultiCutoff {.intdefine.} = 13 ## Minimum difficulty before `pow` proc points to `powMulti`
 
 template powImpl(findNonce: untyped) {.dirty.} =
   let
