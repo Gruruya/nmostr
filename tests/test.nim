@@ -175,7 +175,7 @@ suite "pow":
   var note = note(newKeypair(), "Test note")
   note.pow(2)
   check note.id.bytes[0] shr 6 == 0'u8
-  when not defined(useMalloc): # weave seems to be busted under valgrind
+  when weaveAvailable and not defined(useMalloc): # weave seems to be busted under valgrind
     note.tags.reset
     note.powMulti(2)
     check note.id.bytes[0] shr 6 == 0'u8

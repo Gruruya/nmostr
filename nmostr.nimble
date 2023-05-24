@@ -13,7 +13,9 @@ requires "crunchy >= 0.1.8"
 requires "stew"
 requires "secp256k1 >= 0.6.0.3.1"
 requires "https://github.com/alaviss/union >= 0.1.4"
-requires "weave >= 0.4.10"
+
+when not defined(dontUseWeave):
+  requires "weave >= 0.4.10"
 
 taskRequires "test", "https://github.com/disruptek/balls >= 3.0.0"
 
