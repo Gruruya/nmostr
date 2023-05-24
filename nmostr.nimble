@@ -9,11 +9,11 @@ skipDirs = @["tests"]
 # Dependencies
 requires "nim >= 1.9.1"
 requires "jsony ^= 1.1"
-requires "crunchy >= 0.1.8"
-requires "stew"
 requires "secp256k1 >= 0.6.0.3.1"
-requires "https://github.com/alaviss/union >= 0.1.4"
+requires "stew"
+requires "crunchy >= 0.1.8"
 requires "weave >= 0.4.10"
+requires "https://github.com/alaviss/union >= 0.1.4"
 
 taskRequires "test", "https://github.com/disruptek/balls >= 3.0.0"
 
