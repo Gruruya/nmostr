@@ -17,7 +17,7 @@
 
 ## Proof of work as described by NIP-13.
 
-import locks, pkg/[weave, crunchy], ./events
+import pkg/[weave, crunchy], ./events
 from strutils import rfind
 from sequtils import repeat
 export events
@@ -62,18 +62,14 @@ proc powSingle*(event: var Event, difficulty: range[0..256]) {.raises: [].} =
 proc powMulti*(event: var Event, difficulty: range[0..256]) {.raises: [ValueError, ResourceExhaustedError, Exception].} =
   ## Increment the second filed of a nonce tag in the event until its ID has `difficulty` leading 0 bits (NIP-13 POW), multithreaded
   powImpl:
-    var
-      foundLock: Lock
-    let
-      foundPtr = addr found
-      foundLockPtr = addr foundLock
-
+    let foundPtr = addr found
     init(Weave)
+
     while true:
       let next = iteration + powChunkSize
       syncScope():
         parallelForStaged i in iteration ..< next:
-          captures: {numZeroBytes, numZeroBits, target, prefix, suffix, foundPtr, foundLockPtr}
+          captures: {numZeroBytes, numZeroBits, target, prefix, suffix, foundPtr}
           prologue:
             var localFound = 0
           loop:
@@ -83,10 +79,7 @@ proc powMulti*(event: var Event, difficulty: range[0..256]) {.raises: [ValueErro
               break
           epilogue:
             if unlikely localFound != 0:
-              acquire foundLockPtr[]
               foundPtr[] = localFound
-              release foundLockPtr[]
-              return
 
       if unlikely found != 0: break
       iteration = next
