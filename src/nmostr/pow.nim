@@ -28,7 +28,7 @@ template powImpl(findNonce: untyped) {.dirty.} =
   let
     numZeroBytes = difficulty shr 3
     numZeroBits = difficulty and 0x7
-    mask = 0xFF'u8 shl (8 - numZeroBits)
+    mask = high(unit8) shl (8 - numZeroBits)
     serialized = serialize(event)
     tagIndex = serialized[0..^3].rfind(",\"") - 1
     prefix =
@@ -100,7 +100,7 @@ proc verifyPow*(id: array[32, byte], difficulty: range[0..256]): bool =
   let
     numZeroBytes = difficulty shr 3
     numZeroBits = difficulty and 0x7
-    mask = 0xFF'u8 shl (8 - numZeroBits)
+    mask = high(uint8) shl (8 - numZeroBits)
 
   id.hasLeadingZeroes(difficulty)
 
