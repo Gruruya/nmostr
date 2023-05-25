@@ -21,7 +21,7 @@ import pkg/[weave, crunchy], ./events
 from strutils import rfind
 export events
 
-const powChunkSize {.intdefine.} = 4096 ## How many nonces to iterate over at once in `powMulti`
+const powChunkSize {.intdefine.} = 4096 ## How many nonces to check per (parallel) loop in `powMulti`
 const powMultiCutoff {.intdefine.} = 13 ## Minimum difficulty before `pow` proc points to `powMulti`
 
 template powImpl(findNonce: untyped) {.dirty.} =
@@ -54,7 +54,7 @@ template hasLeadingZeroes(hash: array[32, uint8], difficulty: int): bool = # dif
   result
 
 proc powSingle*(event: var Event, difficulty: range[0..256]) {.raises: [].} =
-  ## Increment the second feild of a nonce tag in the event until its ID has `difficulty` leading 0 bits (NIP-13 POW), single threaded
+  ## Increment the second feild of a nonce tag in the event until the event ID has `difficulty` leading 0 bits (NIP-13 POW), single threaded
   powImpl:
     while true:
       let hash = sha256(prefix & $iteration & suffix)
@@ -64,7 +64,7 @@ proc powSingle*(event: var Event, difficulty: range[0..256]) {.raises: [].} =
       inc iteration
 
 proc powMulti*(event: var Event, difficulty: range[0..256]) {.raises: [ValueError, ResourceExhaustedError, Exception].} =
-  ## Increment the second field of a nonce tag in the event until its ID has `difficulty` leading 0 bits (NIP-13 POW), multithreaded
+  ## Increment the second field of a nonce tag in the event until the event ID has `difficulty` leading 0 bits (NIP-13 POW), multithreaded
   powImpl:
     let foundPtr = addr found
     init(Weave)
@@ -91,7 +91,7 @@ proc powMulti*(event: var Event, difficulty: range[0..256]) {.raises: [ValueErro
     exit(Weave)
 
 proc pow*(event: var Event, difficulty: range[0..256]) {.inline, raises: [ValueError, ResourceExhaustedError, Exception].} =
-  ## Increment the second field of a nonce tag in the event until its ID has `difficulty` leading 0 bits (NIP-13 POW)
+  ## Increment the second field of a nonce tag in the event until the event ID has `difficulty` leading 0 bits (NIP-13 POW)
   if difficulty >= powMultiCutoff:
         event.powMulti(difficulty)
   else: event.powSingle(difficulty)
