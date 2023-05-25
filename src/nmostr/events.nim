@@ -79,6 +79,15 @@ proc sign*(event: var Event, sk: Keypair, rng: Rng = sysRng) {.inline, raises: [
 proc updateID*(event: var Event) =
   event.id = EventID(bytes: sha256(serialize event))
 
+proc verify*(event: Event): bool {.inline.} =
+  verify(event.sig, sha256(serialize event), event.pubkey)
+
+proc stamp*(event: var Event, keypair: Keypair, rng: Rng = sysRng) {.raises: [ValueError].} =
+  ## Change the author of an event
+  event.pubkey = keypair.pubkey
+  event.updateID
+  event.sign(keypair.seckey, rng)
+
 proc init*(T: type Event, kind: int, content: string, keypair: Keypair, created_at = getTime(), tags = default(seq[seq[string]])): Event {.raises: [ValueError].} =
   result = Event(kind: kind, content: content, pubkey: keypair.pubkey, created_at: created_at, tags: tags)
   result.updateID
@@ -89,24 +98,20 @@ type Metadata* = object ## Content of kind 0 (metadata) event
   about*: string        ## description
   picture*: string      ## url
 
-proc metadata*(keypair: Keypair, name, about, picture: string, created_at = getTime(), tags = default(Event.tags)): Event {.inline, raises: [ValueError].} =
+proc metadata*(keypair: Keypair, name, about, picture: string, tags = default(Event.tags), created_at = getTime()): Event {.inline, raises: [ValueError].} =
   ## Describes the user who created the event.
   ## A relay may delete past metadata events once it gets a new one for the same pubkey.
   Event.init(0, Metadata(name: name, about: about, picture: picture).toJson, keypair, created_at, tags)
 
-proc note*(keypair: Keypair, content: string, created_at = getTime(), tags = default(Event.tags)): Event {.inline, raises: [ValueError].} =
+proc note*(keypair: Keypair, content: string, tags = default(Event.tags), created_at = getTime()): Event {.inline, raises: [ValueError].} =
   ## Plaintext note (anything the user wants to say). Markdown links ([]() stuff) are not plaintext.
   Event.init(1, content, keypair, created_at, tags)
 
-proc recommendServer*(keypair: Keypair, url: string, created_at = getTime(), tags = default(Event.tags)): Event {.inline, raises: [ValueError].} =
+proc recommendServer*(keypair: Keypair, url: string, tags = default(Event.tags), created_at = getTime()): Event {.inline, raises: [ValueError].} =
   ## URL (e.g., wss://somerelay.com) of a relay the event creator wants to recommend to its followers.
   Event.init(2, url, keypair, created_at, tags)
 
-proc verify*(event: Event): bool {.inline.} =
-  verify(event.sig, sha256(serialize event), event.pubkey)
-
-proc stamp*(event: var Event, keypair: Keypair, rng: Rng = sysRng) {.raises: [ValueError].} =
-  ## Change the author of an event
-  event.pubkey = keypair.pubkey
-  event.updateID
-  event.sign(keypair.seckey, rng)
+proc article*(keypair: Keypair, content, d: string, tags: sink seq[seq[string]] = default(Event.tags), created_at = getTime()): Event {.inline, raises: [ValueError].} =
+  ## Long-form text formatted in markdown.
+  tags.add @["d", d]
+  Event.init(30023, content, keypair, created_at, tags)
