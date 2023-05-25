@@ -46,12 +46,12 @@ template powImpl(findNonce: untyped) {.dirty.} =
   event.updateID
 
 template hasValidNonce(hash: array[32, uint8]): bool =
-  var result = false
+  var valid = false
   block check:
     for i in 0 ..< numZeroBytes:
       if hash[i] != 0: break check
-    result = (hash[numZeroBytes] and mask) == 0
-  result
+    valid = (hash[numZeroBytes] and mask) == 0
+  valid
 
 proc powSingle*(event: var Event, difficulty: range[0..256]) {.raises: [].} =
   ## Increment the second feild of a nonce tag in the event until the event ID has `difficulty` leading 0 bits (NIP-13 POW), single threaded
