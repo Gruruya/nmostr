@@ -19,7 +19,6 @@
 
 import pkg/[weave, crunchy], ./events
 from strutils import rfind
-from sequtils import repeat
 export events
 
 const powChunkSize {.intdefine.} = 4096 ## How many nonces to iterate over at once in `powMulti`
@@ -27,15 +26,15 @@ const powMultiCutoff {.intdefine.} = 13 ## Minimum difficulty before `pow` proc 
 
 template powImpl(findNonce: untyped) {.dirty.} =
   let
-    numZeroBytes = difficulty div 8
-    numZeroBits = difficulty - (numZeroBytes * 8)
-    target = repeat(0.byte, numZeroBytes)
+    numZeroBytes = difficulty shr 3
+    numZeroBits = difficulty and 0x7
+    mask = if numZeroBits == 0: 0'u8 else: 0xFF'u8 shl (8 - numZeroBits)
     serialized = serialize(event)
     tagIndex = serialized[0..^3].rfind(",\"") - 1
     prefix =
       if serialized[tagIndex - 1] == '[':
-            serialized[0..<tagIndex] & "[\"nonce\",\""
-      else: serialized[0..<tagIndex] & ",[\"nonce\",\""
+            serialized[0 ..< tagIndex] & "[\"nonce\",\""
+      else: serialized[0 ..< tagIndex] & ",[\"nonce\",\""
     suffix = "\",\"" & $difficulty & "\"]" & serialized[tagIndex..^1]
   var
     iteration = 1
@@ -47,7 +46,12 @@ template powImpl(findNonce: untyped) {.dirty.} =
   event.updateID
 
 template hasLeadingZeroes(hash: array[32, uint8], difficulty: int): bool = # difficulty param is for show
-  hash[0 ..< numZeroBytes] == target and (numZeroBits == 0 or (hash[numZeroBytes] and (0xFF'u8 shl (8 - numZeroBits))) == 0)
+  var result = false
+  block check:
+    for i in 0 ..< numZeroBytes:
+      if hash[i] != 0: break check
+    result = (hash[numZeroBytes] and mask) == 0
+  result
 
 proc powSingle*(event: var Event, difficulty: range[0..256]) {.raises: [].} =
   ## Increment the second filed of a nonce tag in the event until its ID has `difficulty` leading 0 bits (NIP-13 POW), single threaded
@@ -69,7 +73,7 @@ proc powMulti*(event: var Event, difficulty: range[0..256]) {.raises: [ValueErro
       let next = iteration + powChunkSize
       syncScope():
         parallelForStaged i in iteration ..< next:
-          captures: {numZeroBytes, numZeroBits, target, prefix, suffix, foundPtr}
+          captures: {numZeroBytes, numZeroBits, mask, prefix, suffix, foundPtr}
           prologue:
             var localFound = 0
           loop:
@@ -100,3 +104,6 @@ proc verifyPow*(id: array[32, byte], difficulty: int): bool =
   for i in 0 ..< numZeroBytes:
     if id[i] != 0: return false
   return (id[numZeroBytes] and mask) == 0
+
+proc verifyPow*(id: EventID, difficulty: int): bool {.inline.} = verifyPow(id.bytes, difficulty)
+proc verifyPow*(event: Event, difficulty: int): bool {.inline.} = verifyPow(event.id.bytes, difficulty)
