@@ -45,7 +45,7 @@ template powImpl(findNonce: untyped) {.dirty.} =
   event.tags.add @["nonce", $found, $difficulty]
   event.updateID
 
-template hasLeadingZeroes(hash: array[32, uint8], difficulty: int): bool = # difficulty param is for show
+template hasValidNonce(hash: array[32, uint8]): bool =
   var result = false
   block check:
     for i in 0 ..< numZeroBytes:
@@ -58,7 +58,7 @@ proc powSingle*(event: var Event, difficulty: range[0..256]) {.raises: [].} =
   powImpl:
     while true:
       let hash = sha256(prefix & $iteration & suffix)
-      if unlikely hash.hasLeadingZeroes(difficulty):
+      if unlikely hash.hasValidNonce:
         found = iteration
         break
       inc iteration
@@ -78,7 +78,7 @@ proc powMulti*(event: var Event, difficulty: range[0..256]) {.raises: [ValueErro
             var localFound = 0
           loop:
             let hash = sha256(prefix & $i & suffix)
-            if unlikely hash.hasLeadingZeroes(difficulty):
+            if unlikely hash.hasValidNonce:
               localFound = i
               break
           epilogue:
@@ -102,7 +102,7 @@ proc verifyPow*(id: array[32, byte], difficulty: range[0..256]): bool =
     numZeroBits = difficulty and 7
     mask = high(uint8) shl (8 - numZeroBits)
 
-  id.hasLeadingZeroes(difficulty)
+  hasValidNonce(id)
 
 proc verifyPow*(id: EventID, difficulty: range[0..256]): bool {.inline.} = verifyPow(id.bytes, difficulty)
 proc verifyPow*(event: Event, difficulty: range[0..256]): bool {.inline.} = verifyPow(event.id.bytes, difficulty)
