@@ -6,6 +6,7 @@ Contained modules:
 * Events
 * Messages
 * Bech32
+* Proof of work
 
 Stability: Early days. Functional.
 
