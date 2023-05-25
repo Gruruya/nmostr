@@ -73,7 +73,7 @@ proc powMulti*(event: var Event, difficulty: range[0..256]) {.raises: [ValueErro
       let next = iteration + powChunkSize
       syncScope():
         parallelForStaged i in iteration ..< next:
-          captures: {numZeroBytes, numZeroBits, mask, prefix, suffix, foundPtr}
+          captures: {numZeroBytes, mask, prefix, suffix, foundPtr}
           prologue:
             var localFound = 0
           loop:
@@ -96,14 +96,13 @@ proc pow*(event: var Event, difficulty: range[0..256]) {.inline, raises: [ValueE
         event.powMulti(difficulty)
   else: event.powSingle(difficulty)
 
-proc verifyPow*(id: array[32, byte], difficulty: int): bool =
+proc verifyPow*(id: array[32, byte], difficulty: range[0..256]): bool =
   let
     numZeroBytes = difficulty shr 3
     numZeroBits = difficulty and 0x7
     mask = if numZeroBits == 0: 0'u8 else: 0xFF'u8 shl (8 - numZeroBits)
-  for i in 0 ..< numZeroBytes:
-    if id[i] != 0: return false
-  return (id[numZeroBytes] and mask) == 0
 
-proc verifyPow*(id: EventID, difficulty: int): bool {.inline.} = verifyPow(id.bytes, difficulty)
-proc verifyPow*(event: Event, difficulty: int): bool {.inline.} = verifyPow(event.id.bytes, difficulty)
+  id.hasLeadingZeroes(difficulty)
+
+proc verifyPow*(id: EventID, difficulty: range[0..256]): bool {.inline.} = verifyPow(id.bytes, difficulty)
+proc verifyPow*(event: Event, difficulty: range[0..256]): bool {.inline.} = verifyPow(event.id.bytes, difficulty)
