@@ -47,7 +47,7 @@ template powImpl(findNonce: untyped) {.dirty.} =
   event.updateID
 
 template hasLeadingZeroes(hash: array[32, uint8], difficulty: int): bool = # difficulty param is for show
-  unlikely hash[0 ..< numZeroBytes] == target and (numZeroBits == 0 or unlikely (hash[numZeroBytes] and (0xFF'u8 shl (8 - numZeroBits))) == 0)
+  hash[0 ..< numZeroBytes] == target and (numZeroBits == 0 or (hash[numZeroBytes] and (0xFF'u8 shl (8 - numZeroBits))) == 0)
 
 proc powSingle*(event: var Event, difficulty: range[0..256]) {.raises: [].} =
   ## Increment the second filed of a nonce tag in the event until its ID has `difficulty` leading 0 bits (NIP-13 POW), single threaded
@@ -91,3 +91,12 @@ proc pow*(event: var Event, difficulty: range[0..256]) {.inline, raises: [ValueE
   if difficulty >= powMultiCutoff:
         event.powMulti(difficulty)
   else: event.powSingle(difficulty)
+
+proc verifyPow*(id: array[32, byte], difficulty: int): bool =
+  let
+    numZeroBytes = difficulty shr 3
+    numZeroBits = difficulty and 0x7
+    mask = if numZeroBits == 0: 0'u8 else: 0xFF'u8 shl (8 - numZeroBits)
+  for i in 0 ..< numZeroBytes:
+    if id[i] != 0: return false
+  return (id[numZeroBytes] and mask) == 0
