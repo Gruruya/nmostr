@@ -97,6 +97,7 @@ proc pow*(event: var Event, difficulty: range[0..256]) {.inline, raises: [ValueE
   else: event.powSingle(difficulty)
 
 proc verifyPow*(id: array[32, byte], difficulty: range[0..256]): bool =
+  ## Verify an array of bytes (event id) starts with `difficulty` leading 0 bits
   let
     numZeroBytes = difficulty shr 3
     numZeroBits = difficulty and 7
@@ -105,4 +106,6 @@ proc verifyPow*(id: array[32, byte], difficulty: range[0..256]): bool =
   hasValidNonce(id)
 
 proc verifyPow*(id: EventID, difficulty: range[0..256]): bool {.inline.} = verifyPow(id.bytes, difficulty)
+  ## Verify an event id starts with `difficulty` leading 0 bits
 proc verifyPow*(event: Event, difficulty: range[0..256]): bool {.inline.} = verifyPow(event.id.bytes, difficulty)
+  ## Verify an event's id starts with `difficulty` leading 0 bits
