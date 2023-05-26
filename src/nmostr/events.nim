@@ -26,8 +26,6 @@ export times, keys, jsony
 
 {.push raises: [].}
 
-# Types
-
 type EventID* = object
   bytes*: array[32, byte]
 
