@@ -66,26 +66,31 @@ proc powSingle*(event: var Event, difficulty: range[0..256]) {.raises: [].} =
 proc powMulti*(event: var Event, difficulty: range[0..256]) {.raises: [ValueError, ResourceExhaustedError, Exception].} =
   ## Increment the second field of a nonce tag in the event until the event ID has `difficulty` leading 0 bits (NIP-13 POW), multithreaded
   powImpl:
-    let foundPtr = addr found
+    var waitableFound: Flowvar[int]
     init(Weave)
 
     while true:
       let next = iteration + powChunkSize
       syncScope():
-        parallelForStaged i in iteration ..< next:
-          captures: {numZeroBytes, mask, prefix, suffix, foundPtr}
-          prologue:
-            var localFound = 0
-          loop:
-            let hash = sha256(prefix & $i & suffix)
-            if unlikely hash.hasValidNonce:
-              localFound = i
-              break
-          epilogue:
-            if unlikely localFound != 0:
-              foundPtr[] = localFound
+        parallelFor i in iteration ..< next:
+          captures: {numZeroBytes, mask, prefix, suffix}
+          reduce(waitableFound):
+            prologue:
+              var localFound = 0
+            fold:
+              let hash = sha256(prefix & $i & suffix)
+              if unlikely hash.hasValidNonce:
+                localFound = i
+            merge(remoteFound):
+              let rf = sync(remoteFound)
+              if unlikely rf != 0:
+                localFound = rf
+            return localFound
 
-      if unlikely found != 0: break
+      let itFound = sync(waitableFound)
+      if unlikely itFound != 0:
+        found = itFound
+        break
       iteration = next
 
     exit(Weave)
