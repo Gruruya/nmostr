@@ -66,10 +66,10 @@ proc powSequential*(event: var Event, difficulty: range[0..256]) {.raises: [].} 
 proc powParallel*(event: var Event, difficulty: range[0..256]) {.raises: [ValueError, ResourceExhaustedError, Exception].} =
   ## Increment the second field of a nonce tag in the event until the event ID has `difficulty` leading 0 bits (NIP-13 POW), multithreaded
   powImpl:
-    var waitableFound: Flowvar[int]
     init(Weave)
 
     while true:
+      var waitableFound: Flowvar[int]
       let next = iteration + powParallelChunkSize
       parallelFor i in iteration ..< next:
         captures: {numZeroBytes, mask, prefix, suffix}
