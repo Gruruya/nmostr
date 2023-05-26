@@ -21,8 +21,8 @@ import pkg/[weave, crunchy], ./events
 from strutils import rfind
 export events
 
-const powChunkSize {.intdefine.} = 4096 ## How many nonces to check per (parallel) loop in `powMulti`
-const powMultiCutoff {.intdefine.} = 13 ## Minimum difficulty before `pow` proc points to `powMulti`
+const powParallelChunkSize {.intdefine.} = 4096 ## How many nonces to check per (parallel) loop in `powParallel`
+const powParallelCutoff {.intdefine.} = 13 ## Minimum difficulty before `pow` proc points to `powParallel`
 
 template powImpl(findNonce: untyped) {.dirty.} =
   let
@@ -53,7 +53,7 @@ template hasValidNonce(hash: array[32, uint8]): bool =
     valid = (hash[numZeroBytes] and mask) == 0
   valid
 
-proc powSingle*(event: var Event, difficulty: range[0..256]) {.raises: [].} =
+proc powSequential*(event: var Event, difficulty: range[0..256]) {.raises: [].} =
   ## Increment the second feild of a nonce tag in the event until the event ID has `difficulty` leading 0 bits (NIP-13 POW), single threaded
   powImpl:
     while true:
@@ -63,29 +63,28 @@ proc powSingle*(event: var Event, difficulty: range[0..256]) {.raises: [].} =
         break
       inc iteration
 
-proc powMulti*(event: var Event, difficulty: range[0..256]) {.raises: [ValueError, ResourceExhaustedError, Exception].} =
+proc powParallel*(event: var Event, difficulty: range[0..256]) {.raises: [ValueError, ResourceExhaustedError, Exception].} =
   ## Increment the second field of a nonce tag in the event until the event ID has `difficulty` leading 0 bits (NIP-13 POW), multithreaded
   powImpl:
     var waitableFound: Flowvar[int]
     init(Weave)
 
     while true:
-      let next = iteration + powChunkSize
-      syncScope():
-        parallelFor i in iteration ..< next:
-          captures: {numZeroBytes, mask, prefix, suffix}
-          reduce(waitableFound):
-            prologue:
-              var localFound = 0
-            fold:
-              let hash = sha256(prefix & $i & suffix)
-              if unlikely hash.hasValidNonce:
-                localFound = i
-            merge(remoteFound):
-              let rf = sync(remoteFound)
-              if unlikely rf != 0:
-                localFound = rf
-            return localFound
+      let next = iteration + powParallelChunkSize
+      parallelFor i in iteration ..< next:
+        captures: {numZeroBytes, mask, prefix, suffix}
+        reduce(waitableFound):
+          prologue:
+            var localFound = 0
+          fold:
+            let hash = sha256(prefix & $i & suffix)
+            if unlikely hash.hasValidNonce:
+              localFound = i
+          merge(remoteFound):
+            let rf = sync(remoteFound)
+            if unlikely rf != 0:
+              localFound = rf
+          return localFound
 
       let itFound = sync(waitableFound)
       if unlikely itFound != 0:
@@ -97,9 +96,9 @@ proc powMulti*(event: var Event, difficulty: range[0..256]) {.raises: [ValueErro
 
 proc pow*(event: var Event, difficulty: range[0..256]) {.inline, raises: [ValueError, ResourceExhaustedError, Exception].} =
   ## Increment the second field of a nonce tag in the event until the event ID has `difficulty` leading 0 bits (NIP-13 POW)
-  if difficulty >= powMultiCutoff:
-        event.powMulti(difficulty)
-  else: event.powSingle(difficulty)
+  if difficulty >= powParallelCutoff:
+        event.powParallel(difficulty)
+  else: event.powSequential(difficulty)
 
 proc verifyPow*(id: array[32, byte], difficulty: range[0..256]): bool =
   ## Verify an array of bytes (event id) starts with `difficulty` leading 0 bits

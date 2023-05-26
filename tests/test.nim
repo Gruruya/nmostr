@@ -177,5 +177,5 @@ suite "pow":
   check note.verifyPow(2)
   when not defined(useMalloc): # weave seems to be busted under valgrind
     note.tags.reset
-    note.powMulti(2)
+    note.powParallel(2)
     check note.verifyPow(2)
