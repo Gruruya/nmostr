@@ -72,13 +72,13 @@ func toHex*(pubkey: PublicKey): string =
 
 func verify*(sig: SchnorrSignature, msg: SkMessage, pubkey: PublicKey): bool =
   ## Wrapper that checks if `pubkey` is uninitialized
-  if pubkey == default(typeof pubkey): return false
-  secp256k1.verify(sig, msg, pubkey)
+  if pubkey == default(typeof pubkey): false
+  else: secp256k1.verify(sig, msg, pubkey)
 
 func verify*(sig: SchnorrSignature, msg: openArray[byte], pubkey: PublicKey): bool =
   ## Wrapper that checks if `pubkey` is uninitialized
-  if pubkey == default(typeof pubkey): return false
-  secp256k1.verify(sig, msg, pubkey)
+  if pubkey == default(typeof pubkey): false
+  else: secp256k1.verify(sig, msg, pubkey)
 
 func `$`*(v: PublicKey | SchnorrSignature): string =
   toHex(v)
