@@ -38,8 +38,8 @@ type Event* = object
   id*: EventID            ## 32-bytes lowercase hex-encoded sha256 of the serialized event data
   kind*: int              ## The type of event this is.
   content*: string        ## Arbitrary string, what it is should be gleamed from this event's `kind`
-  created_at*: Time       ## Received and transmitted as a Unix timestamp in seconds
   tags*: seq[seq[string]] ## A sequence of tags. This first item is the key and the rest is the content.
+  created_at*: Time       ## Received and transmitted as a Unix timestamp in seconds
   sig*: SchnorrSignature  ## 64-bytes hex of the signature of the sha256 hash of the serialized event data, which is the same as the "id" field
 
 func parseHook*(s: string, i: var int, v: var EventID) {.inline, raises: [JsonError, ValueError].} =
@@ -86,8 +86,8 @@ proc stamp*(event: var Event, keypair: Keypair, rng: Rng = sysRng) {.raises: [Va
   event.updateID
   event.sign(keypair.seckey, rng)
 
-proc init*(T: type Event, kind: int, content: string, keypair: Keypair, created_at = getTime(), tags = default(seq[seq[string]])): Event {.raises: [ValueError].} =
-  result = Event(kind: kind, content: content, pubkey: keypair.pubkey, created_at: created_at, tags: tags)
+proc init*(T: type Event, kind: int, content: string, keypair: Keypair, tags = default(seq[seq[string]]), created_at = getTime()): Event {.raises: [ValueError].} =
+  result = Event(kind: kind, content: content, pubkey: keypair.pubkey, tags: tags, created_at: created_at)
   result.updateID
   result.sign(keypair)
 
@@ -99,17 +99,18 @@ type Metadata* = object ## Content of kind 0 (metadata) event
 proc metadata*(keypair: Keypair, name, about, picture: string, tags = default(Event.tags), created_at = getTime()): Event {.inline, raises: [ValueError].} =
   ## Describes the user who created the event.
   ## A relay may delete past metadata events once it gets a new one for the same pubkey.
-  Event.init(0, Metadata(name: name, about: about, picture: picture).toJson, keypair, created_at, tags)
+  Event.init(0, Metadata(name: name, about: about, picture: picture).toJson, keypair, tags, created_at)
 
+# Wrappers around `Event.init`
 proc note*(keypair: Keypair, content: string, tags = default(Event.tags), created_at = getTime()): Event {.inline, raises: [ValueError].} =
   ## Plaintext note (anything the user wants to say). Markdown links ([]() stuff) are not plaintext.
-  Event.init(1, content, keypair, created_at, tags)
+  Event.init(1, content, keypair, tags, created_at)
 
 proc recommendServer*(keypair: Keypair, url: string, tags = default(Event.tags), created_at = getTime()): Event {.inline, raises: [ValueError].} =
   ## URL (e.g., wss://somerelay.com) of a relay the event creator wants to recommend to its followers.
-  Event.init(2, url, keypair, created_at, tags)
+  Event.init(2, url, keypair, tags, created_at)
 
 proc article*(keypair: Keypair, content, d: string, tags: sink seq[seq[string]] = default(Event.tags), created_at = getTime()): Event {.inline, raises: [ValueError].} =
   ## Long-form text formatted in markdown.
   tags.add @["d", d]
-  Event.init(30023, content, keypair, created_at, tags)
+  Event.init(30023, content, keypair, tags, created_at)
