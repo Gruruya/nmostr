@@ -101,7 +101,6 @@ proc metadata*(keypair: Keypair, name, about, picture: string, tags = default(Ev
   ## A relay may delete past metadata events once it gets a new one for the same pubkey.
   Event.init(0, Metadata(name: name, about: about, picture: picture).toJson, keypair, tags, created_at)
 
-# Wrappers around `Event.init`
 proc note*(keypair: Keypair, content: string, tags = default(Event.tags), created_at = getTime()): Event {.inline, raises: [ValueError].} =
   ## Plaintext note (anything the user wants to say). Markdown links ([]() stuff) are not plaintext.
   Event.init(1, content, keypair, tags, created_at)
