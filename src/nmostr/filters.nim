@@ -18,6 +18,7 @@
 ## Nostr filters and utilities for using them.
 
 import std/[times, strutils, sequtils, sugar, macros]
+import std/json except JsonError
 import pkg/jsony
 import ./events
 export events
@@ -33,6 +34,7 @@ type Filter* = object
   limit*: int             ## Maximum number of events to be returned in the initial query.
   search*: string         ## A query in a human-readable form (NIP-50)
   tags*: seq[seq[string]] ## NIP-12 tags (like #e or #p), each sequence's first item is the key and the others its values "0": ["1", "2"]
+  other*: seq[(string, JsonNode)] ## Catch-all for unknown fields
 
 func stripGeneric(tag: string): string {.inline.} =
   if likely tag.len > 1 and likely tag[0] == '#': tag[1..^1]
@@ -93,7 +95,9 @@ proc parseHook*(s: string, i: var int, v: var Filter) {.raises: [JsonError, Valu
           parseHook(s, i, j)
           v.tags.add key & j
         else:
-          skipValue(s, i)
+          var j: JsonNode
+          parseHook(s, i, j)
+          v.other.add (key, j)
     eatSpace(s, i)
     if i < s.len and s[i] == ',':
       inc i
@@ -123,6 +127,16 @@ proc dumpHook*(s: var string, v: Filter) {.raises: [JsonError, ValueError].} =
           else:
             s.add "[]"
             i += 2
+          inc i
+        else:
+          skipValue(s, i)
+    elif k == "other":
+      for kv in e:
+        if likely kv[0].len > 0:
+          if i > 1: s.add ','
+          s.add kv[0].toJson & ':'
+          try: s.dumpHook(kv[1])
+          except Exception: assert false, "cannot happen"
           inc i
         else:
           skipValue(s, i)
