@@ -77,20 +77,23 @@ proc parseHook*(s: string, i: var int, v: var Filter) {.raises: [JsonError, Valu
     eatChar(s, i, ':')
     when compiles(renameHook(v, key)):
       renameHook(v, key)
-    # NIP-12: Generic tag
-    if key.startsWith('#'):
-      # Parses each field that starts with a # as an entry in `tags`
-      var j: seq[string]
-      parseHook(s, i, j)
-      v.tags.add key & j
+    var parsed = false
+    for k, v in v.fieldPairs:
+      if k == key:
+        var v2: type(v)
+        parseHook(s, i, v2)
+        v = v2
+        parsed = true
+        break
+    if parsed:
+      skipValue(s, i)
     else:
-      block all:
-        for k, v in v.fieldPairs:
-          if k == key:
-            var v2: type(v)
-            parseHook(s, i, v2)
-            v = v2
-            break all
+      # Parse as a [tag, [array]]
+      try:
+        var j: seq[string]
+        parseHook(s, i, j)
+        v.tags.add key & j
+      except JsonError:
         skipValue(s, i)
     eatSpace(s, i)
     if i < s.len and s[i] == ',':
@@ -110,12 +113,20 @@ proc dumpHook*(s: var string, v: Filter) {.raises: [JsonError, ValueError].} =
 
   var i = 1
   s.add '{'
-  for k, e in v.fieldPairs:
-    if e != default(Filter).fieldAccess(k) and (when k == "until": e.toUnix != high(int64) else: true): # Complex way of checking if the field is empty
-      if i > 1: s.add ','
-      s.dumpKey(k)
-      s.dumpHook(e)
-      inc i
+  for k, e in fieldPairs(v):
+    when k == "tags":
+      for tag in e:
+        if tag.len >= 2:
+          if i > 1: s.add ','
+          s.add tag[0].toJson & ':'
+          s.dumpHook(tag[1..^1])
+          inc i
+        else:
+          skipValue(s, i)
     else:
-      skipValue(s, i)
+      if e != default(Filter).fieldAccess(k) and (when k == "until": e.toUnix != high(int64) else: true): # Complex way of checking if the field is empty
+        if i > 1: s.add ','
+        s.dumpKey(k)
+        s.dumpHook(e)
+        inc i
   s.add '}'
