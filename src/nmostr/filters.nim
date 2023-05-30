@@ -85,9 +85,7 @@ proc parseHook*(s: string, i: var int, v: var Filter) {.raises: [JsonError, Valu
         v = v2
         parsed = true
         break
-    if parsed:
-      skipValue(s, i)
-    else:
+    if not parsed:
       # Parse as a [tag, [array]]
       try:
         var j: seq[string]
