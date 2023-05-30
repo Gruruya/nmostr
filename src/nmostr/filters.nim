@@ -86,17 +86,17 @@ proc parseHook*(s: string, i: var int, v: var Filter) {.raises: [JsonError, Valu
         v = v2
         parsed = true
         break
-    if not parsed:
-      try: # Catch-all that's put into `tags` ["key", [values]] or `tagPairs` ["key", "value"]
-        if s[i] == '[':
-          var j: seq[string]
-          parseHook(s, i, j)
-          v.tags.add key & j
-        else:
-          var j: string
-          parseHook(s, i, j)
-          v.tagPairs.add (key, j)
-      except JsonError:
+    if not parsed and likely i < s.len:
+      # Catch-all that's put into `tags` ["key", [<values>]] or `tagPairs` ["key", "value"]
+      if s[i] == '[':
+        var j: seq[string]
+        parseHook(s, i, j)
+        v.tags.add key & j
+      elif s[i] == '"':
+        var j: string
+        parseHook(s, i, j)
+        v.tagPairs.add (key, j)
+      else:
         skipValue(s, i)
     eatSpace(s, i)
     if i < s.len and s[i] == ',':
