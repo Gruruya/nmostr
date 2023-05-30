@@ -32,10 +32,10 @@ type Filter* = object
   until*: Time = initTime(high(int64), 0)  ## Events must be older than this to pass.
   limit*: int             ## Maximum number of events to be returned in the initial query.
   search* = ""            ## A query in a human-readable form (NIP-50)
-  tags*: seq[seq[string]] ## Other tags (like #e or #p), each sequence's first item is the key and the others its values "0": ["1", "2"].
-  tagStrings*: seq[(string, string)] ## Same as above but for "key": "string" pairs instead of "key": array["string"]
-  tagBools*: seq[(string, bool)]     ## Same as above but for "key": bool pairs
-  tagNumbers*: seq[(string, uint64)] ## Same as above but for "key": number pairs
+  tags*: seq[seq[string]] ## Catch-all for other tags (like #e or #p), each sequence's first item is the key and the others its values "0": ["1", "2"].
+  otherStrings*: seq[(string, string)] ## Same as above but for "key": "string" pairs instead of "key": array["string"]
+  otherBools*: seq[(string, bool)]     ## Same as above but for "key": bool pairs
+  otherNumbers*: seq[(string, uint64)] ## Same as above but for "key": number pairs
 
 func stripGeneric(tag: string): string {.inline.} =
   if likely tag.len > 1 and likely tag[0] == '#': tag[1..^1]
@@ -89,7 +89,7 @@ proc parseHook*(s: string, i: var int, v: var Filter) {.raises: [JsonError, Valu
         parsed = true
         break
     if not parsed:
-      # Catch-all that's put into `tags` ["key", [<values>]] or `tagStrings/Bools/Numbers` ["key", <value>]
+      # Catch-all that's put into `tags` ["key", [<values>]] or `otherStrings/Bools/Numbers` ["key", <value>]
       eatSpace(s, i)
       if likely i < s.len:
         case s[i]
@@ -100,20 +100,20 @@ proc parseHook*(s: string, i: var int, v: var Filter) {.raises: [JsonError, Valu
         of '"':
           var j: string
           parseHook(s, i, j)
-          v.tagStrings.add (key, j)
+          v.otherStrings.add (key, j)
         of {'0'..'9'}:
           var j: uint64 = 0
           while i < s.len and s[i] in {'0'..'9'}:
             j = j * 10 + (s[i].ord - '0'.ord).uint64
             inc i
-          v.tagNumbers.add (key, j)
+          v.otherNumbers.add (key, j)
         elif i + 3 < s.len and
              s[i+0] == 't' and
              s[i+1] == 'r' and
              s[i+2] == 'u' and
              s[i+3] == 'e':
           i += 4
-          v.tagBools.add (key, true)
+          v.otherBools.add (key, true)
         elif i + 4 < s.len and
              s[i+0] == 'f' and
              s[i+1] == 'a' and
@@ -121,7 +121,7 @@ proc parseHook*(s: string, i: var int, v: var Filter) {.raises: [JsonError, Valu
              s[i+3] == 's' and
              s[i+4] == 'e':
           i += 5
-          v.tagBools.add (key, false)
+          v.otherBools.add (key, false)
         else:
           skipValue(s, i)
     eatSpace(s, i)
@@ -152,21 +152,21 @@ proc dumpHook*(s: var string, v: Filter) {.raises: [JsonError, ValueError].} =
           inc i
         else:
           skipValue(s, i)
-    elif k == "tagStrings":
-      for tag in e:
-        if likely tag[0].len > 0 and likely tag[1].len > 0:
+    elif k == "otherStrings":
+      for kv in e:
+        if likely kv[0].len > 0 and likely kv[1].len > 0:
           if i > 1: s.add ','
-          s.add tag[0].toJson & ':'
-          s.dumpHook(tag[1])
+          s.add kv[0].toJson & ':'
+          s.dumpHook(kv[1])
           inc i
         else:
           skipValue(s, i)
-    elif k in ["tagBools", "tagNumbers"]:
-      for tag in e:
-        if likely tag[0].len > 0:
+    elif k in ["otherBools", "otherNumbers"]:
+      for kv in e:
+        if likely kv[0].len > 0:
           if i > 1: s.add ','
-          s.add tag[0].toJson & ':'
-          s.dumpHook(tag[1])
+          s.add kv[0].toJson & ':'
+          s.dumpHook(kv[1])
           inc i
         else:
           skipValue(s, i)
