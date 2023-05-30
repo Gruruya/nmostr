@@ -32,6 +32,7 @@ type Filter* = object
   since*: Time            ## Events must be newer than this to pass.
   until*: Time = initTime(high(int64), 0)  ## Events must be older than this to pass.
   limit*: int             ## Maximum number of events to be returned in the initial query.
+  search* = ""            ## A query in a human-readable form (NIP-50)
 
 func stripGeneric(tag: string): string {.inline.} =
   if likely tag.len > 1 and likely tag[0] == '#': tag[1..^1]
