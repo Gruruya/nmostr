@@ -36,7 +36,7 @@ type Filter* = object
   otherArrays*: seq[seq[string]]       ## Catch-all for unknown "key": ["string"] fields, each sequence's first item is the key and the others its values "0": ["1", "2"]
   otherStrings*: seq[(string, string)] ## Catch-all for unknown "key": "string" fields
   otherBools*: seq[(string, bool)]     ## Catch-all for unknown "key": bool fields
-  otherNumbers*: seq[(string, uint64)] ## Catch-all for unknown "key": number fields
+  otherInts*: seq[(string, int)]       ## Catch-all for unknown "key": integer fields
 
 func stripGeneric(tag: string): string {.inline.} =
   if likely tag.len > 1 and likely tag[0] == '#': tag[1..^1]
@@ -105,12 +105,15 @@ proc parseHook*(s: string, i: var int, v: var Filter) {.raises: [JsonError, Valu
           var j: string
           parseHook(s, i, j)
           v.otherStrings.add (key, j)
-        of {'0'..'9'}:
-          var j: uint64 = 0
+        of {'0'..'9', '-'}:
+          var negative = s[i] == '-'
+          if negative: inc i
+          var j = 0
           while i < s.len and s[i] in {'0'..'9'}:
-            j = j * 10 + (s[i].ord - '0'.ord).uint64
+            j = j * 10 + (s[i].ord - '0'.ord)
             inc i
-          v.otherNumbers.add (key, j)
+          if negative: j = -j
+          v.otherInts.add (key, j)
         elif i + 3 < s.len and
              s[i+0] == 't' and
              s[i+1] == 'r' and
