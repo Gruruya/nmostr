@@ -87,7 +87,7 @@ proc parseHook*(s: string, i: var int, v: var Filter) {.raises: [JsonError, Valu
         parsed = true
         break
     if not parsed:
-      try: # Parse as a [tag, [array]]
+      try: # Catch-all that's put into `tags` ["key", [values]] or `tagPairs` ["key", "value"]
         if s[i] == '[':
           var j: seq[string]
           parseHook(s, i, j)
