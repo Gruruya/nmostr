@@ -33,10 +33,10 @@ type Filter* = object
   limit*: int             ## Maximum number of events to be returned in the initial query.
   search* = ""            ## A query in a human-readable form (NIP-50)
   tags*: seq[seq[string]] ## NIP-12 tags (like #e or #p), each sequence's first item is the key and the others its values "0": ["1", "2"]
-  otherArrays*: seq[seq[string]]       ## Catch-all for unknown "key": ["string"], each sequence's first item is the key and the others its values "0": ["1", "2"]
-  otherStrings*: seq[(string, string)] ## Same as above but for "key": "string" pairs instead of "key": array["string"]
-  otherBools*: seq[(string, bool)]     ## Same as above but for "key": bool pairs
-  otherNumbers*: seq[(string, uint64)] ## Same as above but for "key": number pairs
+  otherArrays*: seq[seq[string]]       ## Catch-all for unknown "key": ["string"] fields, each sequence's first item is the key and the others its values "0": ["1", "2"]
+  otherStrings*: seq[(string, string)] ## Catch-all for unknown "key": "string" fields
+  otherBools*: seq[(string, bool)]     ## Catch-all for unknown "key": bool fields
+  otherNumbers*: seq[(string, uint64)] ## Catch-all for unknown "key": number fields
 
 func stripGeneric(tag: string): string {.inline.} =
   if likely tag.len > 1 and likely tag[0] == '#': tag[1..^1]
