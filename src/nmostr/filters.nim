@@ -32,7 +32,8 @@ type Filter* = object
   until*: Time = initTime(high(int64), 0)  ## Events must be older than this to pass.
   limit*: int             ## Maximum number of events to be returned in the initial query.
   search* = ""            ## A query in a human-readable form (NIP-50)
-  tags*: seq[seq[string]] ## Catch-all for other tags (like #e or #p), each sequence's first item is the key and the others its values "0": ["1", "2"].
+  tags*: seq[seq[string]] ## NIP-12 tags (like #e or #p), each sequence's first item is the key and the others its values "0": ["1", "2"]
+  otherArrays*: seq[seq[string]]       ## Catch-all for unknown "key": ["string"], each sequence's first item is the key and the others its values "0": ["1", "2"]
   otherStrings*: seq[(string, string)] ## Same as above but for "key": "string" pairs instead of "key": array["string"]
   otherBools*: seq[(string, bool)]     ## Same as above but for "key": bool pairs
   otherNumbers*: seq[(string, uint64)] ## Same as above but for "key": number pairs
@@ -96,7 +97,10 @@ proc parseHook*(s: string, i: var int, v: var Filter) {.raises: [JsonError, Valu
         of '[':
           var j: seq[string]
           parseHook(s, i, j)
-          v.tags.add key & j
+          if key.len == 2 and key[0] == '#':
+            v.tags.add key & j
+          else:
+            v.otherArrays.add key & j
         of '"':
           var j: string
           parseHook(s, i, j)
@@ -143,7 +147,7 @@ proc dumpHook*(s: var string, v: Filter) {.raises: [JsonError, ValueError].} =
   var i = 1
   s.add '{'
   for k, e in fieldPairs(v):
-    when k == "tags":
+    when k in ["tags", "otherArrays"]:
       for tag in e:
         if tag.len >= 2:
           if i > 1: s.add ','
