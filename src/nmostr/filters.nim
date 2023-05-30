@@ -151,7 +151,7 @@ proc dumpHook*(s: var string, v: Filter) {.raises: [JsonError, ValueError].} =
           inc i
         else:
           skipValue(s, i)
-    elif k in ["tagStrings"]:
+    elif k == "tagStrings":
       for tag in e:
         if likely tag[0].len > 0 and likely tag[1].len > 0:
           if i > 1: s.add ','
