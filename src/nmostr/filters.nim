@@ -158,7 +158,7 @@ proc dumpHook*(s: var string, v: Filter) {.raises: [JsonError, ValueError].} =
           skipValue(s, i)
     elif k == "otherStrings":
       for kv in e:
-        if likely kv[0].len > 0 and likely kv[1].len > 0:
+        if likely kv[0].len > 0:
           if i > 1: s.add ','
           s.add kv[0].toJson & ':'
           s.dumpHook(kv[1])
