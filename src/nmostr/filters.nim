@@ -31,7 +31,7 @@ type Filter* = object
   since*: Time            ## Events must be newer than this to pass.
   until*: Time = initTime(high(int64), 0)  ## Events must be older than this to pass.
   limit*: int             ## Maximum number of events to be returned in the initial query.
-  search* = ""            ## A query in a human-readable form (NIP-50)
+  search*: string         ## A query in a human-readable form (NIP-50)
   tags*: seq[seq[string]] ## NIP-12 tags (like #e or #p), each sequence's first item is the key and the others its values "0": ["1", "2"]
 
 func stripGeneric(tag: string): string {.inline.} =
