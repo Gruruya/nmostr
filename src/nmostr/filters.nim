@@ -92,14 +92,21 @@ proc parseHook*(s: string, i: var int, v: var Filter) {.raises: [JsonError, Valu
       # Catch-all that's put into `tags` ["key", [<values>]] or `tagStrings/Bools/Numbers` ["key", "value"]
       eatSpace(s, i)
       if likely i < s.len:
-        if s[i] == '[':
+        case s[i]
+        of '[':
           var j: seq[string]
           parseHook(s, i, j)
           v.tags.add key & j
-        elif s[i] == '"':
+        of '"':
           var j: string
           parseHook(s, i, j)
           v.tagStrings.add (key, j)
+        of {'0'..'9'}:
+          var j: uint64 = 0
+          while i < s.len and s[i] in {'0'..'9'}:
+            j = j * 10 + (s[i].ord - '0'.ord).uint64
+            inc i
+          v.tagNumbers.add (key, j)
         elif i + 3 < s.len and
              s[i+0] == 't' and
              s[i+1] == 'r' and
@@ -115,12 +122,6 @@ proc parseHook*(s: string, i: var int, v: var Filter) {.raises: [JsonError, Valu
              s[i+4] == 'e':
           i += 5
           v.tagBools.add (key, false)
-        elif s[i] in {'0'..'9'}:
-          var j: uint64 = 0
-          while i < s.len and s[i] in {'0'..'9'}:
-            j = j * 10 + (s[i].ord - '0'.ord).uint64
-            inc i
-          v.tagNumbers.add (key, j)
         else:
           skipValue(s, i)
     eatSpace(s, i)
