@@ -32,7 +32,7 @@ type Filter* = object
   until*: Time = initTime(high(int64), 0)  ## Events must be older than this to pass.
   limit*: int             ## Maximum number of events to be returned in the initial query.
   search* = ""            ## A query in a human-readable form (NIP-50)
-  tags*: seq[seq[string]] ## Other tags (like #e or #p), each sequence's first item is the key and the rest is the content.
+  tags*: seq[seq[string]] ## Other tags (like #e or #p), each sequence's first item is the key and the others its values (array).
 
 func stripGeneric(tag: string): string {.inline.} =
   if likely tag.len > 1 and likely tag[0] == '#': tag[1..^1]
