@@ -33,6 +33,7 @@ type Filter* = object
   limit*: int             ## Maximum number of events to be returned in the initial query.
   search* = ""            ## A query in a human-readable form (NIP-50)
   tags*: seq[seq[string]] ## Other tags (like #e or #p), each sequence's first item is the key and the others its values (array).
+  tagPairs*: seq[(string, string)] ## Same as above but for key: string pairs instead of key: array
 
 func stripGeneric(tag: string): string {.inline.} =
   if likely tag.len > 1 and likely tag[0] == '#': tag[1..^1]
@@ -87,9 +88,14 @@ proc parseHook*(s: string, i: var int, v: var Filter) {.raises: [JsonError, Valu
         break
     if not parsed:
       try: # Parse as a [tag, [array]]
-        var j: seq[string]
-        parseHook(s, i, j)
-        v.tags.add key & j
+        if s[i] == '[':
+          var j: seq[string]
+          parseHook(s, i, j)
+          v.tags.add key & j
+        else:
+          var j: string
+          parseHook(s, i, j)
+          v.tagPairs.add (key, j)
       except JsonError:
         skipValue(s, i)
     eatSpace(s, i)
@@ -117,6 +123,15 @@ proc dumpHook*(s: var string, v: Filter) {.raises: [JsonError, ValueError].} =
           if i > 1: s.add ','
           s.add tag[0].toJson & ':'
           s.dumpHook(tag[1..^1])
+          inc i
+        else:
+          skipValue(s, i)
+    elif k in "tagPairs":
+      for tag in e:
+        if tag[0].len > 0 and tag[1].len > 0:
+          if i > 1: s.add ','
+          s.add tag[0].toJson & ':'
+          s.dumpHook(tag[1])
           inc i
         else:
           skipValue(s, i)
