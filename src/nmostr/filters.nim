@@ -149,10 +149,14 @@ proc dumpHook*(s: var string, v: Filter) {.raises: [JsonError, ValueError].} =
   for k, e in fieldPairs(v):
     when k in ["tags", "otherArrays"]:
       for tag in e:
-        if tag.len >= 2:
+        if tag.len >= 1:
           if i > 1: s.add ','
           s.add tag[0].toJson & ':'
-          s.dumpHook(tag[1..^1])
+          if tag.len >= 2:
+            s.dumpHook(tag[1..^1])
+          else:
+            s.add "[]"
+            i += 2
           inc i
         else:
           skipValue(s, i)
