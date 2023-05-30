@@ -34,7 +34,7 @@ type Filter* = object
   search* = ""            ## A query in a human-readable form (NIP-50)
   tags*: seq[seq[string]] ## Other tags (like #e or #p), each sequence's first item is the key and the others its values ["0": ["1", "2"]].
   tagStrings*: seq[(string, string)] ## Same as above but for "key": "string" pairs instead of "key": array["string"]
-  tagBools*: seq[(string, bool)] ## Same as above but for "key": bool pairs
+  tagBools*: seq[(string, bool)]     ## Same as above but for "key": bool pairs
   tagNumbers*: seq[(string, uint64)] ## Same as above but for "key": number pairs
 
 func stripGeneric(tag: string): string {.inline.} =
