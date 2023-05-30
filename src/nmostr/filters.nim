@@ -28,11 +28,11 @@ type Filter* = object
   ids*: seq[string]       ## List of event ids or prefixes.
   authors*: seq[string]   ## List of pubkeys or prefixes, the pubkey of an event must be one of these.
   kinds*: seq[int]        ## A list of event kinds.
-  tags*: seq[seq[string]] ## A sequence of tags. This first item is the key and the rest is the content.
   since*: Time            ## Events must be newer than this to pass.
   until*: Time = initTime(high(int64), 0)  ## Events must be older than this to pass.
   limit*: int             ## Maximum number of events to be returned in the initial query.
   search* = ""            ## A query in a human-readable form (NIP-50)
+  tags*: seq[seq[string]] ## Other tags (like #e or #p), each sequence's first item is the key and the rest is the content.
 
 func stripGeneric(tag: string): string {.inline.} =
   if likely tag.len > 1 and likely tag[0] == '#': tag[1..^1]
@@ -86,8 +86,7 @@ proc parseHook*(s: string, i: var int, v: var Filter) {.raises: [JsonError, Valu
         parsed = true
         break
     if not parsed:
-      # Parse as a [tag, [array]]
-      try:
+      try: # Parse as a [tag, [array]]
         var j: seq[string]
         parseHook(s, i, j)
         v.tags.add key & j
