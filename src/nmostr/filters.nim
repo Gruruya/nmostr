@@ -89,7 +89,7 @@ proc parseHook*(s: string, i: var int, v: var Filter) {.raises: [JsonError, Valu
         parsed = true
         break
     if not parsed:
-      # Catch-all that's put into `tags` ["key", [<values>]] or `tagStrings/Bools/Numbers` ["key", "value"]
+      # Catch-all that's put into `tags` ["key", [<values>]] or `tagStrings/Bools/Numbers` ["key", <value>]
       eatSpace(s, i)
       if likely i < s.len:
         case s[i]
