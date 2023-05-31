@@ -22,6 +22,7 @@ import pkg/[union, stew/byteutils]
 from std/tables import toTable, `[]`
 from std/sequtils import mapIt
 from std/strutils import toLower, rfind, join
+from std/setutils import toSet
 import ./events, ./filters
 
 {.push raises: [].}
@@ -44,8 +45,9 @@ func fromRaw(T: type PublicKey, data: openArray[byte]): SkResult[T] {.inline, ra
   elif data.len == 33: cast[SkResult[PublicKey]](SkXOnlyPublicKey.fromRaw(data))
   else: raise newException(InvalidBech32Error, "Raw x-only public key must be 32 or 33 bytes")
 
-const CHARSET = "qpzry9x8gf2tvdw0s3jn54khce6mua7l"
-const CHARSET_MAP = CHARSET.mapIt((it, CHARSET.find(it).uint5)).toTable()
+const Charset* = "qpzry9x8gf2tvdw0s3jn54khce6mua7l"
+const CharsetMap = Charset.mapIt((it, Charset.find(it).uint5)).toTable()
+const CharsetSet* = Charset.toSet
 
 func toWords*(data: openArray[byte]): seq[uint5] =
   ## uint8 → uint5 conversion
@@ -104,7 +106,7 @@ func decodeImpl(bech32: sink string, verify: bool): tuple[hrp: string, data: seq
     error "'1' not found in " & bech32
   var hrp = bech32[0 ..< pos]
   var data =
-    try: bech32[pos + 1..^1].mapIt(CHARSET_MAP[it])
+    try: bech32[pos + 1..^1].mapIt(CharsetMap[it])
     except KeyError: error "Invalid character in bech32 address " & bech32
   if verify and not verifyChecksum(hrp, data):
     error bech32 & " has an invalid checksum"
@@ -131,7 +133,7 @@ func encode*(hrp: string, witprog: openArray[byte]): string =
 
   let data = toWords(witprog)
   let combined = data & checksum(hrp, data)
-  result = hrp & '1' & combined.mapIt(CHARSET[it]).join("")
+  result = hrp & '1' & combined.mapIt(Charset[it]).join("")
 
 func encode*(hrp, witprog: string): string {.inline.} =
   encode(hrp, witprog.toBytes)
