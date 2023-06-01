@@ -118,13 +118,13 @@ proc verifyPow*(id: EventID, difficulty: range[0..256]): bool {.inline.} = verif
 proc verifyPow*(event: Event, difficulty: range[0..256]): bool {.inline.} = verifyPow(event.id.bytes, difficulty)
   ## Verify an event's id starts with `difficulty` leading 0 bits
 
-proc powTarget*(event: Event): Opt[int] = #range[0..256]] =
+proc powTarget*(event: Event): Opt[range[0..256]] =
   for tag in event.tags:
     if tag.len >= 3 and tag[0] == "nonce":
       try:
         let thisTarget = parseInt(tag[2])
         if thisTarget in 0..256 and (result.isNone or thisTarget > result.unsafeGet):
-          result = Opt.some thisTarget
+          result = some[range[0..256]](Opt, thisTarget)
       except ValueError: discard
 
 proc verifyPow*(event: Event): bool =
