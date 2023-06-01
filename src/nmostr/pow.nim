@@ -119,7 +119,7 @@ proc verifyPow*(event: Event, difficulty: range[0..256]): bool {.inline.} = veri
   ## Verify an event's id starts with `difficulty` leading 0 bits
 
 proc verifyPow*(event: Event): bool =
-  var target = 0
+  var target = -1
   for tag in event.tags:
     if tag.len == 3 and tag[0] == "nonce":
       try:
@@ -127,7 +127,7 @@ proc verifyPow*(event: Event): bool =
         if thisTarget in 0..256 and thisTarget > target:
           target = thisTarget
       except ValueError: discard
-  target == 0 or event.verifyPow(target)
+  target >= 0 and event.verifyPow(target)
 
 iterator bits(x: uint8): range[0'u8..1'u8] =
   for i in countdown(7, 0):
