@@ -119,6 +119,7 @@ proc verifyPow*(event: Event, difficulty: range[0..256]): bool {.inline.} = veri
   ## Verify an event's id starts with `difficulty` leading 0 bits
 
 proc getDifficulty*(event: Event): Opt[range[0..256]] =
+  ## Get the specified target difficulty from an event's tags
   for tag in event.tags:
     if tag.len >= 3 and tag[0] == "nonce":
       try:
@@ -128,6 +129,7 @@ proc getDifficulty*(event: Event): Opt[range[0..256]] =
       except ValueError: discard
 
 proc verifyPow*(event: Event): bool =
+  ## Verify the POW of an event
   let target = event.getDifficulty
   if target.isSome:
     event.verifyPow(target.unsafeGet)
@@ -145,13 +147,13 @@ proc countZeroBits(byte: uint8): range[0'u8..8'u8] =
     inc result
 
 proc countPow*(id: array[32, byte]): range[0..256] =
-  ## Count the number of leading zeroes bits in an array of bytes (event id)
+  ## Count the number of leading zero bits in an array of bytes (event id)
   for i in 0'u8 ..< 32:
     if id[i] != 0:
       return i * 8 + countZeroBits(id[i])
   result = 256
 
 proc countPow*(id: EventID): range[0..256] {.inline.} = countPow(id.bytes)
-  ## Count the number of leading zeroes bits in an event id
+  ## Count the number of leading zero bits in an event id
 proc countPow*(event: Event): range[0..256] {.inline.} = countPow(event.id.bytes)
-  ## Count the number of leading zeroes bits in an event's id
+  ## Count the number of leading zero bits in an event's id
