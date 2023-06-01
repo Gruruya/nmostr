@@ -18,8 +18,10 @@
 ## Proof of work as described by NIP-13.
 
 import pkg/[weave, crunchy], ./events
-from strutils import rfind
+from strutils import rfind, parseInt
 export events
+
+{.push raises: [].}
 
 const powParallelChunkSize {.intdefine.} = 4096 ## How many nonces to check per (parallel) loop in `powParallel`
 const powParallelCutoff {.intdefine.} = 13 ## Minimum difficulty before `pow` proc points to `powParallel`
@@ -63,6 +65,7 @@ proc powSequential*(event: var Event, difficulty: range[0..256]) {.raises: [].} 
         break
       inc iteration
 
+{.pop.} # Weave uses templates internally, so `push raises: []` will error
 proc powParallel*(event: var Event, difficulty: range[0..256]) {.raises: [ValueError, ResourceExhaustedError, Exception].} =
   ## Increment the second field of a nonce tag in the event until the event ID has `difficulty` leading 0 bits (NIP-13 POW), multithreaded
   powImpl:
@@ -93,6 +96,7 @@ proc powParallel*(event: var Event, difficulty: range[0..256]) {.raises: [ValueE
       iteration = next
 
     exit(Weave)
+{.push raises: [].}
 
 proc pow*(event: var Event, difficulty: range[0..256]) {.inline, raises: [ValueError, ResourceExhaustedError, Exception].} =
   ## Increment the second field of a nonce tag in the event until the event ID has `difficulty` leading 0 bits (NIP-13 POW)
@@ -113,3 +117,36 @@ proc verifyPow*(id: EventID, difficulty: range[0..256]): bool {.inline.} = verif
   ## Verify an event id starts with `difficulty` leading 0 bits
 proc verifyPow*(event: Event, difficulty: range[0..256]): bool {.inline.} = verifyPow(event.id.bytes, difficulty)
   ## Verify an event's id starts with `difficulty` leading 0 bits
+
+proc verifyPow*(event: Event): bool =
+  var target = 0
+  for tag in event.tags:
+    if tag.len == 3 and tag[0] == "nonce":
+      try:
+        let thisTarget = parseInt(tag[2])
+        if thisTarget in 0..256 and thisTarget > target:
+          target = thisTarget
+      except ValueError: discard
+  target == 0 or event.verifyPow(target)
+
+iterator bits(x: uint8): range[0'u8..1'u8] =
+  for i in countdown(7, 0):
+    yield (x shr i) and 1'u8
+
+proc countZeroBits(byte: uint8): range[0'u8..8'u8] =
+  for bit in byte.bits:
+    if bit != 0:
+      break
+    inc result
+
+proc countPow*(id: array[32, byte]): range[0..256] =
+  ## Count the number of leading zeroes bits in an array of bytes (event id)
+  for i in 0'u8 ..< 32:
+    if id[i] != 0:
+      return i * 8 + countZeroBits(id[i])
+  result = 256
+
+proc countPow*(id: EventID): range[0..256] {.inline.} = countPow(id.bytes)
+  ## Count the number of leading zeroes bits in an event id
+proc countPow*(event: Event): range[0..256] {.inline.} = countPow(event.id.bytes)
+  ## Count the number of leading zeroes bits in an event's id
