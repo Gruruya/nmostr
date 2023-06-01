@@ -174,8 +174,10 @@ suite "bech32":
 suite "pow":
   var note = note(newKeypair(), "Test note")
   note.pow(2)
-  check note.verifyPow(2)
+  check note.verifyPow()
+  check note.getDifficulty.unsafeGet == 2
+  check note.countPow >= 2
   when not defined(useMalloc): # weave seems to be busted under valgrind
     note.tags.reset
     note.powParallel(2)
-    check note.verifyPow(2)
+    check note.verifyPow()
