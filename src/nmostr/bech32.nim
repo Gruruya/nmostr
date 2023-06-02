@@ -196,7 +196,7 @@ func fromRaw*(T: type NProfile, address: openArray[byte]): T {.raises: [InvalidB
   var i = 0.uint32
   while true:
     let (kind, data) = parseData(address, i)
-    case kind:
+    case kind
     of 0:
       let pk = PublicKey.fromRaw(data)
       if likely pk.isOk: result.pubkey = pk.unsafeGet
@@ -210,7 +210,7 @@ func fromRaw*(T: type NEvent, address: openArray[byte]): T {.raises: [InvalidBec
   var i = 0.uint32
   while true:
     let (kind, data) = parseData(address, i)
-    case kind:
+    case kind
     of 0:
       if likely data.len == 32:
         result.id = EventID(bytes: toArray(32, data))
@@ -230,7 +230,7 @@ func fromRaw*(T: type NAddr, address: openArray[byte]): T {.raises: [InvalidBech
   var i = 0.uint32
   while true:
     let (kind, data) = parseData(address, i)
-    case kind:
+    case kind
     of 0:
       result.id = string.fromBytes(data)
     of 1:
@@ -261,7 +261,7 @@ func fromRaw*(T: type NNote, address: seq[byte]): T {.raises: [InvalidBech32Erro
 
 func fromNostrBech32*(address: string): union(NostrTLV) {.raises: [InvalidBech32Error, ValueError].} =
   let decoded = decode(address)
-  case decoded.hrp:
+  case decoded.hrp
   of "npub":
     let pk = PublicKey.fromRaw(decoded.data)
     if likely pk.isOk: unsafeGet(pk) as union(NostrTLV)

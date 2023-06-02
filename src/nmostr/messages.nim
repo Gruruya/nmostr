@@ -175,7 +175,7 @@ func parseHook*(s: string, i: var int, v: var union(Message)) =
   eatChar(s, i, '[')
   var kind: string
   parseHook(s, i, kind)
-  case kind:
+  case kind
   of "EVENT":
     eatChar(s, i, ',')
     eatSpace(s, i)
