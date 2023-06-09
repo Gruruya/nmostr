@@ -1,4 +1,4 @@
-version     = "0.0.12.9"
+version     = "0.0.13"
 author      = "Gruruya"
 description = "Library for working with the Nostr protocol."
 license     = "AGPL-3.0-only"
@@ -8,7 +8,7 @@ skipDirs = @["tests"]
 
 # Dependencies
 requires "nim >= 1.9.1"
-requires "jsony ^= 1.1"
+requires "jsony >= 1.1 & < 2.0"
 requires "secp256k1 >= 0.6.0.3.1"
 requires "stew"
 requires "crunchy >= 0.1.8"
