@@ -50,7 +50,6 @@ func matches*(event: Event, filter: Filter): bool =
   (filter.tags == @[] or any(filter.tags, ftags => likely ftags.len > 1 and any(event.tags, etags => likely etags.len > 1 and etags[0] == ftags[0].stripGeneric and etags[1] == ftags[1])))
 
 # JSON interop
-
 macro fieldAccess(o: object, s: string): untyped =
   newDotExpr(o, newIdentNode(s.strVal))
 

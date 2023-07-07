@@ -83,11 +83,10 @@ func verify*(sig: SchnorrSignature, msg: openArray[byte], pubkey: PublicKey): bo
 func `$`*(v: PublicKey | SchnorrSignature): string =
   toHex(v)
 
-{.pop inline.}
+{.pop.}
 {.push raises: [].}
 
 # Keypairs
-
 type Keypair* = object
   ## Representation of private/public key pair.
   seckey*: SecretKey
@@ -111,19 +110,18 @@ proc newKeypair*(rng: Rng = sysRng): Keypair {.raises: [OSError].} =
   else: raise newException(OSError, $secretKey.error()) # Assumes OSError
 
 # JSON interop
-
 func parseHook*(s: string, i: var int, v: var PublicKey) {.inline, raises: [JsonError, ValueError].} =
   ## Parse `id` as a hexadecimal encoding (of a sha256 hash).
   var j: string
   parseHook(s, i, j)
-  # WARNING: Silently failing, replacing invalid with nulled pubkeys
+  # WARNING: Replaces invalid with nulled pubkey
   v = (PublicKey.fromHex j).valueOr: default(typeof v)
 
 func parseHook*(s: string, i: var int, v: var SchnorrSignature) {.inline, raises: [JsonError, ValueError].} =
   ## Parse `id` as a hexadecimal encoding (of a sha256 hash).
   var j: string
   parseHook(s, i, j)
-  # WARNING: Silently failing, replacing invalid with nulled signature
+  # WARNING: Replaces invalid with nulled signature
   v = (SchnorrSignature.fromHex j).valueOr: default(typeof v)
 
 func dumpHook*(s: var string, v: PublicKey | SchnorrSignature) {.inline.} =

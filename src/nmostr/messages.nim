@@ -65,7 +65,7 @@ proc randomID*(): string {.raises: [OSError].} =
   urandom(32).toHex
   
 # JSON interop
-# Modified `jsony.nim` procs to desrialize message arrays as object and serialize them back to arrays.
+# Modified `jsony.nim` procs to deserialize message arrays as object and serialize them back to arrays.
 
 func parseArrayAsObject*[T](s: string, i: var int, v: var T) =
   ## Parse message array as its corresponding `Message` object.

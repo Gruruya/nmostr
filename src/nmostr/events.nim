@@ -46,7 +46,7 @@ func parseHook*(s: string, i: var int, v: var EventID) {.inline, raises: [JsonEr
   ## Parse `id` as a hexadecimal encoding [of a sha256 hash.]
   var j: string
   parseHook(s, i, j)
-  v = EventID.fromHex j
+  v = EventID.fromHex(j)
 
 func dumpHook*(s: var string, v: EventID) {.inline.} =
   ## Serialize `id`, `pubkey`, and `sig` into hexadecimal.
@@ -64,15 +64,15 @@ func dumpHook*(s: var string, v: Time) {.inline.} =
 
 func serialize*(e: Event): string =
   ## Serialize `event` into JSON so that it can be hashed in accordance with NIP-01.
-  "[0," & e.pubkey.toJson & "," & e.created_at.toJson & "," & e.kind.toJson & "," & e.tags.toJson & "," & e.content.toJson & "]"
+  "[0," & e.pubkey.toJson & ',' & e.created_at.toJson & ',' & e.kind.toJson & ',' & e.tags.toJson & ',' & e.content.toJson & ']'
 
-proc sign*(event: var Event, sk: SecretKey, rng: Rng = sysRng) {.raises: [ValueError].} =
-  let sig = signSchnorr(sk, sha256(serialize event), rng)
+proc sign*(event: var Event, key: SecretKey, rng: Rng = sysRng) {.raises: [ValueError].} =
+  let sig = signSchnorr(key, sha256(serialize event), rng)
   if likely sig.isOk: event.sig = sig.unsafeGet
   else: raise newException(ValueError, $sig.error())
 
-proc sign*(event: var Event, sk: Keypair, rng: Rng = sysRng) {.inline, raises: [ValueError].} =
-  sign(event, sk.seckey, rng)
+proc sign*(event: var Event, keypair: Keypair, rng: Rng = sysRng) {.inline, raises: [ValueError].} =
+  sign(event, keypair.seckey, rng)
 
 proc updateID*(event: var Event) =
   event.id = EventID(bytes: sha256(serialize event))

@@ -131,10 +131,8 @@ proc getDifficulty*(event: Event): Opt[range[0..256]] =
 proc verifyPow*(event: Event): bool =
   ## Verify the POW of an event
   let target = event.getDifficulty
-  if target.isSome:
-    event.verifyPow(target.unsafeGet)
-  else:
-    false
+  if target.isNone: false
+  else: event.verifyPow(target.unsafeGet)
 
 iterator bits(x: uint8): range[0'u8..1'u8] =
   for i in countdown(7, 0):
@@ -142,8 +140,7 @@ iterator bits(x: uint8): range[0'u8..1'u8] =
 
 proc countZeroBits(byte: uint8): range[0'u8..8'u8] =
   for bit in byte.bits:
-    if bit != 0:
-      break
+    if bit != 0: break
     inc result
 
 proc countPow*(id: array[32, byte]): range[0..256] =
