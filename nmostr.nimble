@@ -9,7 +9,8 @@ skipDirs = @["tests"]
 # Dependencies
 requires "nim >= 1.9.1"
 requires "jsony >= 1.1 & < 2.0"
-requires "secp256k1 >= 0.6.0.3.1"
+#requires "secp256k1 >= 0.6.0.3.1"
+requires "https://github.com/Gruruya/nim-secp256k1#head"
 requires "stew"
 requires "crunchy >= 0.1.8"
 requires "weave >= 0.4.10"
