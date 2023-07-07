@@ -17,7 +17,7 @@ requires "https://github.com/alaviss/union >= 0.1.4"
 
 when declared(taskRequires):
   when not defined(windows) and not defined(macosx):
-        taskRequires "test", "https://github.com/disruptek/balls >= 3.0.0"
+        taskRequires "test", "https://github.com/disruptek/balls >= 4.0.0"
   else: taskRequires "test", "https://github.com/disruptek/balls#head"
 
 task test, "run tests":
