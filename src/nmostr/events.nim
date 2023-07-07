@@ -91,6 +91,8 @@ proc init*(T: type Event, kind: int, content: string, keypair: Keypair, tags = d
   result.updateID
   result.sign(keypair)
 
+#[ Convenience wrappers around `Event.init`: ]#
+
 type Metadata* = object ## Content of kind 0 (metadata) event
   name*: string         ## username
   about*: string        ## description

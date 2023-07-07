@@ -333,7 +333,7 @@ func toBech32*(nevent: NEvent): string  =
   encode("nevent", encoded)
 
 func toBech32*(event: Event, relays = newSeq[string]()): string =
-  # Uses `nevent` encoding
+  # Encode an event as an `nevent` TLV
   var encoded = @[byte 0, 32] & @(event.id.bytes)
   for relay in relays:
     encoded &= @[byte 1, byte relay.len] & relay.toBytes
@@ -358,7 +358,7 @@ func toBech32*(note: NNote): string {.inline.} =
   encode("note", note.id.bytes)
 
 func toBech32*(eventID: EventID): string {.inline.} =
-  # Uses `note` encoding
+  # Encode an event ID as a `note` TLV
   encode("note", eventID.bytes)
 
 #[___ Convenience _________________________________________________________________]#
