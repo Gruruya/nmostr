@@ -176,7 +176,7 @@ func toArray[T](N: static int, data: seq[T]): array[N, T] {.inline.} =
   doAssert data.len == N
   copyMem(addr result[0], unsafeAddr data[0], N)
 
-func toUInt32(data: seq[byte]): uint32 {.inline.} =
+func toUInt32(data: openArray[byte]): uint32 {.inline.} =
   for i in 0 ..< 4: result = result or (uint32(data[3 - i]) shl (i * 8))
 
 func fromUInt32(data: uint32): array[4, byte] {.inline.} =
@@ -330,7 +330,16 @@ func toBech32*(nevent: NEvent): string  =
     encoded &= @[byte 2, 32] & @(nevent.author.toRaw)
   if nevent.kind != default(NEvent).kind:
     encoded &= @[byte 3, 4] & @(fromUInt32(nevent.kind))
-  encode("nevent", encoded)  
+  encode("nevent", encoded)
+
+func toBech32*(event: Event, relays = newSeq[string]()): string =
+  # Uses `nevent` encoding
+  var encoded = @[byte 0, 32] & @(event.id.bytes)
+  for relay in relays:
+    encoded &= @[byte 1, byte relay.len] & relay.toBytes
+  encoded &= @[byte 2, 32] & @(event.pubkey.toRaw)
+  encoded &= @[byte 3, 4] & @(fromUInt32(event.kind.uint32))
+  encode("nevent", encoded)
 
 func toBech32*(naddr: NAddr): string =
   var encoded = @[byte 0, byte naddr.id.len] & naddr.id.toBytes
@@ -347,6 +356,10 @@ func toBech32*(nrelay: NRelay): string {.inline.} =
 
 func toBech32*(note: NNote): string {.inline.} =
   encode("note", note.id.bytes)
+
+func toBech32*(eventID: EventID): string {.inline.} =
+  # Uses `note` encoding
+  encode("note", eventID.bytes)
 
 #[___ Convenience _________________________________________________________________]#
 
