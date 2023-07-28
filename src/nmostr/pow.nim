@@ -17,9 +17,9 @@
 
 ## Proof of work as described by NIP-13.
 
-import pkg/[weave, crunchy], ./events
+import std/options, pkg/[weave, crunchy], ./events
 from strutils import rfind, parseInt
-export events
+export events, options
 
 {.push raises: [].}
 
@@ -118,21 +118,21 @@ proc verifyPow*(id: EventID, difficulty: range[0..256]): bool {.inline.} = verif
 proc verifyPow*(event: Event, difficulty: range[0..256]): bool {.inline.} = verifyPow(event.id.bytes, difficulty)
   ## Verify an event's id starts with `difficulty` leading 0 bits
 
-proc getDifficulty*(event: Event): Opt[range[0..256]] =
+proc getDifficulty*(event: Event): Option[range[0..256]] =
   ## Get the specified target difficulty from an event's tags
   for tag in event.tags:
     if tag.len >= 3 and tag[0] == "nonce":
       try:
         let thisTarget = parseInt(tag[2])
         if thisTarget in 0..256 and (result.isNone or thisTarget > result.unsafeGet):
-          result = some[range[0..256]](Opt, thisTarget)
+          result = some[range[0..256]](thisTarget)
       except ValueError: discard
 
 proc verifyPow*(event: Event): bool =
   ## Verify the POW of an event
-  let target = event.getDifficulty
+  let target = event.getDifficulty()
   if target.isNone: false
-  else: event.verifyPow(target.unsafeGet)
+  else: verifyPow(event, target.unsafeGet)
 
 iterator bits(x: uint8): range[0'u8..1'u8] =
   for i in countdown(7, 0):

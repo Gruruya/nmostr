@@ -91,7 +91,7 @@ proc init*(T: type Event, kind: int, content: string, keypair: Keypair, tags = d
   result.updateID
   result.sign(keypair)
 
-#[ Convenience wrappers around `Event.init`: ]#
+#[ Convenience wrappers around Event.init ]#
 
 type Metadata* = object ## Content of kind 0 (metadata) event
   name*: string         ## username
@@ -112,6 +112,6 @@ proc recommendServer*(keypair: Keypair, url: string, tags = default(Event.tags),
   Event.init(2, url, keypair, tags, created_at)
 
 proc article*(keypair: Keypair, content, d: string, tags: sink seq[seq[string]] = default(Event.tags), created_at = getTime()): Event {.inline, raises: [ValueError].} =
-  ## Long-form text formatted in markdown.
+  ## Long-form text formatted in markdown. Parameterized replaceable event.
   tags.add @["d", d]
   Event.init(30023, content, keypair, tags, created_at)

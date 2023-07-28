@@ -28,8 +28,8 @@ type
   CMEvent* = object   ## ["EVENT", <event JSON>]
     event*: Event
   CMRequest* = object ## ["REQ", <subscription_id>, <filters JSON>...]
-    id*: string                        ## TODO: Find out wtf `...` means
-    filter*: Filter
+    id*: string
+    filter*: seq[Filter]
   CMClose* = object   ## ["CLOSE", <subscription_id>]
     id*: string
   CMAuth* = object    ## ["AUTH", <event kind 2242 JSON>]
@@ -62,7 +62,7 @@ type UnknownMessageError* = object of ValueError
 
 proc randomID*(): string {.raises: [OSError].} =
   ## Get a random ID to identify your messages
-  urandom(32).toHex
+  toHex(urandom(32))
   
 # JSON interop
 # Modified `jsony.nim` procs to deserialize message arrays as object and serialize them back to arrays.
@@ -107,11 +107,12 @@ func parseArrayAsObject*[T](s: string, i: var int, v: var T) =
 func dumpObjectAsArray*[T](s: var string, v: T, flag: string) =
   ## Serialize message as an array with `flag` as the first element.
   s = "[\"" & flag & "\","
+  var first = true
   for field in v.fields:
+    if first: first = false
+    else: s &= ","
     s &= field.toJson
-    s &= ","
-  s.setLen(s.len - 1)
-  s &= "]"
+  s &= ']'
 
 {.push inline.}
 
@@ -208,7 +209,7 @@ func parseHook*(s: string, i: var int, v: var union(Message)) =
     eatSpace(s, i)
     if s[i] == '"':
       v = parseAs(CMCount)
-    else: # It should be a number, `in {0..9}`?
+    else: # It should be a number, `in {0..9}`
       v = parseAs(SMCount)
   else:
     raise newException(UnknownMessageError, "Unknown message starting with \"" & kind & "\"")
