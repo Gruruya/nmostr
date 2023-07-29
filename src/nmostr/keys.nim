@@ -34,12 +34,12 @@ type
   PublicKey* = object
     ## Representation of public key that only reveals the x-coordinate.
     ## Modified from `secp256k1` to not have `{.requiresInit.}`
-    data: secp256k1_xonly_pubkey
+    data*: secp256k1_xonly_pubkey
 
   SchnorrSignature* = object
     ## Representation of a Schnorr signature.
     ## Modified from `secp256k1` to not have `{.requiresInit.}`
-    data: array[SkRawSchnorrSignatureSize, byte]
+    data*: array[SkRawSchnorrSignatureSize, byte]
 
 # Equivalent to `secp256k1` types minus {.requireInit.}, so allow casting for interop
 converter toPublicKey*(pubkey: SkXOnlyPublicKey): PublicKey = cast[PublicKey](pubkey)
