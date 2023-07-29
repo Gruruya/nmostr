@@ -29,7 +29,7 @@ type
     event*: Event
   CMRequest* = object ## ["REQ", <subscription_id>, <filters JSON>...]
     id*: string
-    filter*: seq[Filter]
+    filter*: Filter
   CMClose* = object   ## ["CLOSE", <subscription_id>]
     id*: string
   CMAuth* = object    ## ["AUTH", <event kind 2242 JSON>]
