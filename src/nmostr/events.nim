@@ -34,8 +34,8 @@ func toHex*(id: EventID): string {.inline.} = $id
 func fromHex*(T: type EventID, hex: string): EventID {.inline, raises: [ValueError].} = EventID(bytes: array[32, byte].fromHex(hex))
 
 type Event* = object
-  pubkey*: PublicKey      ## 32-bytes lowercase hex-encoded public key of the event creator
   id*: EventID            ## 32-bytes lowercase hex-encoded sha256 of the serialized event data
+  pubkey*: PublicKey      ## 32-bytes lowercase hex-encoded public key of the event creator
   kind*: int              ## The type of event this is.
   content*: string        ## Arbitrary string, what it is should be gleamed from this event's `kind`
   tags*: seq[seq[string]] ## A sequence of tags. This first item is the key and the rest is the content.
