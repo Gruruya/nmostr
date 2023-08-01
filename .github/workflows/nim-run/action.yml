@@ -4,11 +4,11 @@ description: 'Run shell commands in an environment with Nim.'
 inputs:
   run:
     description: 'Commands to run'
-    required: false
+    required: true
   version:
     description: 'Version of Nim.'
     required: false
-    default: 'devel'
+    default: 'stable'
   token:
     description: 'Your GitHub token.'
     required: true
