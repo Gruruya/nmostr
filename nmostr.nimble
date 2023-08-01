@@ -7,7 +7,7 @@ srcDir = "src"
 skipDirs = @["tests"]
 
 # Dependencies
-requires "nim >= 1.9.1"
+requires "nim >= 2.0.0"
 requires "jsony >= 1.1 & < 2.0"
 requires "secp256k1 >= 0.6.0.3.1"
 requires "stew"
