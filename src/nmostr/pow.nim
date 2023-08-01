@@ -17,8 +17,11 @@
 
 ## Proof of work as described by NIP-13.
 
-import std/options, pkg/[weave, crunchy], ./events
+import std/options, pkg/crunchy, ./events
 from strutils import rfind, parseInt
+{.warnings: off.}
+import pkg/weave
+{.warnings: on.}
 export events, options
 
 {.push raises: [].}

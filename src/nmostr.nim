@@ -41,5 +41,5 @@
 ##       socket.send CMRequest(id: randomID(), filter: Filter(ids: @[msg.id])).toJson
 ##       echo socket.receiveMessage().get.data
 
-import nmostr/[events, filters, messages, bech32, pow]
-export events, filters, messages, bech32, pow
+import nmostr/[events, filters, messages, bech32]
+export events, filters, messages, bech32

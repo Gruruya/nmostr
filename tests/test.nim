@@ -16,7 +16,7 @@
 # along with nmostr.  If not, see <http://www.gnu.org/licenses/>.
 
 import pkg/balls
-import ../src/nmostr
+import ../src/nmostr, ../src/nmostr/pow
 
 suite "events":
   block filters:
