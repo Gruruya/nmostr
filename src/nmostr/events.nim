@@ -24,14 +24,16 @@ import
 
 export times, keys, jsony
 
-{.push raises: [].}
-
 type EventID* = object
+  hex*: string = repeat('0', 64)
   bytes*: array[32, byte]
 
-func `$`*(id: EventID): string {.inline.} = toHex(id.bytes)
-func toHex*(id: EventID): string {.inline.} = $id
-func fromHex*(T: type EventID, hex: string): EventID {.inline, raises: [ValueError].} = EventID(bytes: array[32, byte].fromHex(hex))
+func `$`*(id: EventID): string {.inline.} = id.hex
+func toHex*(id: EventID): string {.inline.} = id.hex
+func fromBytes*(T: type EventID, bytes: array[32, byte]): EventID {.inline.} =
+  EventID(bytes: bytes, hex: bytes.toHex)
+func fromHex*(T: type EventID, hex: string): EventID {.inline.} =
+  EventID(bytes: array[32, byte].fromHex(hex), hex: hex)
 
 type Event* = object
   id*: EventID            ## 32-bytes lowercase hex-encoded sha256 of the serialized event data
@@ -75,7 +77,7 @@ proc sign*(event: var Event, keypair: Keypair, rng: Rng = sysRng) {.inline, rais
   sign(event, keypair.seckey, rng)
 
 proc updateID*(event: var Event) =
-  event.id = EventID(bytes: sha256(serialize event))
+  event.id = EventID.fromBytes(sha256(serialize event))
 
 proc verify*(event: Event): bool {.inline.} =
   verify(event.sig, sha256(serialize event), event.pubkey)

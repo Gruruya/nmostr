@@ -39,11 +39,9 @@ type InvalidBech32Error* = object of ValueError
 template error(reason: string) =
   raise newException(InvalidBech32Error, reason)
 
-func fromRaw(T: type PublicKey, data: openArray[byte]): SkResult[T] {.inline, raises: [InvalidBech32Error].} =
+func fromRaw(T: type PublicKey, data: openArray[byte]): T {.inline, raises: [InvalidBech32Error].} =
   ## Same as `./keys/fromRaw` but with `InvalidBech32Error`
-  if likely data.len == 32: cast[SkResult[PublicKey]](SkXOnlyPublicKey.fromRaw(data))
-  elif data.len == 33: cast[SkResult[PublicKey]](SkXOnlyPublicKey.fromRaw(data))
-  else: raise newException(InvalidBech32Error, "Raw x-only public key must be 32 or 33 bytes")
+  try: keys.fromRaw(T, data) except: raise newException(InvalidBech32Error, "Raw x-only public key must be 32 or 33 bytes")
 
 const Charset* = "qpzry9x8gf2tvdw0s3jn54khce6mua7l"
 const CharsetMap = Charset.mapIt((it, Charset.find(it).uint5)).toTable()
@@ -193,33 +191,29 @@ template parseData(address: openArray[byte], i: var uint32): tuple[kind: uint8, 
   (kind, data)
 
 func fromRaw*(T: type NProfile, address: openArray[byte]): T {.raises: [InvalidBech32Error].} =
+  result = T()
   var i = 0.uint32
   while true:
     let (kind, data) = parseData(address, i)
     case kind
-    of 0:
-      let pk = PublicKey.fromRaw(data)
-      if likely pk.isOk: result.pubkey = pk.unsafeGet
-      else: error $pk.error
-    of 1:
-      result.relays.add string.fromBytes(data)
-    else:
-      discard
+    of 0: result.pubkey = PublicKey.fromRaw(data)
+    of 1: result.relays.add string.fromBytes(data)
+    else: discard
 
 func fromRaw*(T: type NEvent, address: openArray[byte]): T {.raises: [InvalidBech32Error].} =
+  result = T()
   var i = 0.uint32
   while true:
     let (kind, data) = parseData(address, i)
     case kind
     of 0:
       if likely data.len == 32:
-        result.id = EventID(bytes: toArray(32, data))
+        result.id = EventID.fromBytes(toArray(32, data))
       else: error "Invalid event id in nevent bech32 address"
     of 1:
       result.relays.add string.fromBytes(data)
     of 2:
-      let pubkey = PublicKey.fromRaw(data)
-      if likely pubkey.isOk: result.author = pubkey.unsafeGet
+      result.author = PublicKey.fromRaw(data)
     of 3:
       if likely data.len == 4:
         result.kind = toUInt32(data)
@@ -227,6 +221,7 @@ func fromRaw*(T: type NEvent, address: openArray[byte]): T {.raises: [InvalidBec
       discard
 
 func fromRaw*(T: type NAddr, address: openArray[byte]): T {.raises: [InvalidBech32Error].} =
+  result = T()
   var i = 0.uint32
   while true:
     let (kind, data) = parseData(address, i)
@@ -236,8 +231,7 @@ func fromRaw*(T: type NAddr, address: openArray[byte]): T {.raises: [InvalidBech
     of 1:
       result.relays.add string.fromBytes(data)
     of 2:
-      let pubkey = PublicKey.fromRaw(data)
-      if likely pubkey.isOk: result.author = pubkey.unsafeGet
+      result.author = PublicKey.fromRaw(data)
     of 3:
       if likely data.len == 4:
         result.kind = toUInt32(data)
@@ -253,33 +247,22 @@ func fromRaw*(T: type NRelay, address: openArray[byte]): T {.raises: [InvalidBec
 
 func fromRaw*(T: type NNote, address: seq[byte]): T {.raises: [InvalidBech32Error].} =
   if likely address.len == 32:
-    NNote(id: EventID(bytes: toArray(32, address)))
+    NNote(id: EventID.fromBytes(toArray(32, address)))
   elif unlikely address.len > 32:
-    NNote(id: EventID(bytes: toArray(32, address[0 ..< 32]))) #WARNING: Maybe? Silent failure.
+    NNote(id: EventID.fromBytes(toArray(32, address[0 ..< 32]))) # WARNING: Maybe? Silent failure.
   else:
     error "Event ID in bech32 encoded note should be 32 bytes, but was " & $address.len & " bytes instead"
 
 func fromNostrBech32*(address: string): union(NostrTLV) {.raises: [InvalidBech32Error, ValueError].} =
   let decoded = decode(address)
   case decoded.hrp
-  of "npub":
-    let pk = PublicKey.fromRaw(decoded.data)
-    if likely pk.isOk: unsafeGet(pk) as union(NostrTLV)
-    else: error $pk.error
-  of "nsec":
-    let sk = SecretKey.fromRaw(decoded.data)
-    if likely sk.isOk: unsafeGet(sk) as union(NostrTLV)
-    else: error $sk.error
-  of "note":
-    NNote.fromRaw(decoded.data) as union(NostrTLV)
-  of "nprofile":
-    NProfile.fromRaw(decoded.data) as union(NostrTLV)
-  of "nevent":
-    NEvent.fromRaw(decoded.data) as union(NostrTLV)
-  of "naddr":
-    NAddr.fromRaw(decoded.data) as union(NostrTLV)
-  of "nrelay":
-    NRelay.fromRaw(decoded.data) as union(NostrTLV)
+  of "npub": PublicKey.fromRaw(decoded.data) as union(NostrTLV)
+  of "nsec": SecretKey.fromRaw(decoded.data) as union(NostrTLV)
+  of "note": NNote.fromRaw(decoded.data) as union(NostrTLV)
+  of "nprofile": NProfile.fromRaw(decoded.data) as union(NostrTLV)
+  of "nevent": NEvent.fromRaw(decoded.data) as union(NostrTLV)
+  of "naddr": NAddr.fromRaw(decoded.data) as union(NostrTLV)
+  of "nrelay": NRelay.fromRaw(decoded.data) as union(NostrTLV)
   else:
     raise newException(ValueError, "Unknown TLV starting with " & decoded.hrp)
 
@@ -391,3 +374,12 @@ func toFilter*(union: union(NostrTLV)): Filter =
   unpack union, entity:
     when (compiles entity.toFilter): entity.toFilter
     else: Filter()
+
+when isMainModule:
+  echo NProfile()
+  let a = fromNostrBech32("nevent1qqstna2yrezu5wghjvswqqculvvwxsrcvu7uc0f78gan4xqhvz49d9spr3mhxue69uhkummnw3ez6un9d3shjtn4de6x2argwghx6egpr4mhxue69uhkummnw3ez6ur4vgh8wetvd3hhyer9wghxuet5nxnepm")
+  unpack a, msg:
+    when msg is NEvent: echo msg
+  echo NEvent(id: EventID.fromHex "b9f5441e45ca39179320e0031cfb18e34078673dcc3d3e3a3b3a981760aa5696", relays: @["wss://nostr-relay.untethr.me", "wss://nostr-pub.wellorder.net"])
+  echo fromNostrBech32("nevent1qqstna2yrezu5wghjvswqqculvvwxsrcvu7uc0f78gan4xqhvz49d9spr3mhxue69uhkummnw3ez6un9d3shjtn4de6x2argwghx6egpr4mhxue69uhkummnw3ez6ur4vgh8wetvd3hhyer9wghxuet5nxnepm") == NEvent(id: EventID.fromHex "b9f5441e45ca39179320e0031cfb18e34078673dcc3d3e3a3b3a981760aa5696", relays: @["wss://nostr-relay.untethr.me", "wss://nostr-pub.wellorder.net"])
+
