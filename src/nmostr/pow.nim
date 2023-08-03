@@ -19,7 +19,7 @@
 
 import std/options, pkg/crunchy, ./events
 from strutils import rfind, parseInt
-{.warnings: off.}
+{.warnings: off.} # weave/cross_thread_com/scoped_barriers.nim(66, 12) Warning: Moving a shared resource (an atomic type). [User]
 import pkg/weave
 {.warnings: on.}
 export events, options
