@@ -16,7 +16,7 @@
 # along with nmostr.  If not, see <http://www.gnu.org/licenses/>.
 
 ## Utilities for creating and parsing Nostr messages.
-## Implements NIP-01, NIP-20, NIP-42, NIP-45
+## Implements NIP-01, NIP-42, NIP-45
 
 import std/sysrand, pkg/[jsony, union, stew/byteutils]
 import ./events, ./filters

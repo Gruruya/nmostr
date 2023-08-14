@@ -62,11 +62,11 @@ suite "events":
 
     f.ids = @["50"]
     check not e.matches(f)
-    f.ids = @["68"]
+    f.ids = @["68e5d223ad9fa98c1c4b86d57a7f744f418664c3ce986d4dcf354cff2910081c"]
 
     f.authors = @["b97"]
     check not e.matches(f)
-    f.authors = @["79b"]
+    f.authors = @["79be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798"]
 
     check e.matches(f)
 

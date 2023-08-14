@@ -110,10 +110,6 @@ proc note*(keypair: Keypair, content: string, tags = default(Event.tags), create
   ## Plaintext note (anything the user wants to say). Markdown links ([]() stuff) are not plaintext.
   Event.init(1, content, keypair, tags, created_at)
 
-proc recommendServer*(keypair: Keypair, url: string, tags = default(Event.tags), created_at = getUnixTime()): Event {.inline, raises: [ValueError].} =
-  ## URL (e.g., wss://somerelay.com) of a relay the event creator wants to recommend to its followers.
-  Event.init(2, url, keypair, tags, created_at)
-
 proc article*(keypair: Keypair, content, d: string, tags: sink seq[seq[string]] = default(Event.tags), created_at = getUnixTime()): Event {.inline, raises: [ValueError].} =
   ## Long-form text formatted in markdown. Parameterized replaceable event.
   tags.add @["d", d]

@@ -56,8 +56,8 @@ func matches*(event: Event, filter: Filter): bool =
   filter.since <= event.created_at and
   filter.until >= event.created_at and
   (filter.kinds.len == 0 or anyIt(filter.kinds, event.kind == it)) and
-  (filter.ids.len == 0 or (let id=event.id.toHex; anyIt(filter.ids, id.startsWith it))) and
-  (filter.authors.len == 0 or (let pubkey=event.pubkey.toHex; anyIt(filter.authors, pubkey.startsWith it))) and
+  (filter.ids.len == 0 or event.id.toHex in filter.ids) and
+  (filter.authors.len == 0 or event.pubkey.toHex in filter.authors) and
   (filter.tags.len == 0 or tagsMatch(filter.tags, event.tags))
 
 # JSON interop
@@ -146,10 +146,10 @@ proc dumpHook*(s: var string, v: Filter) {.raises: [JsonError, ValueError].} =
         else:
           skipValue(s, i)
     else:
+      # Complex way of checking if the field shouldn't be output/is "empty"
       macro fieldAccess(o: object, s: string): untyped {.used.} =
         newDotExpr(o, newIdentNode(s.strVal))
-
-      if (when k == "until": e.toUnix != high(int64) else: e != default(Filter).fieldAccess(k)): # Complex way of checking if the field is empty
+      if (when k == "until": e.toUnix != high(int64) else: e != default(Filter).fieldAccess(k)):
         if i > 1: s.add ','
         s.dumpKey(k)
         s.dumpHook(e)

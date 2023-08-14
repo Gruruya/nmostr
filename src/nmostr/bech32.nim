@@ -177,7 +177,8 @@ func toArray[T](N: static int, data: seq[T]): array[N, T] {.inline.} =
   copyMem(addr result[0], unsafeAddr data[0], N)
 
 func toUInt32(data: openArray[byte]): uint32 {.inline.} =
-  for i in 0 ..< 4: result = result or (uint32(data[3 - i]) shl (i * 8))
+  for i in 0 ..< 4:
+    result = result or (uint32(data[3 - i]) shl (i * 8))
 
 func fromUInt32(data: uint32): array[4, byte] {.inline.} =
   for i in 0 ..< 4:
