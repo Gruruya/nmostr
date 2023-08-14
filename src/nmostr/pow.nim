@@ -123,6 +123,7 @@ proc verifyPow*(event: Event, difficulty: range[0..256]): bool {.inline.} = veri
 
 proc getDifficulty*(event: Event): Option[range[0..256]] =
   ## Get the specified target difficulty from an event's tags
+  result = none range[0..256]
   for tag in event.tags:
     if tag.len >= 3 and tag[0] == "nonce":
       try:
@@ -142,6 +143,7 @@ iterator bits(x: uint8): range[0'u8..1'u8] =
     yield (x shr i) and 1'u8
 
 proc countZeroBits(byte: uint8): range[0'u8..8'u8] =
+  result = 0
   for bit in byte.bits:
     if bit != 0: break
     inc result

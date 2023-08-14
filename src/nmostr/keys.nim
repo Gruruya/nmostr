@@ -112,14 +112,14 @@ proc newKeypair*(rng: Rng = sysRng): Keypair {.raises: [OSError].} =
 # JSON interop
 func parseHook*(s: string, i: var int, v: var PublicKey) {.inline, raises: [JsonError, ValueError].} =
   ## Parse `id` as a hexadecimal encoding (of a sha256 hash).
-  var j: string
+  var j: string = ""
   parseHook(s, i, j)
   # WARNING: Replaces invalid with nulled pubkey
   v = (PublicKey.fromHex j).valueOr: default(typeof v)
 
 func parseHook*(s: string, i: var int, v: var SchnorrSignature) {.inline, raises: [JsonError, ValueError].} =
   ## Parse `id` as a hexadecimal encoding (of a sha256 hash).
-  var j: string
+  var j: string = ""
   parseHook(s, i, j)
   # WARNING: Replaces invalid with nulled signature
   v = (SchnorrSignature.fromHex j).valueOr: default(typeof v)

@@ -42,11 +42,13 @@ func isGenericTag(key: string): bool {.inline.} =
 
 func tagsMatch(filterTags, eventTags: seq[seq[string]]): bool =
   func genericTagsMatch(ftag, etag: seq[string]): bool =
+    result = false
     if etag[0].len == 1 and ftag[0][1] == etag[0][0]:
       if ftag.len == 1 or ftag.len == 2 and ftag[1] == "": return true
       for value in ftag[1..^1]:
         if etag[1] == value: return true
 
+  result = false
   for tag in filterTags:
     if tag[0].isGenericTag:
       if anyIt(eventTags, genericTagsMatch(tag, it)): return true
@@ -81,7 +83,7 @@ proc parseHook*(s: string, i: var int, v: var Filter) {.raises: [JsonError, Valu
     eatSpace(s, i)
     if i < s.len and s[i] == '}':
       break
-    var key: string
+    var key: string = ""
     parseHook(s, i, key)
     eatChar(s, i, ':')
     when compiles(renameHook(v, key)):
@@ -96,11 +98,11 @@ proc parseHook*(s: string, i: var int, v: var Filter) {.raises: [JsonError, Valu
       eatSpace(s, i)
       if likely i < s.len:
         if s[i] == '[' and key.isGenericTag:
-          var j: seq[string]
+          var j: seq[string] = @[]
           parseHook(s, i, j)
           v.tags.add key & j
         else:
-          var j: JsonNode
+          var j: JsonNode = nil
           parseHook(s, i, j)
           v.other.add (key, j)
     eatSpace(s, i)
@@ -141,7 +143,7 @@ proc dumpHook*(s: var string, v: Filter) {.raises: [JsonError, ValueError].} =
           if i > 1: s.add ','
           s.add kv[0].toJson & ':'
           try: s.dumpHook(kv[1])
-          except Exception: assert false, "cannot happen"
+          except Exception: raiseAssert "cannot happen"
           inc i
         else:
           skipValue(s, i)

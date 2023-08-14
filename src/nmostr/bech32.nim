@@ -53,8 +53,8 @@ func toWords*(data: openArray[byte]): seq[uint5] =
   ## uint8 → uint5 conversion
   result = newSeqUninitialized[uint5]((data.len * 8 + 4) div 5)
   var
-    acc = 0.uint32
-    bits = 0.uint32
+    acc = 0'u32
+    bits = 0'u32
     i = 0
   for value in data:
     acc = (acc shl 8) or (value).uint8
@@ -70,8 +70,8 @@ func fromWords*(data: openArray[uint5]): seq[byte] =
   ## uint5 → uint8 conversion
   result = newSeqUninitialized[byte]((data.len * 5) div 8)
   var
-    acc = 0.uint32
-    bits = 0.uint32
+    acc = 0'u32
+    bits = 0'u32
     i = 0
   for value in data:
     acc = (acc shl 5) or value
@@ -173,7 +173,7 @@ type
 
 func toArray[T](N: static int, data: seq[T]): array[N, T] {.inline.} =
   # Taken from `stew/objects.nim`
-  doAssert data.len == N
+  assert data.len == N
   copyMem(addr result[0], unsafeAddr data[0], N)
 
 func toUInt32(data: openArray[byte]): uint32 {.inline.} =
@@ -194,7 +194,7 @@ template parseData(address: openArray[byte], i: var uint32): tuple[kind: uint8, 
   (kind, data)
 
 func fromRaw*(T: type NProfile, address: openArray[byte]): T {.raises: [InvalidBech32Error].} =
-  var i = 0.uint32
+  var i = 0'u32
   while true:
     let (kind, data) = parseData(address, i)
     case kind
@@ -208,7 +208,7 @@ func fromRaw*(T: type NProfile, address: openArray[byte]): T {.raises: [InvalidB
       discard
 
 func fromRaw*(T: type NEvent, address: openArray[byte]): T {.raises: [InvalidBech32Error].} =
-  var i = 0.uint32
+  var i = 0'u32
   while true:
     let (kind, data) = parseData(address, i)
     case kind
@@ -228,7 +228,7 @@ func fromRaw*(T: type NEvent, address: openArray[byte]): T {.raises: [InvalidBec
       discard
 
 func fromRaw*(T: type NAddr, address: openArray[byte]): T {.raises: [InvalidBech32Error].} =
-  var i = 0.uint32
+  var i = 0'u32
   while true:
     let (kind, data) = parseData(address, i)
     case kind
@@ -246,7 +246,7 @@ func fromRaw*(T: type NAddr, address: openArray[byte]): T {.raises: [InvalidBech
       discard
 
 func fromRaw*(T: type NRelay, address: openArray[byte]): T {.raises: [InvalidBech32Error].} =
-  var i = 0.uint32
+  var i = 0'u32
   while true:
     let (kind, data) = parseData(address, i)
     if likely kind == 0:

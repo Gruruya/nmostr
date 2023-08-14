@@ -168,13 +168,13 @@ func parseHook*(s: string, i: var int, v: var union(Message)) =
   ## Parses a message of unknown type into the `Message` object inferred by the array's first element and shape.
   template parseAs(T: typedesc): union(Message) =
     i = start
-    var j: T
+    var j = default(T)
     s.parseHook(i, j)
     j as union(Message)
 
   let start = i
   eatChar(s, i, '[')
-  var kind: string
+  var kind: string = ""
   parseHook(s, i, kind)
   case kind
   of "EVENT":

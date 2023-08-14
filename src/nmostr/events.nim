@@ -18,9 +18,9 @@
 ## Utilities for working with Nostr events.
 
 import
-  times, strutils, macros,
+  ./keys,
   pkg/[jsony, crunchy, stew/byteutils],
-  ./keys
+  std/[times, strutils, macros]
 
 export times, keys, jsony
 
@@ -30,8 +30,9 @@ type EventID* = object
   bytes*: array[32, byte]
 
 func `$`*(id: EventID): string {.inline.} = toHex(id.bytes)
-func toHex*(id: EventID): string {.inline.} = $id
-func fromHex*(T: type EventID, hex: string): EventID {.inline, raises: [ValueError].} = EventID(bytes: array[32, byte].fromHex(hex))
+template toHex*(id: EventID): string = $id
+func fromHex*(T: type EventID, hex: string): EventID {.inline, raises: [ValueError].} =
+  EventID(bytes: array[32, byte].fromHex(hex))
 
 type Event* = object
   id*: EventID            ## 32-bytes lowercase hex-encoded sha256 of the serialized event data
@@ -44,7 +45,7 @@ type Event* = object
 
 func parseHook*(s: string, i: var int, v: var EventID) {.inline, raises: [JsonError, ValueError].} =
   ## Parse `id` as a hexadecimal encoding [of a sha256 hash.]
-  var j: string
+  var j: string = ""
   parseHook(s, i, j)
   v = EventID.fromHex(j)
 
@@ -54,7 +55,7 @@ func dumpHook*(s: var string, v: EventID) {.inline.} =
 
 func parseHook*(s: string, i: var int, v: var Time) {.inline, raises: [JsonError, ValueError].} =
   ## Parse `created_at` as a `Time`.
-  var j: int64
+  var j: int64 = 0
   parseHook(s, i, j)
   v = fromUnix(j)
 
