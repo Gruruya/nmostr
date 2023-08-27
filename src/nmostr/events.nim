@@ -1,8 +1,6 @@
-## Nostr Event interface - for nmostr.
+## Nostr event interface - for nmostr.
 # Copyright © 2023 Gruruya <gruruya.chi4c@slmails.com>
 # SPDX-License-Identifier: AGPL-3.0-only
-
-## Utilities for working with Nostr events.
 
 import
   ./keys,
@@ -10,8 +8,8 @@ import
   std/[times, strutils, macros]
 
 export times, keys, jsony
-
 {.push raises: [].}
+
 
 type EventID* = object
   bytes*: array[32, byte]

@@ -2,6 +2,7 @@
 # Copyright © 2023 Gruruya <gruruya.chi4c@slmails.com>
 # SPDX-License-Identifier: AGPL-3.0-only
 
+### Description
 ## Utilities for creating and parsing Nostr messages.
 ## Implements NIP-01, NIP-42, NIP-45
 

@@ -1,14 +1,11 @@
-## Secp256k1 key wrapper - for nmostr.
+## Secp256k1 key management - for nmostr.
 # Copyright © 2023 Gruruya <gruruya.chi4c@slmails.com>
 # SPDX-License-Identifier: AGPL-3.0-only
 
-## Private/public key creation and management
-
-import pkg/secp256k1, pkg/secp256k1/abi
-from pkg/stew/byteutils import toHex
-from pkg/stew/arrayops import assign
-from std/sysrand import urandom
-import pkg/jsony
+import pkg/[secp256k1, secp256k1/abi, jsony]
+from   pkg/stew/byteutils import toHex
+from   pkg/stew/arrayops import assign
+from   std/sysrand import urandom
 
 export secp256k1
 {.push raises: [], inline.}

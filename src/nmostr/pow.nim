@@ -1,8 +1,6 @@
-## Nostr POW utilities - for nmostr.
+## Proof of work as described by NIP-13 - for nmostr.
 # Copyright © 2023 Gruruya <gruruya.chi4c@slmails.com>
 # SPDX-License-Identifier: AGPL-3.0-only
-
-## Proof of work as described by NIP-13.
 
 import std/options, pkg/crunchy, ./events
 from strutils import rfind, parseInt

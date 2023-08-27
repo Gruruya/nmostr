@@ -2,6 +2,7 @@
 # Copyright © 2023 Gruruya <gruruya.chi4c@slmails.com>
 # SPDX-License-Identifier: AGPL-3.0-only
 
+### Description
 ## Modified from Pieter Wuille's reference Python implementation `sipa/bech32/python/segwit_addr.py`
 ## Nostr-style Bech32 addresses use no witness version or m-encoding.
 
