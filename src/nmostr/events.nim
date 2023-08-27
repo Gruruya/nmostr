@@ -1,19 +1,6 @@
-# nmostr --- Nim library for working with the Nostr protocol.
+## Nostr Event interface - for nmostr.
 # Copyright © 2023 Gruruya <gruruya.chi4c@slmails.com>
-#
-# This file is part of nmostr.
-#
-# nmostr is free software: you can redistribute it and/or modify
-# it under the terms of the GNU Affero General Public License as published by
-# the Free Software Foundation, version 3 of the License.
-#
-# nmostr is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU Affero General Public License for more details.
-#
-# You should have received a copy of the GNU Affero General Public License
-# along with nmostr.  If not, see <http://www.gnu.org/licenses/>.
+# SPDX-License-Identifier: AGPL-3.0-only
 
 ## Utilities for working with Nostr events.
 
@@ -43,6 +30,7 @@ type Event* = object
   created_at*: Time       ## Received and transmitted as a Unix timestamp in seconds
   sig*: SchnorrSignature  ## 64-bytes hex of the signature of the sha256 hash of the serialized event data, which is the same as the "id" field
 
+
 func parseHook*(s: string, i: var int, v: var EventID) {.inline, raises: [JsonError, ValueError].} =
   ## Parse `id` as a hexadecimal encoding [of a sha256 hash.]
   var j: string = ""
@@ -62,6 +50,7 @@ func parseHook*(s: string, i: var int, v: var Time) {.inline, raises: [JsonError
 func dumpHook*(s: var string, v: Time) {.inline.} =
   ## Serialize `created_at` into a Unix timestamp.
   dumpHook(s, v.toUnix)
+
 
 func serialize*(e: Event): string =
   ## Serialize `event` into JSON so that it can be hashed in accordance with NIP-01.
@@ -95,8 +84,8 @@ proc init*(T: type Event, kind: int, content: string, keypair: Keypair, tags = d
   result.updateID
   result.sign(keypair)
 
-#[ Convenience wrappers around Event.init ]#
 
+# Convenience wrappers around Event.init
 type Metadata* = object ## Content of kind 0 (metadata) event
   name*: string         ## username
   about*: string        ## description
@@ -115,3 +104,4 @@ proc article*(keypair: Keypair, content, d: string, tags: sink seq[seq[string]] 
   ## Long-form text formatted in markdown. Parameterized replaceable event.
   tags.add @["d", d]
   Event.init(30023, content, keypair, tags, created_at)
+

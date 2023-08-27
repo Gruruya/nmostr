@@ -1,19 +1,6 @@
-# nmostr --- Nim library for working with the Nostr protocol.
+## Nostr filter handling - for nmostr.
 # Copyright © 2023 Gruruya <gruruya.chi4c@slmails.com>
-#
-# This file is part of nmostr.
-#
-# nmostr is free software: you can redistribute it and/or modify
-# it under the terms of the GNU Affero General Public License as published by
-# the Free Software Foundation, version 3 of the License.
-#
-# nmostr is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU Affero General Public License for more details.
-#
-# You should have received a copy of the GNU Affero General Public License
-# along with nmostr.  If not, see <http://www.gnu.org/licenses/>.
+# SPDX-License-Identifier: AGPL-3.0-only
 
 ## Nostr filters and utilities for using them.
 
@@ -25,6 +12,7 @@ export events
 
 {.push raises: [].}
 
+
 type Filter* = object
   ids*: seq[string]       ## List of event ids or prefixes.
   authors*: seq[string]   ## List of pubkeys or prefixes, the pubkey of an event must be one of these.
@@ -35,6 +23,7 @@ type Filter* = object
   tags*: seq[seq[string]] ## NIP-12 tags (like #e or #p), each sequence's first item is the key and the others its values "0": ["1", "2"]
   search*: string         ## A query in a human-readable form (NIP-50)
   other*: seq[(string, JsonNode)] ## Catch-all for unknown fields
+
 
 func isGenericTag(key: string): bool {.inline.} =
   ## Checks if a filter's key is a generic tag query according to NIP-12
@@ -61,6 +50,7 @@ func matches*(event: Event, filter: Filter): bool =
   (filter.ids.len == 0 or event.id.toHex in filter.ids) and
   (filter.authors.len == 0 or event.pubkey.toHex in filter.authors) and
   (filter.tags.len == 0 or tagsMatch(filter.tags, event.tags))
+
 
 # JSON interop
 proc parseHook*(s: string, i: var int, v: var Filter) {.raises: [JsonError, ValueError].} =
@@ -157,6 +147,7 @@ proc dumpHook*(s: var string, v: Filter) {.raises: [JsonError, ValueError].} =
         s.dumpHook(e)
         inc i
   s.add '}'
+
 
 when isMainModule:
   let e = note(newKeypair(), "test", tags = @[@["e", "not empty"]])

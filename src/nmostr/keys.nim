@@ -1,33 +1,21 @@
-# nmostr --- Nim library for working with the Nostr protocol.
+## Secp256k1 key wrapper - for nmostr.
 # Copyright © 2023 Gruruya <gruruya.chi4c@slmails.com>
-#
-# This file is part of nmostr.
-#
-# nmostr is free software: you can redistribute it and/or modify
-# it under the terms of the GNU Affero General Public License as published by
-# the Free Software Foundation, version 3 of the License.
-#
-# nmostr is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU Affero General Public License for more details.
-#
-# You should have received a copy of the GNU Affero General Public License
-# along with nmostr.  If not, see <http://www.gnu.org/licenses/>.
+# SPDX-License-Identifier: AGPL-3.0-only
 
 ## Private/public key creation and management
-
-# Types from `secp256k1` without {.requiresInit.} so that they can be null without using `stew/results`
 
 import pkg/secp256k1, pkg/secp256k1/abi
 from pkg/stew/byteutils import toHex
 from pkg/stew/arrayops import assign
 from std/sysrand import urandom
 import pkg/jsony
-export secp256k1
 
+export secp256k1
 {.push raises: [], inline.}
 
+
+# Types from `secp256k1` without {.requiresInit.} so that they can be null without using `stew/results`
+# It's a workaround for Jsony serialization
 type
   SecretKey* = SkSecretKey
 
@@ -46,6 +34,7 @@ converter toPublicKey*(pubkey: SkXOnlyPublicKey): PublicKey = cast[PublicKey](pu
 converter toSkXOnlyPublicKey*(pubkey: PublicKey): SkXOnlyPublicKey = cast[SkXOnlyPublicKey](pubkey)
 converter toSchnorrSignature*(sig: SkSchnorrSignature): SchnorrSignature = cast[SchnorrSignature](sig)
 converter toSkSchnorrSignature*(sig: SchnorrSignature): SkSchnorrSignature = cast[SkSchnorrSignature](sig)
+
 
 func fromRaw*(T: type PublicKey, data: openArray[byte]): SkResult[T] =
   ## Additionally accepts 33 byte compressed public keys, should upstream this
@@ -70,6 +59,10 @@ func toRaw*(pubkey: PublicKey): array[SkRawXOnlyPublicKeySize, byte] =
 func toHex*(pubkey: PublicKey): string =
   toHex(toRaw(pubkey))
 
+func `$`*(v: PublicKey | SchnorrSignature): string =
+  toHex(v)
+
+
 func verify*(sig: SchnorrSignature, msg: SkMessage, pubkey: PublicKey): bool =
   ## Wrapper that checks if `pubkey` is uninitialized
   if pubkey == default(typeof pubkey): false
@@ -80,13 +73,11 @@ func verify*(sig: SchnorrSignature, msg: openArray[byte], pubkey: PublicKey): bo
   if pubkey == default(typeof pubkey): false
   else: secp256k1.verify(sig, msg, pubkey)
 
-func `$`*(v: PublicKey | SchnorrSignature): string =
-  toHex(v)
 
 {.pop.}
 {.push raises: [].}
 
-# Keypairs
+
 type Keypair* = object
   ## Representation of private/public key pair.
   seckey*: SecretKey
@@ -109,7 +100,7 @@ proc newKeypair*(rng: Rng = sysRng): Keypair {.raises: [OSError].} =
   if secretKey.isOk: toKeypair secretKey.unsafeGet
   else: raise newException(OSError, $secretKey.error()) # Assumes OSError
 
-# JSON interop
+
 func parseHook*(s: string, i: var int, v: var PublicKey) {.inline, raises: [JsonError, ValueError].} =
   ## Parse `id` as a hexadecimal encoding (of a sha256 hash).
   var j: string = ""

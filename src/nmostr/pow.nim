@@ -1,19 +1,6 @@
-# nmostr --- Nim library for working with the Nostr protocol.
+## Nostr POW utilities - for nmostr.
 # Copyright © 2023 Gruruya <gruruya.chi4c@slmails.com>
-#
-# This file is part of nmostr.
-#
-# nmostr is free software: you can redistribute it and/or modify
-# it under the terms of the GNU Affero General Public License as published by
-# the Free Software Foundation, version 3 of the License.
-#
-# nmostr is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU Affero General Public License for more details.
-#
-# You should have received a copy of the GNU Affero General Public License
-# along with nmostr.  If not, see <http://www.gnu.org/licenses/>.
+# SPDX-License-Identifier: AGPL-3.0-only
 
 ## Proof of work as described by NIP-13.
 
@@ -25,6 +12,7 @@ import pkg/weave
 export events, options
 
 {.push raises: [].}
+
 
 const powParallelChunkSize {.intdefine.} = 4096 ## How many nonces to check per (parallel) loop in `powParallel`
 const powParallelCutoff {.intdefine.} = 13 ## Minimum difficulty before `pow` proc points to `powParallel`
@@ -58,6 +46,7 @@ template hasValidNonce(hash: array[32, uint8]): bool =
     valid = (hash[numZeroBytes] and mask) == 0
   valid
 
+
 proc powSequential*(event: var Event, difficulty: range[0..256]) {.raises: [].} =
   ## Increment the second feild of a nonce tag in the event until the event ID has `difficulty` leading 0 bits (NIP-13 POW), single threaded
   powImpl:
@@ -68,7 +57,8 @@ proc powSequential*(event: var Event, difficulty: range[0..256]) {.raises: [].} 
         break
       inc iteration
 
-{.pop.} # Weave uses templates internally, so `push raises: []` will error
+
+{.pop.} # Weave uses templates internally, so `push raises: []` errors
 proc powParallel*(event: var Event, difficulty: range[0..256]) {.raises: [ValueError, ResourceExhaustedError, Exception].} =
   ## Increment the second field of a nonce tag in the event until the event ID has `difficulty` leading 0 bits (NIP-13 POW), multithreaded
   powImpl:
@@ -101,11 +91,13 @@ proc powParallel*(event: var Event, difficulty: range[0..256]) {.raises: [ValueE
     exit(Weave)
 {.push raises: [].}
 
+
 proc pow*(event: var Event, difficulty: range[0..256]) {.inline, raises: [ValueError, ResourceExhaustedError, Exception].} =
   ## Increment the second field of a nonce tag in the event until the event ID has `difficulty` leading 0 bits (NIP-13 POW)
   if difficulty >= powParallelCutoff:
         event.powParallel(difficulty)
   else: event.powSequential(difficulty)
+
 
 proc verifyPow*(id: array[32, byte], difficulty: range[0..256]): bool =
   ## Verify an array of bytes (event id) starts with `difficulty` leading 0 bits
@@ -137,6 +129,7 @@ proc verifyPow*(event: Event): bool =
   let target = event.getDifficulty()
   if target.isNone: false
   else: verifyPow(event, target.unsafeGet)
+
 
 iterator bits(x: uint8): range[0'u8..1'u8] =
   for i in countdown(7, 0):

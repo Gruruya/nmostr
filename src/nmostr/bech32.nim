@@ -1,19 +1,6 @@
-# nmostr --- Nim library for working with the Nostr protocol.
+## Nostr Bech32 processing - for nmostr.
 # Copyright © 2023 Gruruya <gruruya.chi4c@slmails.com>
-#
-# This file is part of nmostr.
-#
-# nmostr is free software: you can redistribute it and/or modify
-# it under the terms of the GNU Affero General Public License as published by
-# the Free Software Foundation, version 3 of the License.
-#
-# nmostr is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU Affero General Public License for more details.
-#
-# You should have received a copy of the GNU Affero General Public License
-# along with nmostr.  If not, see <http://www.gnu.org/licenses/>.
+# SPDX-License-Identifier: AGPL-3.0-only
 
 ## Modified from Pieter Wuille's reference Python implementation `sipa/bech32/python/segwit_addr.py`
 ## Nostr-style Bech32 addresses use no witness version or m-encoding.
@@ -26,6 +13,7 @@ from std/setutils import toSet
 import ./events, ./filters
 
 {.push raises: [].}
+
 
 type
   uint5* =
@@ -99,6 +87,7 @@ func hrpExpand(hrp: string): seq[uint5] =
 proc verifyChecksum*(hrp: string, data: seq[uint5]): bool {.inline.} =
   polymod(hrpExpand(hrp) & data) == 1
 
+
 func decodeImpl(bech32: sink string, verify: bool): tuple[hrp: string, data: seq[uint5]] {.raises: [InvalidBech32Error].} =
   bech32 = bech32.toLower()
   let pos = bech32.rfind('1')
@@ -122,6 +111,7 @@ func decode*(hrp: string, address: string, verify = true): seq[byte] {.inline, r
     error "Incorrect hrp " & hrpFound & " in bech32 address, expected " & hrp
   result = fromWords(data)
 
+
 func encode*(hrp: string, witprog: openArray[byte]): string =
   ## Encode into a bech32 address
   func checksum(hrp: string, data: seq[uint5]): seq[uint5] {.inline.} =
@@ -142,8 +132,8 @@ func toString*(entity: Bech32Entity): string {.inline.} =
   # Not `$` as it's not always correct
   string.fromBytes(entity.data)
 
-#[___ Nostr specific. NIP-19 _________________________________________________________________]#
 
+# Nostr specific. NIP-19
 type
   NProfile* = object
     pubkey*: PublicKey
@@ -169,8 +159,7 @@ type
 
   NostrTLV* = NProfile | NEvent | NAddr | NRelay | NNote | SecretKey | PublicKey
 
-#[___ Parsing _________________________________________________________________]#
-
+# Parsing
 func toArray[T](N: static int, data: seq[T]): array[N, T] {.inline.} =
   # Taken from `stew/objects.nim`
   assert data.len == N
@@ -309,8 +298,7 @@ func fromBech32*(T: type NAddr, address: string): T {.inline, raises: [InvalidBe
 func fromBech32*(T: type NRelay, address: string): T {.inline, raises: [InvalidBech32Error].} =
   NRelay.fromRaw(decode("nrelay", address))
 
-#[___ Encoding _________________________________________________________________]#
-
+# Encoding
 func toBech32*(pubkey: PublicKey): string {.inline.} =
   encode("npub", pubkey.toRaw)
  
@@ -362,8 +350,8 @@ func toBech32*(eventID: EventID): string {.inline.} =
   # Encode an event ID as a `note` TLV
   encode("note", eventID.bytes)
 
-#[___ Convenience _________________________________________________________________]#
 
+# Convenience wrappers
 func toFilter*(pubkey: PublicKey): Filter {.inline.} =
   Filter(authors: @[pubkey.toHex])
 

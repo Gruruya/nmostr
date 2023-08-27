@@ -1,19 +1,6 @@
-# nmostr --- Nim library for working with the Nostr protocol.
+## Nostr message handling - for nmostr.
 # Copyright © 2023 Gruruya <gruruya.chi4c@slmails.com>
-#
-# This file is part of nmostr.
-#
-# nmostr is free software: you can redistribute it and/or modify
-# it under the terms of the GNU Affero General Public License as published by
-# the Free Software Foundation, version 3 of the License.
-#
-# nmostr is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU Affero General Public License for more details.
-#
-# You should have received a copy of the GNU Affero General Public License
-# along with nmostr.  If not, see <http://www.gnu.org/licenses/>.
+# SPDX-License-Identifier: AGPL-3.0-only
 
 ## Utilities for creating and parsing Nostr messages.
 ## Implements NIP-01, NIP-42, NIP-45
@@ -22,6 +9,7 @@ import std/sysrand, pkg/[jsony, union, stew/byteutils]
 import ./events, ./filters
 
 export events, union
+
 
 type
   # Use a variant object once they support duplicate fields
@@ -64,6 +52,7 @@ proc randomID*(): string {.raises: [OSError].} =
   ## Get a random ID to identify your messages
   toHex(urandom(32))
   
+
 # JSON interop
 # Modified `jsony.nim` procs to deserialize message arrays as object and serialize them back to arrays.
 
@@ -115,7 +104,6 @@ func dumpObjectAsArray*[T](s: var string, v: T, flag: string) =
   s &= ']'
 
 {.push inline.}
-
 func parseHook*(s: string, i: var int, v: var CMEvent) =
   parseArrayAsObject(s, i, v)
 func parseHook*(s: string, i: var int, v: var CMRequest) =
@@ -161,8 +149,8 @@ func dumpHook*(s: var string, v: SMAuth) =
   dumpObjectAsArray(s, v, "AUTH")
 func dumpHook*(s: var string, v: SMCount) =
   dumpObjectAsArray(s, v, "COUNT")
-
 {.pop inline.}
+
 
 func parseHook*(s: string, i: var int, v: var union(Message)) =
   ## Parses a message of unknown type into the `Message` object inferred by the array's first element and shape.
