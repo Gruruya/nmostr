@@ -91,6 +91,14 @@ suite "events":
 }
 """.fromJson(Event).verify
 
+  block parameterized_id:
+    var N = note(newKeypair(), "test")
+    check N.getParameterizedID == ""
+    N.tags.add @["d"]
+    check N.getParameterizedID == ""
+    N.tags[0].add "someval"
+    check N.getParameterizedID == "someval"
+
 suite "messages":
   block serializing_and_parsing:
     check CMEvent(event: Event()) == ("[\"EVENT\"," & Event().toJson & "]").fromMessage
