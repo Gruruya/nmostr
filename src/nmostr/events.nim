@@ -106,9 +106,12 @@ proc article*(keypair: Keypair, content, d: string, tags: sink seq[seq[string]] 
   Event.init(30023, content, keypair, tags, created_at)
 
 
-func getParameterizedID*(event: Event): string =
-  for tag in event.tags:
+func getParameterizedID*(tags: openArray[seq[string]]): string =
+  for tag in tags:
     if tag.len >= 1 and tag[0] == "d":
       if unlikely tag.len == 1: return ""
       else: return tag[1]
   result = ""
+
+template getParameterizedID*(event: Event): string =
+  getParameterizedID(event.tags)
