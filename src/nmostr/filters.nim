@@ -34,6 +34,7 @@ func tagsMatch(filterTags, eventTags: seq[seq[string]]): bool =
     result = false
     if etag[0].len == 1 and ftag[0][1] == etag[0][0]:
       if ftag.len == 1 or ftag.len == 2 and ftag[1] == "": return true
+      if etag.len == 1: return false
       for value in ftag[1..^1]:
         if etag[1] == value: return true
 

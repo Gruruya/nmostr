@@ -37,7 +37,7 @@ suite "events":
   "pubkey": "79be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798",
   "sig": "575f15910f1d4990ab07d959ce817de44b9b6bb93f4e3fe460ffbe5dd4d66a81cfe025da11be2bc9c153af9cfb70a4e14ae23ed4693292a1a0e03642a991bcc7",
   "tags": [
-    ["d",""],["d","not empty"]
+    ["d"],["d","not empty"]
   ]
 }
 """.fromJson(Event)
