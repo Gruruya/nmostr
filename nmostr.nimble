@@ -13,7 +13,7 @@ requires "secp256k1 >= 0.6.0.3.1"
 requires "stew"
 requires "crunchy >= 0.1.8"
 requires "weave >= 0.4.10"
-requires "https://github.com/alaviss/union >= 0.1.4"
+requires "https://github.com/alaviss/union >= 0.1.5"
 
 when declared(taskRequires):
   when not defined(windows) and not defined(macosx):
