@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 
 ### Description
-## Modified from Pieter Wuille's reference Python implementation `sipa/bech32/python/segwit_addr.py`
+## References Pieter Wuille's reference Python implementation https://github.com/sipa/bech32/blob/master/ref/python/segwit_addr.py
 ## Nostr-style Bech32 addresses use no witness version or m-encoding.
 
 import pkg/[union, stew/byteutils]
@@ -80,7 +80,9 @@ func polymod(values: openArray[uint5]): uint32 =
       result = result xor (if (top shr i and 1) == 1: generator[i] else: 0)
 
 func hrpExpand(hrp: string): seq[uint5] =
+  # ex: "nsec" → @[3, 3, 3, 3, 0, 14, 19, 5, 3]
   result = newSeqUninitialized[uint5](hrp.len * 2 + 1)
+  result[hrp.len] = 0
   for i, c in hrp:
     result[i] = uint5(ord(c) shr 5)
     result[i + hrp.len + 1] = uint5(ord(c) and 31)
@@ -118,9 +120,9 @@ func encode*(hrp: string, witprog: openArray[byte]): string =
   func checksum(hrp: string, data: seq[uint5]): seq[uint5] {.inline.} =
     let values = hrpExpand(hrp) & data
     let polymod = polymod(values & @[uint5 0, 0, 0, 0, 0, 0]) xor 1
-    result = newSeqOfCap[uint5](5)
-    for i in 0 ..< 6:
-      result.add uint5((polymod shr (5 * (5 - i))) and 31)
+    result = newSeqUninitialized[uint5](6)
+    for i in 0 .. 5:
+      result[i] = uint5((polymod shr (5 * (5 - i))) and 31)
 
   let data = toWords(witprog)
   let combined = data & checksum(hrp, data)
