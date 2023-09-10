@@ -163,7 +163,7 @@ type
   NostrTLV* = NProfile | NEvent | NAddr | NRelay | NNote | SecretKey | PublicKey
 
 # Parsing
-func toArray[T](N: static int, data: seq[T]): array[N, T] {.inline.} =
+func toArray[T](N: static int, data: openArray[T]): array[N, T] {.inline.} =
   # Taken from `stew/objects.nim`
   assert data.len == N
   copyMem(addr result[0], unsafeAddr data[0], N)
@@ -245,10 +245,8 @@ func fromRaw*(T: type NRelay, address: openArray[byte]): T {.raises: [InvalidBec
       return NRelay(url: string.fromBytes(data))
 
 func fromRaw*(T: type NNote, address: seq[byte]): T {.raises: [InvalidBech32Error].} =
-  if likely address.len == 32:
-    NNote(id: EventID(bytes: toArray(32, address)))
-  elif unlikely address.len > 32:
-    NNote(id: EventID(bytes: toArray(32, address[0 ..< 32]))) #WARNING: Maybe? Silent failure.
+  if likely address.len >= 32:
+    NNote(id: EventID(bytes: toArray(32, address.toOpenArray(0, 31))))
   else:
     error "Event ID in bech32 encoded note should be 32 bytes, but was " & $address.len & " bytes instead"
 
