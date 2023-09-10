@@ -77,10 +77,13 @@ proc verify*(event: Event): bool {.inline.} =
 template getUnixTime(): Time =
   initTime(getTime().toUnix, 0)
 
-proc init*(T: type Event, kind: int, content: string, keypair: Keypair, tags = default(seq[seq[string]]), created_at = getUnixTime()): Event {.raises: [ValueError].} =
+proc init*(T: type Event; kind: int; keypair: Keypair; content: string; tags = default(seq[seq[string]]); created_at = getUnixTime()): Event {.raises: [ValueError].} =
   result = Event(kind: kind, content: content, pubkey: keypair.pubkey, tags: tags, created_at: created_at)
   result.updateID
   result.sign(keypair)
+
+template init*(T: type Event; kind: int; content: string; keypair: Keypair; tags = default(seq[seq[string]]); created_at = getUnixTime()): Event {.deprecated: "Swap `keypair` and `content`".} =
+  Event.init(kind, keypair, content, tags, created_at)
 
 
 # Convenience wrappers around Event.init
@@ -92,16 +95,16 @@ type Metadata* = object ## Content of kind 0 (metadata) event
 proc metadata*(keypair: Keypair, name, about, picture: string, tags = default(Event.tags), created_at = getUnixTime()): Event {.inline, raises: [ValueError].} =
   ## Describes the user who created the event.
   ## A relay may delete past metadata events once it gets a new one for the same pubkey.
-  Event.init(0, Metadata(name: name, about: about, picture: picture).toJson, keypair, tags, created_at)
+  Event.init(0, keypair, Metadata(name: name, about: about, picture: picture).toJson, tags, created_at)
 
 proc note*(keypair: Keypair, content: string, tags = default(Event.tags), created_at = getUnixTime()): Event {.inline, raises: [ValueError].} =
   ## Plaintext note (anything the user wants to say). Markdown links ([]() stuff) are not plaintext.
-  Event.init(1, content, keypair, tags, created_at)
+  Event.init(1, keypair, content, tags, created_at)
 
 proc article*(keypair: Keypair, content, d: string, tags: sink seq[seq[string]] = default(Event.tags), created_at = getUnixTime()): Event {.inline, raises: [ValueError].} =
   ## Long-form text formatted in markdown. Parameterized replaceable event.
   tags.add @["d", d]
-  Event.init(30023, content, keypair, tags, created_at)
+  Event.init(30023, keypair, content, tags, created_at)
 
 
 func getParameterizedID*(tags: openArray[seq[string]]): string =
