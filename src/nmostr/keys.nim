@@ -101,15 +101,17 @@ func parseHook*(s: string, i: var int, v: var PublicKey) {.raises: [JsonError, V
   ## Parse `id` as a hexadecimal encoding (of a sha256 hash).
   var j: string = ""
   parseHook(s, i, j)
-  # WARNING: Replaces invalid with nulled pubkey
-  v = (PublicKey.fromHex j).valueOr: default(typeof v)
+  let w = PublicKey.fromHex(j)
+  if likely w.isOk: v = w.unsafeValue
+  else: raise newException(ValueError, "could not parse x-only public key")
 
 func parseHook*(s: string, i: var int, v: var SchnorrSignature) {.raises: [JsonError, ValueError].} =
   ## Parse `id` as a hexadecimal encoding (of a sha256 hash).
   var j: string = ""
   parseHook(s, i, j)
-  # WARNING: Replaces invalid with nulled signature
-  v = (SchnorrSignature.fromHex j).valueOr: default(typeof v)
+  let w = SchnorrSignature.fromHex(j)
+  if likely w.isOk: v = w.unsafeValue
+  else: raise newException(ValueError, "could not parse schnorr signature")
 
 func dumpHook*(s: var string, v: PublicKey | SchnorrSignature) =
   ## Serialize `id`, `pubkey`, and `sig` into hexadecimal.

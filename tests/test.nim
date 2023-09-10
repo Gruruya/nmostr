@@ -87,19 +87,21 @@ suite "events":
     check N.getParameterizedID == "someval"
 
 suite "messages":
+  let exEvent = Event.init(1, newKeypair(), "test")
+
   block serializing_and_parsing:
-    check CMEvent(event: Event()) == ("[\"EVENT\"," & Event().toJson & "]").fromMessage
-    check CMEvent(event: Event()).toJson == ("[\"EVENT\"," & Event().toJson & "]").fromMessage.toJson
+    check CMEvent(event: exEvent) == ("[\"EVENT\"," & exEvent.toJson & "]").fromMessage
+    check CMEvent(event: exEvent).toJson == ("[\"EVENT\"," & exEvent.toJson & "]").fromMessage.toJson
     check CMRequest(id: "someid", filter: Filter()) == ("[\"REQ\",\"someid\"," & Filter().toJson & "]").fromJson(CMRequest)
     check CMRequest(id: "someid", filter: Filter()).toJson == ("[\"REQ\",\"someid\"," & Filter().toJson & "]").fromMessage.toJson
     check CMClose(id: "someid") == ("[\"CLOSE\",\"someid\"]").fromMessage
     check CMClose(id: "someid").toJson == ("[\"CLOSE\",\"someid\"]").fromMessage.toJson
-    check CMAuth(event: Event()) == ("[\"AUTH\"," & Event().toJson & "]").fromMessage
-    check CMAuth(event: Event()).toJson == ("[\"AUTH\"," & Event().toJson & "]").fromMessage.toJson
+    check CMAuth(event: exEvent) == ("[\"AUTH\"," & exEvent.toJson & "]").fromMessage
+    check CMAuth(event: exEvent).toJson == ("[\"AUTH\"," & exEvent.toJson & "]").fromMessage.toJson
     check CMCount(id: "someid", filter: Filter()) == ("""["COUNT","someid",""" & Filter().toJson & "]").fromMessage
     check CMCount(id: "someid", filter: Filter()).toJson == ("""["COUNT","someid",""" & Filter().toJson & "]").fromMessage.toJson
-    check SMEvent(id: "someid", event: Event()) == ("[\"EVENT\",\"someid\"," & Event().toJson & "]").fromMessage
-    check SMEvent(id: "someid", event: Event()).toJson == ("[\"EVENT\",\"someid\"," & Event().toJson & "]").fromMessage.toJson
+    check SMEvent(id: "someid", event: exEvent) == ("[\"EVENT\",\"someid\"," & exEvent.toJson & "]").fromMessage
+    check SMEvent(id: "someid", event: exEvent).toJson == ("[\"EVENT\",\"someid\"," & exEvent.toJson & "]").fromMessage.toJson
     check SMEose(id: "someid") == """["EOSE","someid"]""".fromMessage
     check SMEose(id: "someid").toJson == """["EOSE","someid"]""".fromMessage.toJson
     check SMNotice(message: "Important notice.") == """["NOTICE","Important notice."]""".fromMessage
@@ -117,7 +119,7 @@ suite "messages":
 
   block unkown_message_error:
     expect UnknownMessageError:
-      discard ("[\"EVE\"," & Event().toJson & "]").fromMessage
+      discard ("[\"EVE\"," & exEvent.toJson & "]").fromMessage
 
   block invalid_json_error:
     expect jsony.JsonError:
@@ -125,7 +127,11 @@ suite "messages":
     expect jsony.JsonError:
       discard ("[\"EVENT\"]").fromMessage
     expect jsony.JsonError:
-      discard ("[\"EVENT\",L" & Event().toJson & "]").fromMessage
+      discard ("[\"EVENT\",L" & exEvent.toJson & "]").fromMessage
+
+  block invalid_key_error:
+    expect ValueError:
+      discard Event().toJson.fromJson(Event)
 
 suite "signatures":
   block signing_and_verifying:
