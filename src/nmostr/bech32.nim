@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 
 ### Description
-## References Pieter Wuille's reference Python implementation https://github.com/sipa/bech32/blob/master/ref/python/segwit_addr.py
+## Referenced Pieter Wuille's reference Python implementation: https://github.com/sipa/bech32/blob/master/ref/python/segwit_addr.py
 ## Nostr-style Bech32 addresses use no witness version or m-encoding.
 
 import pkg/[union, stew/byteutils]
@@ -29,7 +29,7 @@ template error(reason: string) =
   raise newException(InvalidBech32Error, reason)
 
 func fromRaw(T: type PublicKey, data: openArray[byte]): SkResult[T] {.inline, raises: [InvalidBech32Error].} =
-  ## Same as `./keys/fromRaw` but with `InvalidBech32Error`
+  ## Same as `keys.fromRaw` but with `InvalidBech32Error`
   if likely data.len == 32: cast[SkResult[PublicKey]](SkXOnlyPublicKey.fromRaw(data))
   elif data.len == 33: cast[SkResult[PublicKey]](SkXOnlyPublicKey.fromRaw(data))
   else: raise newException(InvalidBech32Error, "Raw x-only public key must be 32 or 33 bytes")

@@ -54,6 +54,9 @@ func serialize*(e: Event): string =
   ## Serialize `event` into JSON so that it can be hashed in accordance with NIP-01.
   "[0," & e.pubkey.toJson & ',' & e.created_at.toJson & ',' & e.kind.toJson & ',' & e.tags.toJson & ',' & e.content.toJson & ']'
 
+proc updateID*(event: var Event) =
+  event.id = EventID(bytes: sha256(serialize event))
+
 proc sign*(event: var Event, key: SecretKey, rng: Rng = sysRng) {.raises: [ValueError].} =
   let sig = signSchnorr(key, sha256(serialize event), rng)
   if likely sig.isOk: event.sig = sig.unsafeGet
@@ -62,19 +65,16 @@ proc sign*(event: var Event, key: SecretKey, rng: Rng = sysRng) {.raises: [Value
 proc sign*(event: var Event, keypair: Keypair, rng: Rng = sysRng) {.inline, raises: [ValueError].} =
   sign(event, keypair.seckey, rng)
 
-proc updateID*(event: var Event) =
-  event.id = EventID(bytes: sha256(serialize event))
-
-proc verify*(event: Event): bool {.inline.} =
-  verify(event.sig, sha256(serialize event), event.pubkey)
-
 proc stamp*(event: var Event, keypair: Keypair, rng: Rng = sysRng) {.raises: [ValueError].} =
   ## Change the author of an event
   event.pubkey = keypair.pubkey
   event.updateID
   event.sign(keypair.seckey, rng)
 
-proc getUnixTime*(): Time {.inline.} =
+proc verify*(event: Event): bool {.inline.} =
+  verify(event.sig, sha256(serialize event), event.pubkey)
+
+template getUnixTime(): Time =
   initTime(getTime().toUnix, 0)
 
 proc init*(T: type Event, kind: int, content: string, keypair: Keypair, tags = default(seq[seq[string]]), created_at = getUnixTime()): Event {.raises: [ValueError].} =
