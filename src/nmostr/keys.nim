@@ -39,9 +39,6 @@ template toBytes*(v: SecretKey): array[32, byte] =
 func toHex*(v: SecretKey): StackString[64] =
   toHex(v.raw)
 
-template bytesToHex*(v: SecretKey): StackString[64] =
-  toHex(v)
-
 func `$`*(v: SecretKey): string =
   $toHex(v)
 
@@ -63,8 +60,8 @@ proc sysRng*(data: var openArray[byte]): bool =
   try: assign(data, cast[seq[byte]](urandom(data.len)))
   except OSError: return false
   result = true
-
 {.push inline.}
+
 proc random*(T: type SecretKey, rng: Rng = sysRng): T =
   ## Generates new random private key
   ##
@@ -88,7 +85,7 @@ func toPublicKey*(key: SecretKey): PublicKey =
   assert ret == 1, "valid private keys should always have a corresponding pub"
 
   ret = secp256k1_xonly_pubkey_from_pubkey(secp256k1_context_no_precomp, cast[ptr secp256k1_xonly_pubkey](addr result), nil, addr pubkey)
-  assert ret == 1, "valid pubkeys should always be convertable to xonly"
+  assert ret == 1, "valid pubkeys should always be convertable to x-only"
 
   populateHex(result)
 

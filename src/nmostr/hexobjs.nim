@@ -183,11 +183,11 @@ when isMainModule:
   {.hint[DuplicateModuleImport]: off.}
   import pkg/jsony
   {.hint[DuplicateModuleImport]: on.}
-  var a = stackStringOfCap(32)
-  a.add "Hello, world!"
-  doAssert a.toJson == "\"Hello, world!\""
-  dump a.toJson
-  dump fromJson(a.toJson, StackString[32])
+  var hello = stackStringOfCap(32)
+  hello.add "Hello, world!"
+  doAssert hello.toJson == "\"Hello, world!\""
+  dump hello.toJson
+  dump fromJson(hello.toJson, StackString[32])
 
 
 ### § Objects
@@ -232,32 +232,30 @@ func toString*(v: PublicKey | EventID | SchnorrSig): string =
 
 
 # For populating fields of objects created without either raw data or hex:
-func hexToBytes*(v: PublicKey | EventID | SchnorrSig): auto {.raises: [ValueError].} =
+func hexToRaw*(v: EventID | SchnorrSig): auto {.raises: [ValueError].} =
   ## Parse raw data from hex
-  fromHex(typeof(v.raw), v.hex)
+  typeof(v.raw).fromHex(v.hex)
 
-func bytesToHex*(v: PublicKey | EventID | SchnorrSig): auto =
-  ## Parse hex from raw data
-  toHex(v.toBytes)
+func hexToRaw*(v: PublicKey): array[64, byte] {.raises: [ValueError].}
 
-func populateRaw*(v: var (PublicKey | EventID | SchnorrSig)) =
+func populateRaw*(v: var (PublicKey | EventID | SchnorrSig)) {.raises: [ValueError].} =
   ## Update the raw data based on the hex
-  v.raw = v.hexToBytes
+  v.raw = v.hexToRaw
 
 func populateHex*(v: var (PublicKey | EventID | SchnorrSig)) =
   ## Update the hex based on the raw data
-  v.hex = v.bytesToHex
+  v.hex = v.toBytes.toHex
 
-func populate*(v: var (PublicKey | EventID | SchnorrSig)) =
+func populate*(v: var (PublicKey | EventID | SchnorrSig)) {.raises: [ValueError].} =
   ## Makes sure both the hex and raw fields are populated
   let needsRaw = unlikely v.raw == default(typeof v.raw)
-  let needsHex = unlikely v.hex.len != typeof(v).hex.data.len
+  let needsHex = unlikely v.hex.len != typeof(v).hex.Size
   if needsRaw and needsHex:
     raise newException(ValueError, "object has no raw data nor hex data")
   elif needsRaw:
-    populateRaw()
+    populateRaw(v)
   elif needsHex:
-    populateHex()
+    populateHex(v)
 
 
 func toArray*[T](N: static int, data: openArray[T]): array[N, T] =
@@ -276,6 +274,10 @@ func fromRawOnly(T: typedesc[PublicKey], data: openArray[byte]): T {.raises: [Va
   if unlikely ret != 1:
     raise newException(ValueError, "could not parse x-only public key")
 
+func hexToRaw*(v: PublicKey): array[64, byte] {.raises: [ValueError].} =
+  ## Parse raw data from hex
+  PublicKey.fromRawOnly(array[32, byte].fromHex(v.hex)).raw
+
 func fromRawOnly(T: typedesc[EventID], data: openArray[byte]): EventID =
   EventID(raw: toArray(32, data))
 
@@ -291,7 +293,7 @@ func fromRawOnly(T: typedesc[SchnorrSig], data: array[64, byte]): T =
 {.pop.}
 func fromRaw*(T: typedesc[PublicKey | EventID | SchnorrSig], data: openArray[byte]): T {.inline.} =
   result = T.fromRawOnly(data)
-  result.hex = result.bytesToHex
+  result.hex = result.toBytes.toHex
 {.push inline, raises: [].}
 
 func fromHex*(T: typedesc[PublicKey | EventID | SchnorrSig], hex: auto): T {.raises: [ValueError].} =
