@@ -56,7 +56,7 @@ func fromRaw*(T: typedesc[SecretKey], data: openArray[byte]): SecretKey {.raises
 func fromRaw*(T: typedesc[SecretKey], data: array[32, byte]): SecretKey =
   SecretKey(raw: data)
 
-func fromHex*(T: typedesc[SecretKey], hex: openArray[char]): SecretKey {.raises: [ValueError].} =
+func fromHex*(T: typedesc[SecretKey], hex: auto): SecretKey {.raises: [ValueError].} =
   SecretKey(raw: array[32, byte].fromHex(hex))
 
 {.pop inline.}
@@ -97,7 +97,7 @@ func toPublicKey*(key: SecretKey): PublicKey =
 when isMainModule:
   from std/sugar import dump
   let privateKey = SecretKey.random()
-  let reflection = SecretKey.fromHex(privateKey.toHex.toOpenArray)
+  let reflection = SecretKey.fromHex(privateKey.toHex)
   doAssert reflection == SecretKey.fromRaw(privateKey.toBytes)
   dump privateKey
 

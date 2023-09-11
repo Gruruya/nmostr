@@ -6,6 +6,10 @@ import pkg/balls
 import ../src/[nmostr, nmostr/pow]
 
 suite "events":
+  block hex:
+    check SecretKey.fromHex("67dea2ed018072d675f5415ecfaed7d2597555e202d85b3d65ea4e58d2d92ffa") == SecretKey.fromHex(ss"67dea2ed018072d675f5415ecfaed7d2597555e202d85b3d65ea4e58d2d92ffa")
+    check SecretKey.fromHex(@"67dea2ed018072d675f5415ecfaed7d2597555e202d85b3d65ea4e58d2d92ffa") == SecretKey.fromHex(['6', '7', 'd', 'e', 'a', '2', 'e', 'd', '0', '1', '8', '0', '7', '2', 'd', '6', '7', '5', 'f', '5', '4', '1', '5', 'e', 'c', 'f', 'a', 'e', 'd', '7', 'd', '2', '5', '9', '7', '5', '5', '5', 'e', '2', '0', '2', 'd', '8', '5', 'b', '3', 'd', '6', '5', 'e', 'a', '4', 'e', '5', '8', 'd', '2', 'd', '9', '2', 'f', 'f', 'a'])
+
   block filters:
     check Filter().toJson == "{}"
     let a = Filter(since: fromUnix(high(int64)), until: low(Time), kinds: @[0], ids: @[ss"661f805750735b1273df0f459bcf00fd3042c9f7e672cebe42ef60d1843cb05e"], authors: @[ss"ebec2d97d5928f535edf8ebb7cc1c5566ceb657b5a7c74e6e9e5c977c488eafc"], tags: @[@["#e", "48aa67648cad668033516cade8171c779b1b4649d842a5d4062ff769fcd925fa", "bad2aa2974281303e4632e3aeedee7fd6c829e2f63d343caa8fead8f9af95599"], @["#p", "79be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798"]])

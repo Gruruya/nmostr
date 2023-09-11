@@ -7,7 +7,7 @@ import ./[hexobjs, keys],
        std/[times, strutils, options, macros]
 import pkg/crunchy except toHex
 
-export times, keys, jsony, hexobjs
+export times, keys, jsony, hexobjs, options
 {.push inline.}
 
 

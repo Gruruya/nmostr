@@ -50,24 +50,40 @@ func readHexChar*(c: char): byte {.raises: [ValueError].} =
   of 'A'..'F': byte(ord(c) - ord('A') + 10)
   else: raise newException(ValueError, $c & " is not a hexadecimal character")
 
-template skip0xPrefix(hexStr: openArray[char]): range[0..2] =
+template skip0xPrefix(hexStr: typed): range[0..2] =
   ## Returns the index of the first meaningful char in `hexStr` by skipping "0x" prefix
   if hexStr.len > 1 and hexStr[0] == '0' and hexStr[1] in {'x', 'X'}: 2
   else: 0
 
-template fromHexImpl(bytes: var openArray[byte]; hex: openArray[char]; start, last: Natural) =
-  var sIdx = skip0xPrefix(hex).uint32
+template fromHexImpl(bytes: var openArray[byte]; start, last: Natural) =
+  var sIdx = skip0xPrefix(hex).Natural
   sIdx += start * 2
   for bIdx in start..last:
     bytes[bIdx] = readHexChar(hex[sIdx]) shl 4 or readHexChar(hex[sIdx + 1])
     inc(sIdx, 2)
 
-func fromHex*[N](T: typedesc[array[N, byte]]; hex: openArray[char]): T {.raises: [ValueError].} =
-  if unlikely hex.len < (1 + N.high - N.low): raise newException(ValueError, "hex was shorter than " & $N & " characters")
-  fromHexImpl(result, hex, N.low, N.high)
+func fromHex*(T: typedesc[seq[byte]]; hex: auto): T =
+  fromHexImpl(result, N.low, N.high)
 
-func fromHex*(T: typedesc[seq[byte]]; hex: openArray[char]): T =
-  fromHexImpl(result, hex, N.low, N.high)
+func fromHex*[N](T: typedesc[array[N, byte]]; hex: openArray[char]): T {.raises: [ValueError].} =
+  const validLen = 2*(1 + N.high - N.low)
+  if unlikely hex.len < validLen:
+    raise newException(ValueError, "hex is too short, it should be " & $validLen & " chars")
+  fromHexImpl(result, N.low, N.high)
+
+func fromHex*[N,N2](T: typedesc[array[N, byte]]; hex: array[N2, char]): T {.raises: [ValueError].} =
+  const validLen = 2*(1 + N.high - N.low)
+  const actualCap = hex.len
+  when actualCap < validLen: {.error: "hex is too short, (" & $actualCap & " chars) it should be " & $validLen & " chars".}
+  fromHexImpl(result, N.low, N.high)
+
+func fromHex*[N](T: typedesc[array[N, byte]]; hex: StackString): T {.raises: [ValueError].} =
+  const validLen = 2*(1 + N.high - N.low)
+  const actualCap = hex.Size
+  when actualCap < validLen: {.error: "hex is too short, (" & $actualCap & " chars) it should be " & $validLen & " chars".}
+  if unlikely hex.len < validLen:
+    raise newException(ValueError, "hex is too short, it should be " & $validLen & " chars")
+  fromHexImpl(result, N.low, N.high)
 
 
 proc dumpStrSlow(s: var string, v: StackString) =
@@ -219,7 +235,7 @@ func toString*(v: PublicKey | EventID | SchnorrSig): string =
 # For populating fields of objects created without either raw data or hex:
 func hexToBytes*(v: PublicKey | EventID | SchnorrSig): auto {.raises: [ValueError].} =
   ## Parse raw data from hex
-  fromHex(typeof(v.raw), v.hex.toOpenArray)
+  fromHex(typeof(v.raw), v.hex)
 
 func bytesToHex*(v: PublicKey | EventID | SchnorrSig): auto =
   ## Parse hex from raw data
@@ -288,10 +304,17 @@ func fromRaw*(T: typedesc[PublicKey | EventID | SchnorrSig], data: openArray[byt
   result = T.fromRawOnly(data)
   result.hex = result.bytesToHex
 
-func fromHex*(T: typedesc[PublicKey | EventID | SchnorrSig], hex: openArray[char]): T {.raises: [ValueError].} =
-  const N: Natural = T.bytesLen
-  result = T.fromRawOnly(array[N, byte].fromHex(hex))
-  result.hex.unsafeAdd(hex.toOpenArray(0, N*2 - 1))
+func fromHex*(T: typedesc[PublicKey | EventID | SchnorrSig], hex: auto): T {.raises: [ValueError].} =
+  const fromLen = T.bytesLen
+  const toLen = fromLen*2
+  result = T.fromRawOnly(array[fromLen, byte].fromHex(hex))
+  when hex is StackString:
+    when hex.Size == toLen:
+      result.hex = hex
+    else:
+      result.hex.unsafeAdd(hex.data.toOpenArray(0, toLen - 1))
+  else:
+    result.hex.unsafeAdd(hex.toOpenArray(0, toLen - 1))
 
 
 func parseHook*(s: string, i: var int, v: var (PublicKey | EventID | SchnorrSig)) {.raises: [ValueError].} =
@@ -303,6 +326,7 @@ func parseHook*(s: string, i: var int, v: var (PublicKey | EventID | SchnorrSig)
 func dumpHook*(s: var string, v: PublicKey | EventID | SchnorrSig) =
   ## Serialize id, pubkey, and sig into hexadecimal.
   dumpHook(s, v.toHex)
+
 
 when isMainModule:
   dump PublicKey.fromHex("7e7e9c42a91bfef19fa929e5fda1b72e0ebc1a4c1141673e2794234d86addf4e").toJson
