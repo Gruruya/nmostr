@@ -192,7 +192,7 @@ when isMainModule:
 
 ### § Objects
 ## The objects themselves, access the raw data and hex using obj.toHex and obj.toBytes.
-## Use Object.fromHex or Object.fromRaw for initialization.
+## Use Object.fromHex or Object.fromBytes for initialization.
 
 type
   PublicKey* = object
@@ -201,23 +201,23 @@ type
     hex*: StackString[32 * 2]
 
   EventID* = object
-    raw*: array[32, byte]
+    bytes*: array[32, byte]
     hex*: StackString[32 * 2]
 
   SchnorrSig* = object
-    raw*: array[64, byte]
+    bytes*: array[64, byte]
     hex*: StackString[64 * 2]
 
-template bytesLen*(T: typedesc[EventID | SchnorrSig]): Positive = T.raw.len
-template bytesLen*(T: typedesc[PublicKey]): Positive = 32
-
 template toBytes*(v: EventID | SchnorrSig): auto =
-  v.raw
+  v.bytes
 
 func toBytes*(v: PublicKey): array[32, byte] =
   ## Returns the first 32 bytes in reverse
   for i in 0..31:
     result[i] = v.raw[31 - i]
+
+template bytesLen*(T: typedesc[PublicKey]): Positive = 32
+template bytesLen*(T: typedesc[EventID | SchnorrSig]): Positive = T.bytes.len
 
 template toHex*(v: PublicKey | EventID | SchnorrSig): auto =
   v.hex
@@ -232,15 +232,15 @@ func toString*(v: PublicKey | EventID | SchnorrSig): string =
 
 
 # For populating fields of objects created without either raw data or hex:
-func hexToRaw*(v: EventID | SchnorrSig): auto {.raises: [ValueError].} =
+func hexToBytes*(v: EventID | SchnorrSig): auto {.raises: [ValueError].} =
   ## Parse raw data from hex
-  typeof(v.raw).fromHex(v.hex)
+  typeof(v.bytes).fromHex(v.hex)
 
-func hexToRaw*(v: PublicKey): array[64, byte] {.raises: [ValueError].}
+func hexToBytes*(v: PublicKey): array[64, byte] {.raises: [ValueError].}
 
-func populateRaw*(v: var (PublicKey | EventID | SchnorrSig)) {.raises: [ValueError].} =
+func populateBytes*(v: var (PublicKey | EventID | SchnorrSig)) {.raises: [ValueError].} =
   ## Update the raw data based on the hex
-  v.raw = v.hexToRaw
+  v.bytes = v.hexToBytes
 
 func populateHex*(v: var (PublicKey | EventID | SchnorrSig)) =
   ## Update the hex based on the raw data
@@ -248,12 +248,12 @@ func populateHex*(v: var (PublicKey | EventID | SchnorrSig)) =
 
 func populate*(v: var (PublicKey | EventID | SchnorrSig)) {.raises: [ValueError].} =
   ## Makes sure both the hex and raw fields are populated
-  let needsRaw = unlikely v.raw == default(typeof v.raw)
+  let needsBytes = unlikely v.bytes == default(typeof v.bytes)
   let needsHex = unlikely v.hex.len != typeof(v).hex.Size
-  if needsRaw and needsHex:
+  if needsBytes and needsHex:
     raise newException(ValueError, "object has no raw data nor hex data")
-  elif needsRaw:
-    populateRaw(v)
+  elif needsBytes:
+    populateBytes(v)
   elif needsHex:
     populateHex(v)
 
@@ -267,39 +267,39 @@ func toStackString*(N: static int, data: openArray[char]): StackString[N] =
   copyMem(addr result.data[0], addr data[0], N)
   result.unsafeSetLen(N)
 
-func fromRawOnly(T: typedesc[PublicKey], data: openArray[byte]): T {.raises: [ValueError].} =
+func fromBytesOnly(T: typedesc[PublicKey], data: openArray[byte]): T {.raises: [ValueError].} =
   rangeCheck data.len >= 32
   let ret =
     secp256k1_xonly_pubkey_parse(secp256k1_context_no_precomp, cast[ptr secp256k1_xonly_pubkey](addr result), addr data[0])
   if unlikely ret != 1:
     raise newException(ValueError, "could not parse x-only public key")
 
-func hexToRaw*(v: PublicKey): array[64, byte] {.raises: [ValueError].} =
+func hexToBytes*(v: PublicKey): array[64, byte] {.raises: [ValueError].} =
   ## Parse raw data from hex
-  PublicKey.fromRawOnly(array[32, byte].fromHex(v.hex)).raw
+  PublicKey.fromBytesOnly(array[32, byte].fromHex(v.hex)).raw
 
-func fromRawOnly(T: typedesc[EventID], data: openArray[byte]): EventID =
-  EventID(raw: toArray(32, data))
+func fromBytesOnly(T: typedesc[EventID], data: openArray[byte]): EventID =
+  EventID(bytes: toArray(32, data))
 
-func fromRawOnly(T: typedesc[EventID], data: array[32, byte]): EventID =
-  EventID(raw: data)
+func fromBytesOnly(T: typedesc[EventID], data: array[32, byte]): EventID =
+  EventID(bytes: data)
 
-func fromRawOnly(T: typedesc[SchnorrSig], data: openArray[byte]): T =
-  SchnorrSig(raw: toArray(64, data))
+func fromBytesOnly(T: typedesc[SchnorrSig], data: openArray[byte]): T =
+  SchnorrSig(bytes: toArray(64, data))
 
-func fromRawOnly(T: typedesc[SchnorrSig], data: array[64, byte]): T =
-  SchnorrSig(raw: data)
+func fromBytesOnly(T: typedesc[SchnorrSig], data: array[64, byte]): T =
+  SchnorrSig(bytes: data)
 
 {.pop.}
-func fromRaw*(T: typedesc[PublicKey | EventID | SchnorrSig], data: openArray[byte]): T {.inline.} =
-  result = T.fromRawOnly(data)
+func fromBytes*(T: typedesc[PublicKey | EventID | SchnorrSig], data: openArray[byte]): T {.inline.} =
+  result = T.fromBytesOnly(data)
   result.hex = result.toBytes.toHex
 {.push inline, raises: [].}
 
 func fromHex*(T: typedesc[PublicKey | EventID | SchnorrSig], hex: auto): T {.raises: [ValueError].} =
   const fromLen = T.bytesLen
   const toLen = fromLen*2
-  result = T.fromRawOnly(array[fromLen, byte].fromHex(hex))
+  result = T.fromBytesOnly(array[fromLen, byte].fromHex(hex))
   when hex is StackString:
     when hex.Size == toLen:
       result.hex = hex
@@ -323,4 +323,5 @@ func dumpHook*(s: var string, v: PublicKey | EventID | SchnorrSig) =
 when isMainModule:
   dump PublicKey.fromHex("7e7e9c42a91bfef19fa929e5fda1b72e0ebc1a4c1141673e2794234d86addf4e").toJson
   dump EventID.fromHex("4cd665db042864ee600ee976d6cfcc7c5ce743859462f94a347cd970d88a5f3b").toJson
+  dump EventID.fromBytes(EventID.fromHex("4cd665db042864ee600ee976d6cfcc7c5ce743859462f94a347cd970d88a5f3b").toBytes)
   dump SchnorrSig.fromHex("f771ac928eb78037c0f4ddacd483471f3d71797e7ae524f328613338affd31d7ffcc346d88d0cba8f9278778c013c3591c81df3b06556024c80549b9a3962db5").toJson

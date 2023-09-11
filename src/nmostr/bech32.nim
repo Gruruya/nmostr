@@ -170,38 +170,38 @@ template parseData(address: openArray[byte], i: var uint32): tuple[kind: uint8, 
   i += length
   (kind, data)
 
-func fromRaw*(T: type NProfile, address: openArray[byte]): T {.raises: [ValueError].} =
+func fromBytes*(T: type NProfile, address: openArray[byte]): T {.raises: [ValueError].} =
   var i = 0'u32
   while true:
     let (kind, data) = parseData(address, i)
     case kind
     of 0:
-      result.pubkey = PublicKey.fromRaw(data)
+      result.pubkey = PublicKey.fromBytes(data)
     of 1:
       result.relays.add string.fromBytes(data)
     else:
       discard
 
-func fromRaw*(T: type NEvent, address: openArray[byte]): T {.raises: [ValueError].} =
+func fromBytes*(T: type NEvent, address: openArray[byte]): T {.raises: [ValueError].} =
   var i = 0'u32
   while true:
     let (kind, data) = parseData(address, i)
     case kind
     of 0:
       if likely data.len == 32:
-        result.id = EventID.fromRaw(data)
+        result.id = EventID.fromBytes(data)
       else: raise newException(ValueError, "Invalid event id in nevent bech32 address")
     of 1:
       result.relays.add string.fromBytes(data)
     of 2:
-      result.author = PublicKey.fromRaw(data)
+      result.author = PublicKey.fromBytes(data)
     of 3:
       if likely data.len == 4:
         result.kind = toUInt32(data)
     else:
       discard
 
-func fromRaw*(T: type NAddr, address: openArray[byte]): T {.raises: [ValueError].} =
+func fromBytes*(T: type NAddr, address: openArray[byte]): T {.raises: [ValueError].} =
   var i = 0'u32
   while true:
     let (kind, data) = parseData(address, i)
@@ -211,64 +211,64 @@ func fromRaw*(T: type NAddr, address: openArray[byte]): T {.raises: [ValueError]
     of 1:
       result.relays.add string.fromBytes(data)
     of 2:
-      result.author = PublicKey.fromRaw(data)
+      result.author = PublicKey.fromBytes(data)
     of 3:
       if likely data.len == 4:
         result.kind = toUInt32(data)
     else:
       discard
 
-func fromRaw*(T: type NRelay, address: openArray[byte]): T {.raises: [ValueError].} =
+func fromBytes*(T: type NRelay, address: openArray[byte]): T {.raises: [ValueError].} =
   var i = 0'u32
   while true:
     let (kind, data) = parseData(address, i)
     if likely kind == 0:
       return NRelay(url: string.fromBytes(data))
 
-func fromRaw*(T: type NNote, address: seq[byte]): T =
+func fromBytes*(T: type NNote, address: seq[byte]): T =
   rangeCheck address.len >= 32
-  NNote(id: EventID.fromRaw(address))
+  NNote(id: EventID.fromBytes(address))
 
 func fromNostrBech32*(address: string): union(NostrTLV) {.raises: [ValueError].} =
   let decoded = decode(address)
   case decoded.hrp
   of "npub":
-    PublicKey.fromRaw(decoded.data) as union(NostrTLV)
+    PublicKey.fromBytes(decoded.data) as union(NostrTLV)
   of "nsec":
-    SecretKey.fromRaw(decoded.data) as union(NostrTLV)
+    SecretKey.fromBytes(decoded.data) as union(NostrTLV)
   of "note":
-    NNote.fromRaw(decoded.data) as union(NostrTLV)
+    NNote.fromBytes(decoded.data) as union(NostrTLV)
   of "nprofile":
-    NProfile.fromRaw(decoded.data) as union(NostrTLV)
+    NProfile.fromBytes(decoded.data) as union(NostrTLV)
   of "nevent":
-    NEvent.fromRaw(decoded.data) as union(NostrTLV)
+    NEvent.fromBytes(decoded.data) as union(NostrTLV)
   of "naddr":
-    NAddr.fromRaw(decoded.data) as union(NostrTLV)
+    NAddr.fromBytes(decoded.data) as union(NostrTLV)
   of "nrelay":
-    NRelay.fromRaw(decoded.data) as union(NostrTLV)
+    NRelay.fromBytes(decoded.data) as union(NostrTLV)
   else:
     raise newException(ValueError, "Unknown TLV starting with " & decoded.hrp)
 
 func fromBech32*(T: type SecretKey, address: string): T {.raises: [ValueError].} =
-  SecretKey.fromRaw(decode("nsec", address))
+  SecretKey.fromBytes(decode("nsec", address))
 
 func fromBech32*(T: type PublicKey, address: string): T {.raises: [ValueError].} =
-  PublicKey.fromRaw(decode("npub", address))
+  PublicKey.fromBytes(decode("npub", address))
 
 func fromBech32*(T: type NNote, address: string): T {.inline, raises: [ValueError].} =
-  NNote.fromRaw(decode("note", address))
+  NNote.fromBytes(decode("note", address))
 
 func fromBech32*(T: type NProfile, address: string): T {.inline, raises: [ValueError].} =
-  NProfile.fromRaw(decode("nprofile", address))
+  NProfile.fromBytes(decode("nprofile", address))
 
 func fromBech32*(T: type NEvent, address: string): T {.inline, raises: [ValueError].} =
-  NEvent.fromRaw(decode("nevent", address))
+  NEvent.fromBytes(decode("nevent", address))
 
 func fromBech32*(T: type NAddr, address: string): T {.inline, raises: [ValueError].} =
-  NAddr.fromRaw(decode("naddr", address))
+  NAddr.fromBytes(decode("naddr", address))
 
 func fromBech32*(T: type NRelay, address: string): T {.inline, raises: [ValueError].} =
-  NRelay.fromRaw(decode("nrelay", address))
+  NRelay.fromBytes(decode("nrelay", address))
 
 # Encoding
 func toBech32*(pubkey: PublicKey): string {.inline.} =

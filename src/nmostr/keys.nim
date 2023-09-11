@@ -28,16 +28,16 @@ export Rng, hexobjs
 
 type
   SecretKey* = object
-    raw*: array[32, byte]
+    bytes*: array[32, byte]
 
 template bytesLen*(T: typedesc[SecretKey]): Positive =
-  T.raw.len
+  T.bytes.len
 
 template toBytes*(v: SecretKey): array[32, byte] =
-  v.raw
+  v.bytes
 
 func toHex*(v: SecretKey): StackString[64] =
-  toHex(v.raw)
+  toHex(v.bytes)
 
 func `$`*(v: SecretKey): string =
   $toHex(v)
@@ -45,14 +45,14 @@ func `$`*(v: SecretKey): string =
 func toString*(v: SecretKey): string =
   toString(toHex(v))
 
-func fromRaw*(T: typedesc[SecretKey], data: openArray[byte]): SecretKey =
-  SecretKey(raw: toArray(32, data))
+func fromBytes*(T: typedesc[SecretKey], data: openArray[byte]): SecretKey =
+  SecretKey(bytes: toArray(32, data))
 
-func fromRaw*(T: typedesc[SecretKey], data: array[32, byte]): SecretKey =
-  SecretKey(raw: data)
+func fromBytes*(T: typedesc[SecretKey], data: array[32, byte]): SecretKey =
+  SecretKey(bytes: data)
 
 func fromHex*(T: typedesc[SecretKey], hex: auto): SecretKey =
-  SecretKey(raw: array[32, byte].fromHex(hex))
+  SecretKey(bytes: array[32, byte].fromHex(hex))
 
 {.pop inline.}
 proc sysRng*(data: var openArray[byte]): bool =
@@ -73,27 +73,28 @@ proc random*(T: type SecretKey, rng: Rng = sysRng): T =
 
   while rng(data):
     if secp256k1_ec_seckey_verify(secp256k1_context_no_precomp, addr data[0]) == 1:
-      return T.fromRaw(data)
+      return T.fromBytes(data)
 
   raise newException(OSError, "cannot get random bytes for key")
 
 func toPublicKey*(key: SecretKey): PublicKey =
   ## Calculate and return Secp256k1 public key from private key ``key``.
   var pubkey {.noinit.}: secp256k1_pubkey
-
-  var ret = secp256k1_ec_pubkey_create(getContext(), addr pubkey, addr key.raw[0])
+  var ret =
+    secp256k1_ec_pubkey_create(getContext(), addr pubkey, addr key.bytes[0])
   assert ret == 1, "valid private keys should always have a corresponding pub"
-
-  ret = secp256k1_xonly_pubkey_from_pubkey(secp256k1_context_no_precomp, cast[ptr secp256k1_xonly_pubkey](addr result), nil, addr pubkey)
+  ret =
+    secp256k1_xonly_pubkey_from_pubkey(secp256k1_context_no_precomp, cast[ptr secp256k1_xonly_pubkey](addr result), nil, addr pubkey)
   assert ret == 1, "valid pubkeys should always be convertable to x-only"
-
   populateHex(result)
 
 when isMainModule:
   from std/sugar import dump
   let privateKey = SecretKey.random()
-  let reflection = SecretKey.fromHex(privateKey.toHex)
-  doAssert reflection == SecretKey.fromRaw(privateKey.toBytes)
+  let bytReflected = SecretKey.fromBytes(privateKey.toBytes)
+  let hexReflected = SecretKey.fromHex(privateKey.toHex)
+  doAssert bytReflected == SecretKey.fromBytes(privateKey.toBytes)
+  doAssert hexReflected == bytReflected
   dump privateKey
 
 
@@ -108,13 +109,13 @@ func signSchnorr*(key: SecretKey, msg: openArray[byte], randbytes: Option[array[
   let extraparams = secp256k1_schnorrsig_extraparams(magic: SECP256K1_SCHNORRSIG_EXTRAPARAMS_MAGIC, noncefp: nil, ndata: aux_rand32)
   var kp {.noinit.}: secp256k1_keypair
   let res = secp256k1_keypair_create(
-    getContext(), addr kp, addr key.raw[0])
+    getContext(), addr kp, addr key.bytes[0])
   assert res == 1, "cannot create keypair, key invalid?"
 
   var data {.noinit.}: array[64, byte]
   let res2 = secp256k1_schnorrsig_sign_custom(getContext(), addr data[0], addr msg[0], csize_t msg.len, addr kp, unsafeAddr extraparams)
   assert res2 == 1, "cannot create signature, key invalid?"
-  SchnorrSig.fromRaw(data)
+  SchnorrSig.fromBytes(data)
 
 proc signSchnorr*(key: SecretKey, msg: openArray[byte], rng: Rng = sysRng): SchnorrSig =
   ## Sign message `msg` using private key `key` with the Schnorr signature algorithm and return signature object.
@@ -127,7 +128,7 @@ proc signSchnorr*(key: SecretKey, msg: openArray[byte], rng: Rng = sysRng): Schn
 
 func verify*(sig: SchnorrSig, msg: openArray[byte], pubkey: PublicKey): bool =
   secp256k1_schnorrsig_verify(
-    getContext(), addr sig.raw[0], addr msg[0], csize_t msg.len, cast[ptr secp256k1_xonly_pubkey](addr pubkey)) == 1
+    getContext(), addr sig.bytes[0], addr msg[0], csize_t msg.len, cast[ptr secp256k1_xonly_pubkey](addr pubkey)) == 1
 
 type
   Keypair* = object

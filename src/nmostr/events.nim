@@ -47,7 +47,7 @@ func serialize*(e: Event): string =
   "[0," & e.pubkey.toJson & ',' & e.created_at.toJson & ',' & e.kind.toJson & ',' & e.tags.toJson & ',' & e.content.toJson & ']'
 
 proc updateID*(event: var Event) =
-  event.id = EventID.fromRaw(sha256(serialize event))
+  event.id = EventID.fromBytes(sha256(serialize event))
 
 proc sign*(event: var Event, key: SecretKey, rng: Rng = sysRng) =
   event.sig = signSchnorr(key, sha256(serialize event), rng)
