@@ -48,15 +48,13 @@ func `$`*(v: SecretKey): string =
 func toString*(v: SecretKey): string =
   toString(toHex(v))
 
-func fromRaw*(T: typedesc[SecretKey], data: openArray[byte]): SecretKey {.raises: [ValueError].} =
-  if unlikely data.len < 32:
-    raise newException(ValueError, "raw private key must be 32 bytes")
+func fromRaw*(T: typedesc[SecretKey], data: openArray[byte]): SecretKey =
   SecretKey(raw: toArray(32, data))
 
 func fromRaw*(T: typedesc[SecretKey], data: array[32, byte]): SecretKey =
   SecretKey(raw: data)
 
-func fromHex*(T: typedesc[SecretKey], hex: auto): SecretKey {.raises: [ValueError].} =
+func fromHex*(T: typedesc[SecretKey], hex: auto): SecretKey =
   SecretKey(raw: array[32, byte].fromHex(hex))
 
 {.pop inline.}

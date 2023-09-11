@@ -45,7 +45,7 @@ template hasValidNonce(hash: array[32, uint8]): bool =
   valid
 
 
-proc powSequential*(event: var Event, difficulty: range[0..256]) {.raises: [ValueError].} =
+proc powSequential*(event: var Event, difficulty: range[0..256]) =
   ## Increment the second feild of a nonce tag in the event until the event ID has `difficulty` leading 0 bits (NIP-13 POW), single threaded
   powImpl:
     while true:

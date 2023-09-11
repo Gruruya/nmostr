@@ -66,9 +66,7 @@ func fromHex*(T: typedesc[seq[byte]]; hex: auto): T =
   fromHexImpl(result, N.low, N.high)
 
 func fromHex*[N](T: typedesc[array[N, byte]]; hex: openArray[char]): T {.raises: [ValueError].} =
-  const validLen = 2*(1 + N.high - N.low)
-  if unlikely hex.len < validLen:
-    raise newException(ValueError, "hex is too short, it should be " & $validLen & " chars")
+  rangeCheck hex.len >= 2*(1 + N.high - N.low)
   fromHexImpl(result, N.low, N.high)
 
 func fromHex*[N,N2](T: typedesc[array[N, byte]]; hex: array[N2, char]): T {.raises: [ValueError].} =
@@ -81,8 +79,7 @@ func fromHex*[N](T: typedesc[array[N, byte]]; hex: StackString): T {.raises: [Va
   const validLen = 2*(1 + N.high - N.low)
   const actualCap = hex.Size
   when actualCap < validLen: {.error: "hex is too short, (" & $actualCap & " chars) it should be " & $validLen & " chars".}
-  if unlikely hex.len < validLen:
-    raise newException(ValueError, "hex is too short, it should be " & $validLen & " chars")
+  rangeCheck hex.len >= validLen
   fromHexImpl(result, N.low, N.high)
 
 
@@ -183,7 +180,9 @@ func parseHook*(s: string, i: var int, v: var StackString) {.raises: [ValueError
 
 when isMainModule:
   from std/sugar import dump
+  {.hint[DuplicateModuleImport]: off.}
   import pkg/jsony
+  {.hint[DuplicateModuleImport]: on.}
   var a = stackStringOfCap(32)
   a.add "Hello, world!"
   doAssert a.toJson == "\"Hello, world!\""
@@ -270,39 +269,30 @@ func toStackString*(N: static int, data: openArray[char]): StackString[N] =
   copyMem(addr result.data[0], addr data[0], N)
   result.unsafeSetLen(N)
 
-template pubkeyFromRawImpl =
+func fromRawOnly(T: typedesc[PublicKey], data: openArray[byte]): T {.raises: [ValueError].} =
+  rangeCheck data.len >= 32
   let ret =
     secp256k1_xonly_pubkey_parse(secp256k1_context_no_precomp, cast[ptr secp256k1_xonly_pubkey](addr result), addr data[0])
   if unlikely ret != 1:
     raise newException(ValueError, "could not parse x-only public key")
 
-func fromRawOnly(T: typedesc[PublicKey], data: openArray[byte]): T {.raises: [ValueError].} =
-  if unlikely data.len < 32:
-    raise newException(ValueError, "x-only public key must be 32 bytes")
-  pubkeyFromRawImpl()
-
-func fromRawOnly(T: typedesc[PublicKey], data: array[32, byte]): T {.raises: [ValueError].} =
-  pubkeyFromRawImpl()
-
-func fromRawOnly(T: typedesc[EventID], data: openArray[byte]): EventID {.raises: [ValueError].} =
-  if unlikely data.len < 32:
-    raise newException(ValueError, "raw private key must be 32 bytes")
+func fromRawOnly(T: typedesc[EventID], data: openArray[byte]): EventID =
   EventID(raw: toArray(32, data))
 
 func fromRawOnly(T: typedesc[EventID], data: array[32, byte]): EventID =
   EventID(raw: data)
 
-func fromRawOnly(T: typedesc[SchnorrSig], data: openArray[byte]): T {.raises: [ValueError].} =
-  if unlikely data.len < 64:
-    raise newException(ValueError, "raw private key must be 32 bytes")
+func fromRawOnly(T: typedesc[SchnorrSig], data: openArray[byte]): T =
   SchnorrSig(raw: toArray(64, data))
 
 func fromRawOnly(T: typedesc[SchnorrSig], data: array[64, byte]): T =
   SchnorrSig(raw: data)
 
-func fromRaw*(T: typedesc[PublicKey | EventID | SchnorrSig], data: openArray[byte]): T {.raises: [ValueError].} =
+{.pop.}
+func fromRaw*(T: typedesc[PublicKey | EventID | SchnorrSig], data: openArray[byte]): T {.inline.} =
   result = T.fromRawOnly(data)
   result.hex = result.bytesToHex
+{.push inline, raises: [].}
 
 func fromHex*(T: typedesc[PublicKey | EventID | SchnorrSig], hex: auto): T {.raises: [ValueError].} =
   const fromLen = T.bytesLen

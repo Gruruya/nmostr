@@ -137,10 +137,6 @@ suite "messages":
     expect jsony.JsonError:
       discard ("[\"EVENT\",L" & exEvent.toJson & "]").fromMessage
 
-  block invalid_key_error:
-    expect ValueError:
-      discard Event().toJson.fromJson(Event)
-
 suite "signatures":
   block signing_and_verifying:
     var e = note(Keypair.init(), "hello world")

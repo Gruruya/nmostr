@@ -225,11 +225,9 @@ func fromRaw*(T: type NRelay, address: openArray[byte]): T {.raises: [ValueError
     if likely kind == 0:
       return NRelay(url: string.fromBytes(data))
 
-func fromRaw*(T: type NNote, address: seq[byte]): T {.raises: [ValueError].} =
-  if likely address.len >= 32:
-    NNote(id: EventID.fromRaw(address))
-  else:
-    raise newException(ValueError, "Event ID in bech32 encoded note should be 32 bytes, but was " & $address.len & " bytes instead")
+func fromRaw*(T: type NNote, address: seq[byte]): T =
+  rangeCheck address.len >= 32
+  NNote(id: EventID.fromRaw(address))
 
 func fromNostrBech32*(address: string): union(NostrTLV) {.raises: [ValueError].} =
   let decoded = decode(address)
