@@ -71,7 +71,7 @@ func fromHex*(T: typedesc[seq[byte]]; hex: openArray[char]): T =
 
 
 proc dumpStrSlow(s: var string, v: StackString) =
-  # Taken from `jsony <https://github.com/treeform/jsony/blob/master/src/jsony.nim>`
+  # Taken from `jsony <https://github.com/treeform/jsony/blob/master/src/jsony.nim>`_
   s.add '"'
   for c in v:
     case c:
@@ -86,7 +86,7 @@ proc dumpStrSlow(s: var string, v: StackString) =
   s.add '"'
 
 proc dumpStrFast(s: var string, v: StackString) =
-  # Taken from `jsony <https://github.com/treeform/jsony/blob/master/src/jsony.nim>`
+  # Taken from `jsony <https://github.com/treeform/jsony/blob/master/src/jsony.nim>`_
   # Its faster to grow the string only once.
   # Then fill the string with pointers.
   # Then cap it off to right length.
@@ -119,7 +119,7 @@ proc dumpStrFast(s: var string, v: StackString) =
   s.setLen(at)
 
 proc dumpHook*(s: var string, v: StackString) =
-  # Taken from `jsony <https://github.com/treeform/jsony/blob/master/src/jsony.nim>`
+  # Taken from `jsony <https://github.com/treeform/jsony/blob/master/src/jsony.nim>`_
   when nimvm:
     s.dumpStrSlow(v)
   else:
@@ -129,7 +129,7 @@ proc dumpHook*(s: var string, v: StackString) =
       s.dumpStrFast(v)
 
 func parseHook*(s: string, i: var int, v: var StackString) {.raises: [ValueError].} =
-  # Taken from `jsony <https://github.com/treeform/jsony/blob/master/src/jsony.nim>`
+  # Taken from `jsony <https://github.com/treeform/jsony/blob/master/src/jsony.nim>`_
   eatSpace(s, i)
   if i + 3 < s.len and
       s[i+0] == 'n' and

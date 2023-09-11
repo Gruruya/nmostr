@@ -1,6 +1,10 @@
 ## Nostr filter handling - for nmostr.
 # Copyright © 2023 Gruruya <gruruya.chi4c@slmails.com>
 # SPDX-License-Identifier: AGPL-3.0-only
+#
+# This file incorporates work covered by the following copyright:
+#   Copyright © 2020-2023 Andre von Houck
+#   SPDX-License-Identifier: MIT
 
 import std/[times, strutils, sequtils, macros]
 import std/json except JsonError
@@ -53,7 +57,7 @@ func matches*(event: Event, filter: Filter): bool =
 # JSON interop
 proc parseHook*(s: string, i: var int, v: var Filter) =
   ## Parse filters exactly the same as a normal object, but add each field starting with # as an entry in `tags`.
-
+  # Taken from `jsony <https://github.com/treeform/jsony/blob/master/src/jsony.nim>`_
   eatSpace(s, i)
   if i + 3 < s.len and
       s[i+0] == 'n' and
@@ -104,8 +108,8 @@ proc parseHook*(s: string, i: var int, v: var Filter) =
 
 proc dumpHook*(s: var string, v: Filter) =
   ## Dump filters exactly the same as a normal object, but empty fields are left out and its `tags` are split into seperate fields.
+  # Taken from `jsony <https://github.com/treeform/jsony/blob/master/src/jsony.nim>`_
   template dumpKey(s: var string, v: string) =
-    ## Taken from `jsony.nim`
     const v2 = v.toJson() & ":"
     s.add v2
 

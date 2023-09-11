@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 
 ### Description
-## Referenced Pieter Wuille's reference Python implementation: https://github.com/sipa/bech32/blob/master/ref/python/segwit_addr.py
+## Used Pieter Wuille's `Python implementation <https://github.com/sipa/bech32/blob/master/ref/python/segwit_addr.py>`_ as a reference
 ## Nostr-style Bech32 addresses use no witness version or m-encoding.
 
 import pkg/[union, stew/byteutils]

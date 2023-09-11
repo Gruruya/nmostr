@@ -1,0 +1,15 @@
+## REUSE compliance linter, see https://reuse.software/faq/ - for nimtemplate.
+# Copyright © 2022 Free Software Foundation Europe e.V. <https://fsfe.org>
+# Copyright © 2023 Gruruya <gruruya.chi4c@slmails.com>
+# SPDX-License-Identifier: CC0-1.0
+
+name: linting reuse
+on: [push, pull_request]
+
+jobs:
+  REUSE-Compliance-Check:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - name: REUSE Compliance Check
+      uses: fsfe/reuse-action@v2
