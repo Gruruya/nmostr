@@ -249,6 +249,11 @@ func toArray*[T](N: static int, data: openArray[T]): array[N, T] =
   rangeCheck data.len >= N
   copyMem(addr result[0], addr data[0], N)
 
+func toStackString*(N: static int, data: openArray[char]): StackString[N] =
+  rangeCheck data.len >= N
+  copyMem(addr result.data[0], addr data[0], N)
+  result.unsafeSetLen(N)
+
 template pubkeyFromRawImpl =
   let ret =
     secp256k1_xonly_pubkey_parse(secp256k1_context_no_precomp, cast[ptr secp256k1_xonly_pubkey](addr result), addr data[0])

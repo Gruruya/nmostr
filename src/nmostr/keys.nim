@@ -19,7 +19,7 @@ from   pkg/secp256k1 {.all.} import getContext, Rng
 from   pkg/stew/arrayops import assign
 from   std/sysrand import urandom
 
-export Rng
+export Rng, hexobjs
 {.push inline.}
 
 
@@ -145,6 +145,9 @@ func init*(T: typedesc[Keypair]; seckey: SecretKey): Keypair =
 
 proc init*(T: typedesc[Keypair]; rng: Rng = sysRng): Keypair =
   Keypair.init(random(SecretKey, rng))
+
+template toKeypair*(seckey: SecretKey): Keypair =
+  init(Keypair, seckey)
 
 converter toSecretKey*(kp: Keypair): lent SecretKey =
   kp.seckey
