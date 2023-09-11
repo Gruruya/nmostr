@@ -10,15 +10,15 @@ skipDirs = @["tests"]
 requires "nim >= 2.0.0"
 requires "jsony >= 1.1 & < 2.0"
 requires "secp256k1 >= 0.6.0.3.1"
+requires "crunchy >= 0.1.8 & < 0.2.0"
+requires "stack_strings >= 1.1.0 & < 1.2.0"
 requires "stew"
-requires "crunchy >= 0.1.8"
-requires "weave >= 0.4.10"
-requires "https://github.com/alaviss/union >= 0.1.5"
+requires "https://github.com/alaviss/union >= 0.1.5 & < 0.2.0"
+requires "weave >= 0.4.10 & < 0.5.0"
 
-when declared(taskRequires):
-  when not defined(windows) and not defined(macosx):
-        taskRequires "test", "https://github.com/disruptek/balls >= 4.0.0"
-  else: taskRequires "test", "https://github.com/disruptek/balls >= 3.0.0 & < 4.0.0"
+when not defined(windows) and not defined(macosx):
+      taskRequires "test", "https://github.com/disruptek/balls >= 4.0.0"
+else: taskRequires "test", "https://github.com/disruptek/balls >= 3.0.0 & < 4.0.0"
 
 task test, "run tests":
   let balls =

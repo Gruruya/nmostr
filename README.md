@@ -18,7 +18,7 @@ Example uses [guzba's whisky](https://github.com/guzba/whisky) i.e. `nimble inst
 ```nim
 import pkg/[nmostr, whisky]
 
-let keypair = newKeypair()
+let keypair = Keypair.init()
 echo "New secret key: " & keypair.seckey.toBech32
 echo "The public key: " & keypair.pubkey.toBech32
 
@@ -33,8 +33,6 @@ unpack fromMessage(response), msg:
   when msg is SMOk:
     socket.send CMRequest(id: randomID(), filter: Filter(ids: @[msg.id])).toJson
     echo socket.receiveMessage().get.data
-
-socket.close()
 ```
 
 For more, see the reference client [niomo](https://github.com/Gruruya/niomo) and [tests/test.nim](tests/test.nim).

@@ -8,12 +8,11 @@ import pkg/jsony
 import ./events
 
 export events
-{.push raises: [].}
 
 
 type Filter* = object
-  ids*: seq[string]       ## List of event ids or prefixes.
-  authors*: seq[string]   ## List of pubkeys or prefixes, the pubkey of an event must be one of these.
+  ids*: seq[StackString[64]]     ## List of event ids or prefixes.
+  authors*: seq[StackString[64]] ## List of pubkeys or prefixes, the pubkey of an event must be one of these.
   kinds*: seq[int]        ## A list of event kinds.
   since*: Time            ## Events must be newer than this to pass.
   until*: Time = initTime(high(int64), 0)  ## Events must be older than this to pass.
@@ -46,13 +45,13 @@ func matches*(event: Event, filter: Filter): bool =
   filter.since <= event.created_at and
   filter.until >= event.created_at and
   (filter.kinds.len == 0 or anyIt(filter.kinds, event.kind == it)) and
-  (filter.ids.len == 0 or event.id.toHex in filter.ids) and
-  (filter.authors.len == 0 or event.pubkey.toHex in filter.authors) and
+  (filter.ids.len == 0 or contains(filter.ids, event.id.toHex)) and
+  (filter.authors.len == 0 or contains(filter.authors, event.pubkey.toHex)) and
   (filter.tags.len == 0 or tagsMatch(filter.tags, event.tags))
 
 
 # JSON interop
-proc parseHook*(s: string, i: var int, v: var Filter) {.raises: [JsonError, ValueError].} =
+proc parseHook*(s: string, i: var int, v: var Filter) =
   ## Parse filters exactly the same as a normal object, but add each field starting with # as an entry in `tags`.
 
   eatSpace(s, i)
@@ -103,7 +102,7 @@ proc parseHook*(s: string, i: var int, v: var Filter) {.raises: [JsonError, Valu
     postHook(v)
   eatChar(s, i, '}')
 
-proc dumpHook*(s: var string, v: Filter) {.raises: [JsonError, ValueError].} =
+proc dumpHook*(s: var string, v: Filter) =
   ## Dump filters exactly the same as a normal object, but empty fields are left out and its `tags` are split into seperate fields.
   template dumpKey(s: var string, v: string) =
     ## Taken from `jsony.nim`
@@ -149,6 +148,7 @@ proc dumpHook*(s: var string, v: Filter) {.raises: [JsonError, ValueError].} =
 
 
 when isMainModule:
-  let e = note(newKeypair(), "test", tags = @[@["e", "not empty"]])
+  let e = note(Keypair.init(), "test", tags = @[@["e", "not empty"]])
   var f = Filter(ids: @[e.id.toHex], authors: @[e.pubkey.toHex], kinds: @[1], tags: @[@["#e", "not in event", "not empty"]], search: "", other: @[])
   doAssert e.matches(f)
+

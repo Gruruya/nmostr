@@ -1,89 +1,65 @@
 ## Secp256k1 key management - for nmostr.
 # Copyright © 2023 Gruruya <gruruya.chi4c@slmails.com>
 # SPDX-License-Identifier: AGPL-3.0-only
+#
+# This file incorporates work covered by the following copyright:
+#   Copyright © 2019-2023 Status Research & Development GmbH
+#   SPDX-License-Identifier: MIT
 
-import pkg/[secp256k1, secp256k1/abi, jsony]
-from   pkg/stew/byteutils import toHex
+### Description
+## Subset of libsecp256k1 wrapped, with some convenience, for use with Nostr.
+##
+## See also:
+## * `hexobjs <hexobjs.html>`_
+## * `status-im/nim-secp256k1 <https://github.com/status-im/nim-secp256k1>`_
+## * `bitcoin-core/secp256k1 <https://github.com/bitcoin-core/secp256k1>`_
+
+import ./hexobjs, pkg/secp256k1/abi, std/options
+from   pkg/secp256k1 {.all.} import getContext, Rng
 from   pkg/stew/arrayops import assign
 from   std/sysrand import urandom
 
-export secp256k1
-{.push raises: [], inline.}
+export Rng
+{.push inline.}
 
 
-# Types from `secp256k1` without {.requiresInit.} so that they can be null without using `stew/results`
-# It's a workaround for Jsony serialization
+### § Secret keys
+## Secret keys are not used in messages, so they are implemented here and without a `hex` field.
+
 type
-  SecretKey* = SkSecretKey
+  SecretKey* = object
+    raw*: array[32, byte]
 
-  PublicKey* = object
-    ## Representation of public key that only reveals the x-coordinate.
-    ## Modified from `secp256k1` to not have `{.requiresInit.}`
-    data*: secp256k1_xonly_pubkey
+template bytesLen*(T: typedesc[SecretKey]): Positive =
+  T.raw.len
 
-  SchnorrSignature* = object
-    ## Representation of a Schnorr signature.
-    ## Modified from `secp256k1` to not have `{.requiresInit.}`
-    data*: array[SkRawSchnorrSignatureSize, byte]
+template toBytes*(v: SecretKey): array[32, byte] =
+  v.raw
 
-# Equivalent to `secp256k1` types minus {.requireInit.}, so allow casting for interop
-converter toPublicKey*(pubkey: SkXOnlyPublicKey): PublicKey = cast[PublicKey](pubkey)
-converter toSkXOnlyPublicKey*(pubkey: PublicKey): SkXOnlyPublicKey = cast[SkXOnlyPublicKey](pubkey)
-converter toSchnorrSignature*(sig: SkSchnorrSignature): SchnorrSignature = cast[SchnorrSignature](sig)
-converter toSkSchnorrSignature*(sig: SchnorrSignature): SkSchnorrSignature = cast[SkSchnorrSignature](sig)
+func toHex*(v: SecretKey): StackString[64] =
+  toHex(v.raw)
 
-
-func fromRaw*(T: type PublicKey, data: openArray[byte]): SkResult[T] =
-  ## Additionally accepts 33 byte compressed public keys, should upstream this
-  if likely data.len == 32: cast[SkResult[PublicKey]](SkXOnlyPublicKey.fromRaw(data))
-  elif data.len == 33: cast[SkResult[PublicKey]](SkXOnlyPublicKey.fromRaw(data[1..^1]))
-  else: err(static("secp: x-only public key must be 32 or 33 bytes"))
-
-func fromHex*(T: type PublicKey, data: string): SkResult[T] =
-  T.fromRaw(? seq[byte].fromHex(data))
-
-func fromRaw*(T: type SchnorrSignature, data: openArray[byte]): SkResult[T] =
-  cast[SkResult[SchnorrSignature]](SkSchnorrSignature.fromRaw(data))
-
-func fromHex*(T: type SchnorrSignature, data: string): SkResult[T] =
-  T.fromRaw(? seq[byte].fromHex(data))
-
-func toRaw*(pubkey: PublicKey): array[SkRawXOnlyPublicKeySize, byte] =
-  ## Wrapper that checks if `pubkey` is uninitialized
-  if pubkey == default(PublicKey): return
-  secp256k1.toRaw(pubkey)
-
-func toHex*(pubkey: PublicKey): string =
-  toHex(toRaw(pubkey))
-
-func `$`*(v: PublicKey | SchnorrSignature): string =
+template bytesToHex*(v: SecretKey): StackString[64] =
   toHex(v)
 
+func `$`*(v: SecretKey): string =
+  $toHex(v)
 
-func verify*(sig: SchnorrSignature, msg: SkMessage, pubkey: PublicKey): bool =
-  ## Wrapper that checks if `pubkey` is uninitialized
-  if pubkey == default(typeof pubkey): false
-  else: secp256k1.verify(sig, msg, pubkey)
+func toString*(v: SecretKey): string =
+  toString(toHex(v))
 
-func verify*(sig: SchnorrSignature, msg: openArray[byte], pubkey: PublicKey): bool =
-  ## Wrapper that checks if `pubkey` is uninitialized
-  if pubkey == default(typeof pubkey): false
-  else: secp256k1.verify(sig, msg, pubkey)
+func fromRaw*(T: typedesc[SecretKey], data: openArray[byte]): SecretKey {.raises: [ValueError].} =
+  if unlikely data.len < 32:
+    raise newException(ValueError, "raw private key must be 32 bytes")
+  SecretKey(raw: toArray(32, data))
 
+func fromRaw*(T: typedesc[SecretKey], data: array[32, byte]): SecretKey =
+  SecretKey(raw: data)
 
-type Keypair* = object
-  ## Representation of private/public key pair.
-  seckey*: SecretKey
-  pubkey*: PublicKey
+func fromHex*(T: typedesc[SecretKey], hex: openArray[char]): SecretKey {.raises: [ValueError].} =
+  SecretKey(raw: array[32, byte].fromHex(hex))
 
-converter toKeypair*(keypair: SkKeyPair): Keypair =
-  Keypair(seckey: keypair.seckey, pubkey: keypair.pubkey.toXOnly)
-
-converter toKeypair*(seckey: SecretKey): Keypair =
-  Keypair(seckey: seckey, pubkey: seckey.toPublicKey.toXOnly)
-
-{.pop.}
-{.push raises: [].}
+{.pop inline.}
 proc sysRng*(data: var openArray[byte]): bool =
   ## Fill `data` with random bytes generated by your operating system.
   try: assign(data, cast[seq[byte]](urandom(data.len)))
@@ -91,28 +67,91 @@ proc sysRng*(data: var openArray[byte]): bool =
   result = true
 
 {.push inline.}
-proc newKeypair*(rng: Rng = sysRng): Keypair {.raises: [OSError].} =
-  let secretKey = SkKeyPair.random(rng)
-  if secretKey.isOk: toKeypair secretKey.unsafeGet
-  else: raise newException(OSError, $secretKey.error()) # Assumes OSError
+proc random*(T: type SecretKey, rng: Rng = sysRng): T =
+  ## Generates new random private key
+  ##
+  ## This function may fail to generate a valid key if the RNG fails. In the
+  ## current version, the random number generation will be called in a loop
+  ## which may be vulnerable to timing attacks. Generate your keys elsewhere
+  ## if this is a issue.
+  var data{.noinit.}: array[32, byte]
+
+  while rng(data):
+    if secp256k1_ec_seckey_verify(secp256k1_context_no_precomp, addr data[0]) == 1:
+      return T.fromRaw(data)
+
+  raise newException(OSError, "cannot get random bytes for key")
+
+func toPublicKey*(key: SecretKey): PublicKey =
+  ## Calculate and return Secp256k1 public key from private key ``key``.
+  var pubkey {.noinit.}: secp256k1_pubkey
+
+  var ret = secp256k1_ec_pubkey_create(getContext(), addr pubkey, addr key.raw[0])
+  assert ret == 1, "valid private keys should always have a corresponding pub"
+
+  ret = secp256k1_xonly_pubkey_from_pubkey(secp256k1_context_no_precomp, cast[ptr secp256k1_xonly_pubkey](addr result), nil, addr pubkey)
+  assert ret == 1, "valid pubkeys should always be convertable to xonly"
+
+  populateHex(result)
+
+when isMainModule:
+  from std/sugar import dump
+  let privateKey = SecretKey.random()
+  let reflection = SecretKey.fromHex(privateKey.toHex.toOpenArray)
+  doAssert reflection == SecretKey.fromRaw(privateKey.toBytes)
+  dump privateKey
 
 
-func parseHook*(s: string, i: var int, v: var PublicKey) {.raises: [JsonError, ValueError].} =
-  ## Parse `id` as a hexadecimal encoding (of a sha256 hash).
-  var j: string = ""
-  parseHook(s, i, j)
-  let w = PublicKey.fromHex(j)
-  if likely w.isOk: v = w.unsafeValue
-  else: raise newException(ValueError, "could not parse x-only public key")
+### § Signing with keypairs
+## Schnorr signatures using Secp256k1 keys.
+## Keypair objects containing a private and public key.
 
-func parseHook*(s: string, i: var int, v: var SchnorrSignature) {.raises: [JsonError, ValueError].} =
-  ## Parse `id` as a hexadecimal encoding (of a sha256 hash).
-  var j: string = ""
-  parseHook(s, i, j)
-  let w = SchnorrSignature.fromHex(j)
-  if likely w.isOk: v = w.unsafeValue
-  else: raise newException(ValueError, "could not parse schnorr signature")
+func signSchnorr*(key: SecretKey, msg: openArray[byte], randbytes: Option[array[32, byte]]): SchnorrSig =
+  ## Sign message `msg` using private key `key` with the Schnorr signature algorithm and return signature object.
+  ## `randbytes` should be an array of 32 freshly generated random bytes.
+  let aux_rand32 = if randbytes.isSome: addr randbytes.unsafeGet[0] else: nil
+  let extraparams = secp256k1_schnorrsig_extraparams(magic: SECP256K1_SCHNORRSIG_EXTRAPARAMS_MAGIC, noncefp: nil, ndata: aux_rand32)
+  var kp {.noinit.}: secp256k1_keypair
+  let res = secp256k1_keypair_create(
+    getContext(), addr kp, addr key.raw[0])
+  assert res == 1, "cannot create keypair, key invalid?"
 
-func dumpHook*(s: var string, v: PublicKey | SchnorrSignature) =
-  ## Serialize `id`, `pubkey`, and `sig` into hexadecimal.
-  dumpHook(s, v.toHex)
+  var data {.noinit.}: array[64, byte]
+  let res2 = secp256k1_schnorrsig_sign_custom(getContext(), addr data[0], addr msg[0], csize_t msg.len, addr kp, unsafeAddr extraparams)
+  assert res2 == 1, "cannot create signature, key invalid?"
+  SchnorrSig.fromRaw(data)
+
+proc signSchnorr*(key: SecretKey, msg: openArray[byte], rng: Rng = sysRng): SchnorrSig =
+  ## Sign message `msg` using private key `key` with the Schnorr signature algorithm and return signature object.
+  ## Uses ``rng`` to generate 32-bytes of random data for signature generation.
+  var data: array[32, byte]
+  if likely rng(data):
+    signSchnorr(key, msg, some data)
+  else:
+    raise newException(OSError, "cannot get random bytes for signature")
+
+func verify*(sig: SchnorrSig, msg: openArray[byte], pubkey: PublicKey): bool =
+  secp256k1_schnorrsig_verify(
+    getContext(), addr sig.raw[0], addr msg[0], csize_t msg.len, cast[ptr secp256k1_xonly_pubkey](addr pubkey)) == 1
+
+type
+  Keypair* = object
+    ## Representation of private/public keypair.
+    seckey*: SecretKey
+    pubkey*: PublicKey
+
+func init*(T: typedesc[Keypair]; seckey: SecretKey): Keypair =
+  Keypair(seckey: seckey, pubkey: seckey.toPublicKey)
+
+proc init*(T: typedesc[Keypair]; rng: Rng = sysRng): Keypair =
+  Keypair.init(random(SecretKey, rng))
+
+converter toSecretKey*(kp: Keypair): lent SecretKey =
+  kp.seckey
+
+when isMainModule:
+  let kp = Keypair.init()
+  var msg = "Hello, world!"
+  let sig = signSchnorr(kp, msg.toOpenArrayByte(0, msg.high))
+  dump kp
+  dump sig

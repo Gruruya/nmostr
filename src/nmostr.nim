@@ -10,7 +10,7 @@
 ## .. code-block:: Nim
 ##   import pkg/[nmostr, whisky]
 ##
-##   let keypair = newKeypair()
+##   let keypair = Keypair.init()
 ##   echo "New secret key: " & keypair.seckey.toBech32
 ##   echo "The public key: " & keypair.pubkey.toBech32
 ##

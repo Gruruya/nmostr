@@ -6,7 +6,7 @@
 ## Utilities for creating and parsing Nostr messages.
 ## Implements NIP-01, NIP-42, NIP-45
 
-import std/sysrand, pkg/[jsony, union, stew/byteutils]
+import std/sysrand, pkg/[jsony, union]
 import ./events, ./filters
 
 export events, union
@@ -35,7 +35,7 @@ type
   SMEose* = object    ## ["EOSE", <subscription_id>]
     id*: string
   SMOk* = object      ## ["OK", <event_id>, <true|false>, <message>]
-    id*: string
+    id*: EventID
     saved*: bool
     message*: string
   SMAuth* = object    ## ["AUTH", <challenge-string>]

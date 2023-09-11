@@ -45,7 +45,7 @@ template hasValidNonce(hash: array[32, uint8]): bool =
   valid
 
 
-proc powSequential*(event: var Event, difficulty: range[0..256]) {.raises: [].} =
+proc powSequential*(event: var Event, difficulty: range[0..256]) {.raises: [ValueError].} =
   ## Increment the second feild of a nonce tag in the event until the event ID has `difficulty` leading 0 bits (NIP-13 POW), single threaded
   powImpl:
     while true:
@@ -106,9 +106,9 @@ proc verifyPow*(id: array[32, byte], difficulty: range[0..256]): bool =
 
   hasValidNonce(id)
 
-proc verifyPow*(id: EventID, difficulty: range[0..256]): bool {.inline.} = verifyPow(id.bytes, difficulty)
+proc verifyPow*(id: EventID, difficulty: range[0..256]): bool {.inline.} = verifyPow(id.toBytes, difficulty)
   ## Verify an event id starts with `difficulty` leading 0 bits
-proc verifyPow*(event: Event, difficulty: range[0..256]): bool {.inline.} = verifyPow(event.id.bytes, difficulty)
+proc verifyPow*(event: Event, difficulty: range[0..256]): bool {.inline.} = verifyPow(event.id.toBytes, difficulty)
   ## Verify an event's id starts with `difficulty` leading 0 bits
 
 proc getDifficulty*(event: Event): Option[range[0..256]] =
@@ -146,7 +146,7 @@ proc countPow*(id: array[32, byte]): range[0..256] =
       return i * 8 + countZeroBits(id[i])
   result = 256
 
-proc countPow*(id: EventID): range[0..256] {.inline.} = countPow(id.bytes)
+proc countPow*(id: EventID): range[0..256] {.inline.} = countPow(id.toBytes)
   ## Count the number of leading zero bits in an event id
-proc countPow*(event: Event): range[0..256] {.inline.} = countPow(event.id.bytes)
+proc countPow*(event: Event): range[0..256] {.inline.} = countPow(event.id.toBytes)
   ## Count the number of leading zero bits in an event's id
