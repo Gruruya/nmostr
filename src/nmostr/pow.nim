@@ -9,8 +9,6 @@ import pkg/weave
 {.warnings: on.}
 export events, options
 
-{.push raises: [].}
-
 
 const powParallelChunkSize {.intdefine.} = 4096 ## How many nonces to check per (parallel) loop in `powParallel`
 const powParallelCutoff {.intdefine.} = 13 ## Minimum difficulty before `pow` proc points to `powParallel`
@@ -56,8 +54,7 @@ proc powSequential*(event: var Event, difficulty: range[0..256]) =
       inc iteration
 
 
-{.pop.} # Weave uses templates internally, so `push raises: []` errors
-proc powParallel*(event: var Event, difficulty: range[0..256]) {.raises: [ValueError, ResourceExhaustedError, Exception].} =
+proc powParallel*(event: var Event, difficulty: range[0..256]) =
   ## Increment the second field of a nonce tag in the event until the event ID has `difficulty` leading 0 bits (NIP-13 POW), multithreaded
   powImpl:
     init(Weave)
@@ -87,10 +84,8 @@ proc powParallel*(event: var Event, difficulty: range[0..256]) {.raises: [ValueE
       iteration = next
 
     exit(Weave)
-{.push raises: [].}
 
-
-proc pow*(event: var Event, difficulty: range[0..256]) {.inline, raises: [ValueError, ResourceExhaustedError, Exception].} =
+proc pow*(event: var Event, difficulty: range[0..256]) {.inline.} =
   ## Increment the second field of a nonce tag in the event until the event ID has `difficulty` leading 0 bits (NIP-13 POW)
   if difficulty >= powParallelCutoff:
         event.powParallel(difficulty)

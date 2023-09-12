@@ -13,8 +13,6 @@ from std/strutils import toLower, rfind, join
 from std/setutils import toSet
 import ./events, ./filters
 
-{.push raises: [].}
-
 
 type
   uint5* =
@@ -81,7 +79,7 @@ proc verifyChecksum*(hrp: string, data: seq[uint5]): bool {.inline.} =
   polymod(hrpExpand(hrp) & data) == 1
 
 
-func decodeImpl(bech32: sink string, verify: bool): tuple[hrp: string, data: seq[uint5]] {.raises: [ValueError].} =
+func decodeImpl(bech32: sink string, verify: bool): tuple[hrp: string, data: seq[uint5]] =
   bech32 = bech32.toLower()
   let pos = bech32.rfind('1')
   if unlikely pos < 1 or unlikely pos + 7 > bech32.len: # or len(bech32) > 90:
@@ -94,11 +92,11 @@ func decodeImpl(bech32: sink string, verify: bool): tuple[hrp: string, data: seq
     raise newException(ValueError, bech32 & " has an invalid checksum")
   (hrp, data[0..^7]) # [0..^7] cuts off checksum
 
-func decode*(address: string, verify = true): Bech32Entity {.inline, raises: [ValueError].} =
+func decode*(address: string, verify = true): Bech32Entity {.inline.} =
   let (hrp, data) = decodeImpl(address, verify)
   Bech32Entity(hrp: hrp, data: fromWords(data))
 
-func decode*(hrp: string, address: string, verify = true): seq[byte] {.inline, raises: [ValueError].} =
+func decode*(hrp: string, address: string, verify = true): seq[byte] {.inline.} =
   let (hrpFound, data) = decodeImpl(address, verify)
   if unlikely hrpFound != hrp:
     raise newException(ValueError, "Incorrect hrp " & hrpFound & " in bech32 address, expected " & hrp)
@@ -170,7 +168,7 @@ template parseData(address: openArray[byte], i: var uint32): tuple[kind: uint8, 
   i += length
   (kind, data)
 
-func fromBytes*(T: type NProfile, address: openArray[byte]): T {.raises: [ValueError].} =
+func fromBytes*(T: type NProfile, address: openArray[byte]): T =
   var i = 0'u32
   while true:
     let (kind, data) = parseData(address, i)
@@ -182,7 +180,7 @@ func fromBytes*(T: type NProfile, address: openArray[byte]): T {.raises: [ValueE
     else:
       discard
 
-func fromBytes*(T: type NEvent, address: openArray[byte]): T {.raises: [ValueError].} =
+func fromBytes*(T: type NEvent, address: openArray[byte]): T =
   var i = 0'u32
   while true:
     let (kind, data) = parseData(address, i)
@@ -201,7 +199,7 @@ func fromBytes*(T: type NEvent, address: openArray[byte]): T {.raises: [ValueErr
     else:
       discard
 
-func fromBytes*(T: type NAddr, address: openArray[byte]): T {.raises: [ValueError].} =
+func fromBytes*(T: type NAddr, address: openArray[byte]): T =
   var i = 0'u32
   while true:
     let (kind, data) = parseData(address, i)
@@ -218,7 +216,7 @@ func fromBytes*(T: type NAddr, address: openArray[byte]): T {.raises: [ValueErro
     else:
       discard
 
-func fromBytes*(T: type NRelay, address: openArray[byte]): T {.raises: [ValueError].} =
+func fromBytes*(T: type NRelay, address: openArray[byte]): T =
   var i = 0'u32
   while true:
     let (kind, data) = parseData(address, i)
@@ -229,7 +227,7 @@ func fromBytes*(T: type NNote, address: seq[byte]): T =
   rangeCheck address.len >= 32
   NNote(id: EventID.fromBytes(address))
 
-func fromNostrBech32*(address: string): union(NostrTLV) {.raises: [ValueError].} =
+func fromNostrBech32*(address: string): union(NostrTLV) =
   let decoded = decode(address)
   case decoded.hrp
   of "npub":
@@ -249,25 +247,25 @@ func fromNostrBech32*(address: string): union(NostrTLV) {.raises: [ValueError].}
   else:
     raise newException(ValueError, "Unknown TLV starting with " & decoded.hrp)
 
-func fromBech32*(T: type SecretKey, address: string): T {.raises: [ValueError].} =
+func fromBech32*(T: type SecretKey, address: string): T =
   SecretKey.fromBytes(decode("nsec", address))
 
-func fromBech32*(T: type PublicKey, address: string): T {.raises: [ValueError].} =
+func fromBech32*(T: type PublicKey, address: string): T =
   PublicKey.fromBytes(decode("npub", address))
 
-func fromBech32*(T: type NNote, address: string): T {.inline, raises: [ValueError].} =
+func fromBech32*(T: type NNote, address: string): T {.inline.} =
   NNote.fromBytes(decode("note", address))
 
-func fromBech32*(T: type NProfile, address: string): T {.inline, raises: [ValueError].} =
+func fromBech32*(T: type NProfile, address: string): T {.inline.} =
   NProfile.fromBytes(decode("nprofile", address))
 
-func fromBech32*(T: type NEvent, address: string): T {.inline, raises: [ValueError].} =
+func fromBech32*(T: type NEvent, address: string): T {.inline.} =
   NEvent.fromBytes(decode("nevent", address))
 
-func fromBech32*(T: type NAddr, address: string): T {.inline, raises: [ValueError].} =
+func fromBech32*(T: type NAddr, address: string): T {.inline.} =
   NAddr.fromBytes(decode("naddr", address))
 
-func fromBech32*(T: type NRelay, address: string): T {.inline, raises: [ValueError].} =
+func fromBech32*(T: type NRelay, address: string): T {.inline.} =
   NRelay.fromBytes(decode("nrelay", address))
 
 # Encoding

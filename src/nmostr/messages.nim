@@ -52,7 +52,7 @@ type UnknownMessageError* = object of ValueError
 proc randomID*(): string {.raises: [OSError].} =
   ## Get a random ID to identify your messages
   toHex(urandom(32))
-  
+
 
 # JSON interop
 # Modified `jsony.nim` procs to deserialize message arrays as object and serialize them back to arrays.

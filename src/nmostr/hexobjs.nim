@@ -18,7 +18,7 @@ from   pkg/jsony {.all.} import eatSpace, eatChar, parseUnicodeEscape, JsonError
 from   std/unicode import Rune, toUTF8
 
 export stack_strings
-{.push inline, raises: [].}
+{.push inline.}
 
 
 ### § Hex utils
@@ -42,7 +42,7 @@ func toHex*[N](bytes: array[N, byte]): auto =
     result.add hexChars[int(b shr 4 and 0x0f'u8)]
     result.add hexChars[int(b and 0x0f'u8)]
 
-func readHexChar*(c: char): byte {.raises: [ValueError].} =
+func readHexChar*(c: char): byte =
   ## Converts a hex char to a byte
   case c
   of '0'..'9': byte(ord(c) - ord('0'))
@@ -65,17 +65,17 @@ template fromHexImpl(bytes: var openArray[byte]; start, last: Natural) =
 func fromHex*(T: typedesc[seq[byte]]; hex: auto): T =
   fromHexImpl(result, N.low, N.high)
 
-func fromHex*[N](T: typedesc[array[N, byte]]; hex: openArray[char]): T {.raises: [ValueError].} =
+func fromHex*[N](T: typedesc[array[N, byte]]; hex: openArray[char]): T =
   rangeCheck hex.len >= 2*(1 + N.high - N.low)
   fromHexImpl(result, N.low, N.high)
 
-func fromHex*[N,N2](T: typedesc[array[N, byte]]; hex: array[N2, char]): T {.raises: [ValueError].} =
+func fromHex*[N,N2](T: typedesc[array[N, byte]]; hex: array[N2, char]): T =
   const validLen = 2*(1 + N.high - N.low)
   const actualCap = hex.len
   when actualCap < validLen: {.error: "hex is too short, (" & $actualCap & " chars) it should be " & $validLen & " chars".}
   fromHexImpl(result, N.low, N.high)
 
-func fromHex*[N](T: typedesc[array[N, byte]]; hex: StackString): T {.raises: [ValueError].} =
+func fromHex*[N](T: typedesc[array[N, byte]]; hex: StackString): T =
   const validLen = 2*(1 + N.high - N.low)
   const actualCap = hex.Size
   when actualCap < validLen: {.error: "hex is too short, (" & $actualCap & " chars) it should be " & $validLen & " chars".}
@@ -141,7 +141,7 @@ proc dumpHook*(s: var string, v: StackString) =
     else:
       s.dumpStrFast(v)
 
-func parseHook*(s: string, i: var int, v: var StackString) {.raises: [ValueError].} =
+func parseHook*(s: string, i: var int, v: var StackString) =
   # Taken from `jsony <https://github.com/treeform/jsony/blob/master/src/jsony.nim>`_
   eatSpace(s, i)
   if i + 3 < s.len and
@@ -232,13 +232,13 @@ func toString*(v: PublicKey | EventID | SchnorrSig): string =
 
 
 # For populating fields of objects created without either raw data or hex:
-func hexToBytes*(v: EventID | SchnorrSig): auto {.raises: [ValueError].} =
+func hexToBytes*(v: EventID | SchnorrSig): auto =
   ## Parse raw data from hex
   typeof(v.bytes).fromHex(v.hex)
 
-func hexToBytes*(v: PublicKey): array[64, byte] {.raises: [ValueError].}
+func hexToBytes*(v: PublicKey): array[64, byte]
 
-func populateBytes*(v: var (PublicKey | EventID | SchnorrSig)) {.raises: [ValueError].} =
+func populateBytes*(v: var (PublicKey | EventID | SchnorrSig)) =
   ## Update the raw data based on the hex
   v.bytes = v.hexToBytes
 
@@ -246,7 +246,7 @@ func populateHex*(v: var (PublicKey | EventID | SchnorrSig)) =
   ## Update the hex based on the raw data
   v.hex = v.toBytes.toHex
 
-func populate*(v: var (PublicKey | EventID | SchnorrSig)) {.raises: [ValueError].} =
+func populate*(v: var (PublicKey | EventID | SchnorrSig)) =
   ## Makes sure both the hex and raw fields are populated
   let needsBytes = unlikely v.bytes == default(typeof v.bytes)
   let needsHex = unlikely v.hex.len != typeof(v).hex.Size
@@ -267,14 +267,14 @@ func toStackString*(N: static int, data: openArray[char]): StackString[N] =
   copyMem(addr result.data[0], addr data[0], N)
   result.unsafeSetLen(N)
 
-func fromBytesOnly(T: typedesc[PublicKey], data: openArray[byte]): T {.raises: [ValueError].} =
+func fromBytesOnly(T: typedesc[PublicKey], data: openArray[byte]): T =
   rangeCheck data.len >= 32
   let ret =
     secp256k1_xonly_pubkey_parse(secp256k1_context_no_precomp, cast[ptr secp256k1_xonly_pubkey](addr result), addr data[0])
   if unlikely ret != 1:
     raise newException(ValueError, "could not parse x-only public key")
 
-func hexToBytes*(v: PublicKey): array[64, byte] {.raises: [ValueError].} =
+func hexToBytes*(v: PublicKey): array[64, byte] =
   ## Parse raw data from hex
   PublicKey.fromBytesOnly(array[32, byte].fromHex(v.hex)).raw
 
@@ -290,13 +290,11 @@ func fromBytesOnly(T: typedesc[SchnorrSig], data: openArray[byte]): T =
 func fromBytesOnly(T: typedesc[SchnorrSig], data: array[64, byte]): T =
   SchnorrSig(bytes: data)
 
-{.pop.}
-func fromBytes*(T: typedesc[PublicKey | EventID | SchnorrSig], data: openArray[byte]): T {.inline.} =
+func fromBytes*(T: typedesc[PublicKey | EventID | SchnorrSig], data: openArray[byte]): T =
   result = T.fromBytesOnly(data)
   result.hex = result.toBytes.toHex
-{.push inline, raises: [].}
 
-func fromHex*(T: typedesc[PublicKey | EventID | SchnorrSig], hex: auto): T {.raises: [ValueError].} =
+func fromHex*(T: typedesc[PublicKey | EventID | SchnorrSig], hex: auto): T =
   const fromLen = T.bytesLen
   const toLen = fromLen*2
   result = T.fromBytesOnly(array[fromLen, byte].fromHex(hex))
@@ -309,7 +307,7 @@ func fromHex*(T: typedesc[PublicKey | EventID | SchnorrSig], hex: auto): T {.rai
     result.hex.unsafeAdd(hex.toOpenArray(0, toLen - 1))
 
 
-func parseHook*(s: string, i: var int, v: var (PublicKey | EventID | SchnorrSig)) {.raises: [ValueError].} =
+func parseHook*(s: string, i: var int, v: var (PublicKey | EventID | SchnorrSig)) =
   ## Parse id, pubkey, and sig as a hexadecimal encoding (of a sha256 hash).
   var j: string
   parseHook(s, i, j)
