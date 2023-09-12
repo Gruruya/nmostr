@@ -204,15 +204,15 @@ type
     raw*: array[32, byte]
     hex*: StackString[32 * 2]
 
-  SchnorrSig* = object
+  SchnorrSignature* = object
     raw*: array[64, byte]
     hex*: StackString[64 * 2]
 
-template bytes*(v: EventID | SchnorrSig): auto =
+template bytes*(v: EventID | SchnorrSignature): auto =
   v.raw
-template toBytes*(v: EventID | SchnorrSig): auto =
+template toBytes*(v: EventID | SchnorrSignature): auto =
   v.raw
-template bytesLen*(T: typedesc[EventID | SchnorrSig]): Positive =
+template bytesLen*(T: typedesc[EventID | SchnorrSignature]): Positive =
   T.raw.len
 
 func toBytes*(v: PublicKey): array[32, byte] =
@@ -222,32 +222,32 @@ func toBytes*(v: PublicKey): array[32, byte] =
 template bytesLen*(T: typedesc[PublicKey]): Positive =
   32
 
-template toHex*(v: PublicKey | EventID | SchnorrSig): auto =
+template toHex*(v: PublicKey | EventID | SchnorrSignature): auto =
   v.hex
-func `$`*(v: PublicKey | EventID | SchnorrSig): string =
+func `$`*(v: PublicKey | EventID | SchnorrSignature): string =
   # StackStrings have the option to warn on `$`,
   # see: https://github.com/termermc/nim-stack-strings/blob/master/stack_strings.nim#L107-L114
   $v.hex
-func toString*(v: PublicKey | EventID | SchnorrSig): string =
+func toString*(v: PublicKey | EventID | SchnorrSignature): string =
   toString(v.hex)
 
 
 # For populating fields of objects created without either raw data or hex:
-func hexToBytes*(v: EventID | SchnorrSig): auto =
+func hexToBytes*(v: EventID | SchnorrSignature): auto =
   ## Parse raw data from hex
   typeof(v.raw).fromHex(v.hex)
 
 func hexToBytes*(v: PublicKey): array[64, byte] # Forward decl
 
-func populateBytes*(v: var (PublicKey | EventID | SchnorrSig)) =
+func populateBytes*(v: var (PublicKey | EventID | SchnorrSignature)) =
   ## Update the raw data based on the hex
   v.raw = v.hexToBytes
 
-func populateHex*(v: var (PublicKey | EventID | SchnorrSig)) =
+func populateHex*(v: var (PublicKey | EventID | SchnorrSignature)) =
   ## Update the hex based on the raw data
   v.hex = v.toBytes.toHex
 
-func populate*(v: var (PublicKey | EventID | SchnorrSig)) =
+func populate*(v: var (PublicKey | EventID | SchnorrSignature)) =
   ## Makes sure both the hex and raw fields are populated
   let needsBytes = unlikely v.raw == default(typeof v.raw)
   let needsHex = unlikely v.hex.len != typeof(v).hex.Size
@@ -285,17 +285,17 @@ func fromBytesOnly(T: typedesc[EventID], data: openArray[byte]): EventID =
 func fromBytesOnly(T: typedesc[EventID], data: array[32, byte]): EventID =
   EventID(raw: data)
 
-func fromBytesOnly(T: typedesc[SchnorrSig], data: openArray[byte]): T =
-  SchnorrSig(raw: toArray(64, data))
+func fromBytesOnly(T: typedesc[SchnorrSignature], data: openArray[byte]): T =
+  SchnorrSignature(raw: toArray(64, data))
 
-func fromBytesOnly(T: typedesc[SchnorrSig], data: array[64, byte]): T =
-  SchnorrSig(raw: data)
+func fromBytesOnly(T: typedesc[SchnorrSignature], data: array[64, byte]): T =
+  SchnorrSignature(raw: data)
 
-func fromBytes*(T: typedesc[PublicKey | EventID | SchnorrSig], data: openArray[byte]): T =
+func fromBytes*(T: typedesc[PublicKey | EventID | SchnorrSignature], data: openArray[byte]): T =
   result = T.fromBytesOnly(data)
   result.populateHex()
 
-func fromHex*(T: typedesc[PublicKey | EventID | SchnorrSig], hex: auto): T =
+func fromHex*(T: typedesc[PublicKey | EventID | SchnorrSignature], hex: auto): T =
   const fromLen = T.bytesLen
   const toLen = fromLen*2
   result = T.fromBytesOnly(array[fromLen, byte].fromHex(hex))
@@ -308,13 +308,13 @@ func fromHex*(T: typedesc[PublicKey | EventID | SchnorrSig], hex: auto): T =
     result.hex.unsafeAdd(hex.toOpenArray(0, toLen - 1))
 
 
-func parseHook*(s: string, i: var int, v: var (PublicKey | EventID | SchnorrSig)) =
+func parseHook*(s: string, i: var int, v: var (PublicKey | EventID | SchnorrSignature)) =
   ## Parse id, pubkey, and sig as a hexadecimal encoding (of a sha256 hash).
   var j: string
   parseHook(s, i, j)
   v = fromHex(typeof(v), j)
 
-func dumpHook*(s: var string, v: PublicKey | EventID | SchnorrSig) =
+func dumpHook*(s: var string, v: PublicKey | EventID | SchnorrSignature) =
   ## Serialize id, pubkey, and sig into hexadecimal.
   dumpHook(s, v.toHex)
 
@@ -323,4 +323,4 @@ when isMainModule:
   dump PublicKey.fromHex("7e7e9c42a91bfef19fa929e5fda1b72e0ebc1a4c1141673e2794234d86addf4e").toJson
   dump EventID.fromHex("4cd665db042864ee600ee976d6cfcc7c5ce743859462f94a347cd970d88a5f3b").toJson
   dump EventID.fromBytes(EventID.fromHex("4cd665db042864ee600ee976d6cfcc7c5ce743859462f94a347cd970d88a5f3b").toBytes)
-  dump SchnorrSig.fromHex("f771ac928eb78037c0f4ddacd483471f3d71797e7ae524f328613338affd31d7ffcc346d88d0cba8f9278778c013c3591c81df3b06556024c80549b9a3962db5").toJson
+  dump SchnorrSignature.fromHex("f771ac928eb78037c0f4ddacd483471f3d71797e7ae524f328613338affd31d7ffcc346d88d0cba8f9278778c013c3591c81df3b06556024c80549b9a3962db5").toJson

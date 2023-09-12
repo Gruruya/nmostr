@@ -39,16 +39,13 @@ template bytesLen*(T: typedesc[SecretKey]): Positive =
 
 func toHex*(v: SecretKey): StackString[64] =
   toHex(v.raw)
-
 func `$`*(v: SecretKey): string =
   $toHex(v)
-
 func toString*(v: SecretKey): string =
   toString(toHex(v))
 
 func fromBytes*(T: typedesc[SecretKey], data: openArray[byte]): SecretKey =
   SecretKey(raw: toArray(32, data))
-
 func fromBytes*(T: typedesc[SecretKey], data: array[32, byte]): SecretKey =
   SecretKey(raw: data)
 
@@ -103,7 +100,7 @@ when isMainModule:
 ## Schnorr signatures using Secp256k1 keys.
 ## Keypair objects containing a private and public key.
 
-func signSchnorr*(key: SecretKey, msg: openArray[byte], randbytes: Option[array[32, byte]]): SchnorrSig =
+func signSchnorr*(key: SecretKey, msg: openArray[byte], randbytes: Option[array[32, byte]]): SchnorrSignature =
   ## Sign message `msg` using private key `key` with the Schnorr signature algorithm and return signature object.
   ## `randbytes` should be an array of 32 freshly generated random bytes.
   let aux_rand32 = if randbytes.isSome: addr randbytes.unsafeGet[0] else: nil
@@ -116,9 +113,9 @@ func signSchnorr*(key: SecretKey, msg: openArray[byte], randbytes: Option[array[
   var data {.noinit.}: array[64, byte]
   let res2 = secp256k1_schnorrsig_sign_custom(getContext(), addr data[0], addr msg[0], csize_t msg.len, addr kp, unsafeAddr extraparams)
   assert res2 == 1, "cannot create signature, key invalid?"
-  SchnorrSig.fromBytes(data)
+  SchnorrSignature.fromBytes(data)
 
-proc signSchnorr*(key: SecretKey, msg: openArray[byte], rng: Rng = sysRng): SchnorrSig =
+proc signSchnorr*(key: SecretKey, msg: openArray[byte], rng: Rng = sysRng): SchnorrSignature =
   ## Sign message `msg` using private key `key` with the Schnorr signature algorithm and return signature object.
   ## Uses ``rng`` to generate 32-bytes of random data for signature generation.
   var data: array[32, byte]
@@ -127,7 +124,7 @@ proc signSchnorr*(key: SecretKey, msg: openArray[byte], rng: Rng = sysRng): Schn
   else:
     raise newException(OSError, "cannot get random bytes for signature")
 
-func verify*(sig: SchnorrSig, msg: openArray[byte], pubkey: PublicKey): bool =
+func verify*(sig: SchnorrSignature, msg: openArray[byte], pubkey: PublicKey): bool =
   secp256k1_schnorrsig_verify(
     getContext(), addr sig.raw[0], addr msg[0], csize_t msg.len, cast[ptr secp256k1_xonly_pubkey](addr pubkey)) == 1
 
