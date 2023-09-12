@@ -55,7 +55,7 @@ template skip0xPrefix(hexStr: typed): range[0..2] =
   if hexStr.len > 1 and hexStr[0] == '0' and hexStr[1] in {'x', 'X'}: 2
   else: 0
 
-template fromHexImpl(bytes: var openArray[byte]; start, last: Natural) =
+template fromHexImpl(bytes: out openArray[byte]; start, last: Natural) =
   var sIdx = skip0xPrefix(hex).Natural
   sIdx += start * 2
   for bIdx in start..last:
@@ -201,32 +201,33 @@ type
     hex*: StackString[32 * 2]
 
   EventID* = object
-    bytes*: array[32, byte]
+    raw*: array[32, byte]
     hex*: StackString[32 * 2]
 
   SchnorrSig* = object
-    bytes*: array[64, byte]
+    raw*: array[64, byte]
     hex*: StackString[64 * 2]
 
+template bytes*(v: EventID | SchnorrSig): auto =
+  v.raw
 template toBytes*(v: EventID | SchnorrSig): auto =
-  v.bytes
+  v.raw
+template bytesLen*(T: typedesc[EventID | SchnorrSig]): Positive =
+  T.raw.len
 
 func toBytes*(v: PublicKey): array[32, byte] =
   ## Returns the first 32 bytes in reverse
   for i in 0..31:
     result[i] = v.raw[31 - i]
-
-template bytesLen*(T: typedesc[PublicKey]): Positive = 32
-template bytesLen*(T: typedesc[EventID | SchnorrSig]): Positive = T.bytes.len
+template bytesLen*(T: typedesc[PublicKey]): Positive =
+  32
 
 template toHex*(v: PublicKey | EventID | SchnorrSig): auto =
   v.hex
-
 func `$`*(v: PublicKey | EventID | SchnorrSig): string =
   # StackStrings have the option to warn on `$`,
   # see: https://github.com/termermc/nim-stack-strings/blob/master/stack_strings.nim#L107-L114
   $v.hex
-
 func toString*(v: PublicKey | EventID | SchnorrSig): string =
   toString(v.hex)
 
@@ -234,13 +235,13 @@ func toString*(v: PublicKey | EventID | SchnorrSig): string =
 # For populating fields of objects created without either raw data or hex:
 func hexToBytes*(v: EventID | SchnorrSig): auto =
   ## Parse raw data from hex
-  typeof(v.bytes).fromHex(v.hex)
+  typeof(v.raw).fromHex(v.hex)
 
-func hexToBytes*(v: PublicKey): array[64, byte]
+func hexToBytes*(v: PublicKey): array[64, byte] # Forward decl
 
 func populateBytes*(v: var (PublicKey | EventID | SchnorrSig)) =
   ## Update the raw data based on the hex
-  v.bytes = v.hexToBytes
+  v.raw = v.hexToBytes
 
 func populateHex*(v: var (PublicKey | EventID | SchnorrSig)) =
   ## Update the hex based on the raw data
@@ -248,7 +249,7 @@ func populateHex*(v: var (PublicKey | EventID | SchnorrSig)) =
 
 func populate*(v: var (PublicKey | EventID | SchnorrSig)) =
   ## Makes sure both the hex and raw fields are populated
-  let needsBytes = unlikely v.bytes == default(typeof v.bytes)
+  let needsBytes = unlikely v.raw == default(typeof v.raw)
   let needsHex = unlikely v.hex.len != typeof(v).hex.Size
   if needsBytes and needsHex:
     raise newException(ValueError, "object has no raw data nor hex data")
@@ -279,20 +280,20 @@ func hexToBytes*(v: PublicKey): array[64, byte] =
   PublicKey.fromBytesOnly(array[32, byte].fromHex(v.hex)).raw
 
 func fromBytesOnly(T: typedesc[EventID], data: openArray[byte]): EventID =
-  EventID(bytes: toArray(32, data))
+  EventID(raw: toArray(32, data))
 
 func fromBytesOnly(T: typedesc[EventID], data: array[32, byte]): EventID =
-  EventID(bytes: data)
+  EventID(raw: data)
 
 func fromBytesOnly(T: typedesc[SchnorrSig], data: openArray[byte]): T =
-  SchnorrSig(bytes: toArray(64, data))
+  SchnorrSig(raw: toArray(64, data))
 
 func fromBytesOnly(T: typedesc[SchnorrSig], data: array[64, byte]): T =
-  SchnorrSig(bytes: data)
+  SchnorrSig(raw: data)
 
 func fromBytes*(T: typedesc[PublicKey | EventID | SchnorrSig], data: openArray[byte]): T =
   result = T.fromBytesOnly(data)
-  result.hex = result.toBytes.toHex
+  result.populateHex()
 
 func fromHex*(T: typedesc[PublicKey | EventID | SchnorrSig], hex: auto): T =
   const fromLen = T.bytesLen

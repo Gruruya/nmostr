@@ -28,16 +28,17 @@ export Rng, hexobjs
 
 type
   SecretKey* = object
-    bytes*: array[32, byte]
+    raw*: array[32, byte]
 
-template bytesLen*(T: typedesc[SecretKey]): Positive =
-  T.bytes.len
-
+template bytes*(v: SecretKey): array[32, byte] =
+  v.raw
 template toBytes*(v: SecretKey): array[32, byte] =
-  v.bytes
+  v.raw
+template bytesLen*(T: typedesc[SecretKey]): Positive =
+  T.raw.len
 
 func toHex*(v: SecretKey): StackString[64] =
-  toHex(v.bytes)
+  toHex(v.raw)
 
 func `$`*(v: SecretKey): string =
   $toHex(v)
@@ -46,13 +47,13 @@ func toString*(v: SecretKey): string =
   toString(toHex(v))
 
 func fromBytes*(T: typedesc[SecretKey], data: openArray[byte]): SecretKey =
-  SecretKey(bytes: toArray(32, data))
+  SecretKey(raw: toArray(32, data))
 
 func fromBytes*(T: typedesc[SecretKey], data: array[32, byte]): SecretKey =
-  SecretKey(bytes: data)
+  SecretKey(raw: data)
 
 func fromHex*(T: typedesc[SecretKey], hex: auto): SecretKey =
-  SecretKey(bytes: array[32, byte].fromHex(hex))
+  SecretKey(raw: array[32, byte].fromHex(hex))
 
 {.pop inline.}
 proc sysRng*(data: var openArray[byte]): bool =
@@ -81,7 +82,7 @@ func toPublicKey*(key: SecretKey): PublicKey =
   ## Calculate and return Secp256k1 public key from private key ``key``.
   var pubkey {.noinit.}: secp256k1_pubkey
   var ret =
-    secp256k1_ec_pubkey_create(getContext(), addr pubkey, addr key.bytes[0])
+    secp256k1_ec_pubkey_create(getContext(), addr pubkey, addr key.raw[0])
   assert ret == 1, "valid private keys should always have a corresponding pub"
   ret =
     secp256k1_xonly_pubkey_from_pubkey(secp256k1_context_no_precomp, cast[ptr secp256k1_xonly_pubkey](addr result), nil, addr pubkey)
@@ -109,7 +110,7 @@ func signSchnorr*(key: SecretKey, msg: openArray[byte], randbytes: Option[array[
   let extraparams = secp256k1_schnorrsig_extraparams(magic: SECP256K1_SCHNORRSIG_EXTRAPARAMS_MAGIC, noncefp: nil, ndata: aux_rand32)
   var kp {.noinit.}: secp256k1_keypair
   let res = secp256k1_keypair_create(
-    getContext(), addr kp, addr key.bytes[0])
+    getContext(), addr kp, addr key.raw[0])
   assert res == 1, "cannot create keypair, key invalid?"
 
   var data {.noinit.}: array[64, byte]
@@ -128,7 +129,7 @@ proc signSchnorr*(key: SecretKey, msg: openArray[byte], rng: Rng = sysRng): Schn
 
 func verify*(sig: SchnorrSig, msg: openArray[byte], pubkey: PublicKey): bool =
   secp256k1_schnorrsig_verify(
-    getContext(), addr sig.bytes[0], addr msg[0], csize_t msg.len, cast[ptr secp256k1_xonly_pubkey](addr pubkey)) == 1
+    getContext(), addr sig.raw[0], addr msg[0], csize_t msg.len, cast[ptr secp256k1_xonly_pubkey](addr pubkey)) == 1
 
 type
   Keypair* = object
