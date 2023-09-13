@@ -23,7 +23,7 @@
 ##   # Read the note back
 ##   unpack fromMessage(response), msg:
 ##     when msg is SMOk:
-##       socket.send CMRequest(id: randomID(), filter: Filter(ids: @[msg.id])).toJson
+##       socket.send CMRequest(id: randomID(), filter: Filter(ids: @[msg.id.hex])).toJson
 ##       echo socket.receiveMessage().get.data
 
 import nmostr/[events, filters, messages, bech32]
