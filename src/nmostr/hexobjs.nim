@@ -79,9 +79,12 @@ func fromHex*[N](T: typedesc[array[N, byte]]; hex: StackString): T =
     raise newException(ValueError, "hex is too short, it should be " & $validLen & " chars")
   fromHexImpl(result, N.low, N.high)
 
+# JSON serialization and deserialization
+# Modified `string` procedures from jsony to use `StackString` instead.
+#
+# See also: `https://github.com/treeform/jsony/blob/master/src/jsony.nim>`_
 
 proc dumpStrSlow(s: var string, v: StackString) =
-  # Taken from `jsony <https://github.com/treeform/jsony/blob/master/src/jsony.nim>`_
   s.add '"'
   for c in v:
     case c:
@@ -96,10 +99,6 @@ proc dumpStrSlow(s: var string, v: StackString) =
   s.add '"'
 
 proc dumpStrFast(s: var string, v: StackString) =
-  # Taken from `jsony <https://github.com/treeform/jsony/blob/master/src/jsony.nim>`_
-  # Its faster to grow the string only once.
-  # Then fill the string with pointers.
-  # Then cap it off to right length.
   var at = s.len
   s.setLen(s.len + v.len*2+2)
 
@@ -129,7 +128,6 @@ proc dumpStrFast(s: var string, v: StackString) =
   s.setLen(at)
 
 proc dumpHook*(s: var string, v: StackString) =
-  # Taken from `jsony <https://github.com/treeform/jsony/blob/master/src/jsony.nim>`_
   when nimvm:
     s.dumpStrSlow(v)
   else:
@@ -139,7 +137,6 @@ proc dumpHook*(s: var string, v: StackString) =
       s.dumpStrFast(v)
 
 func parseHook*(s: string, i: var int, v: var StackString) =
-  # Taken from `jsony <https://github.com/treeform/jsony/blob/master/src/jsony.nim>`_
   eatSpace(s, i)
   if i + 3 < s.len and
       s[i+0] == 'n' and
@@ -188,14 +185,14 @@ when isMainModule:
 
 
 ### § Objects
-## The objects themselves, access the raw data and hex using obj.toHex and obj.toBytes.
+## The objects themselves, access the bytes and hex using obj.toBytes and obj.toHex.
 ## Use Object.fromHex or Object.fromBytes for initialization.
 
 type
   PublicKey* = object
-    ## x-only public key for Nostr
-    ## Note that the raw field contains a full public key (64 bytes) instead of x-only (32 bytes)
-    ## The `PublicKey` must first be transformed by `toBytes` to get the 32 bytes which we then encode into hex.
+    ## A Nostr public key is a secp256k1 x-only public key.
+    ## An x-only public key encodes a point whose Y coordinate is even.
+    ## It is serialized and transmitted using only its X coordinate (32 bytes).
     raw*: array[64, byte]
     hex*: StackString[32 * 2]
 
@@ -215,7 +212,7 @@ template bytesLen*(T: typedesc[EventID | SchnorrSignature]): Positive =
   T.raw.len
 
 func toBytes*(v: PublicKey): array[32, byte] =
-  ## Returns the first 32 bytes in reverse
+  ## Gets the x-coordinate by reading the first 32 bytes in reverse.
   for i in 0..31:
     result[i] = v.raw[31 - i]
 template bytesLen*(T: typedesc[PublicKey]): Positive =
@@ -224,7 +221,7 @@ template bytesLen*(T: typedesc[PublicKey]): Positive =
 template toHex*(v: PublicKey | EventID | SchnorrSignature): auto =
   v.hex
 template `$`*(v: PublicKey | EventID | SchnorrSignature): string =
-  # StackStrings have the option to warn on `$`,
+  # StackStrings have the option to warn or error when `$` is called,
   # see: https://github.com/termermc/nim-stack-strings/blob/master/stack_strings.nim#L107-L114
   $v.hex
 func toString*(v: PublicKey | EventID | SchnorrSignature): string =
@@ -233,6 +230,7 @@ func toString*(v: PublicKey | EventID | SchnorrSignature): string =
 
 # For populating fields of objects created without either raw data or hex:
 template rawToHex*(v: PublicKey | EventID | SchnorrSignature): auto =
+  ## Parse hex from raw data
   toHex(toBytes(v))
 
 func hexToRaw*(v: EventID | SchnorrSignature): auto =
@@ -250,7 +248,7 @@ func populateRaw*(v: var (PublicKey | EventID | SchnorrSignature)) =
   v.raw = v.hexToRaw
 
 func populate*(v: var (PublicKey | EventID | SchnorrSignature)) =
-  ## Makes sure both the hex and raw fields are populated
+  ## Makes sure both the hex and raw fields are populated, raises an exception if ``v`` is an empty object.
   let needsHex = unlikely v.hex.len != typeof(v).hex.Size
   let needsRaw = unlikely v.raw == default(typeof v.raw)
   if needsHex and needsRaw:
@@ -262,7 +260,8 @@ func populate*(v: var (PublicKey | EventID | SchnorrSignature)) =
 
 
 func init*(T: typedesc[PublicKey], raw: sink array[64, byte]): T =
-  ## Note that ``raw`` != `toBytes` for `PublicKey`. Use `fromBytes` to get a `PublicKey` from an `array[32, byte]`.
+  ## Note that `raw` != `toBytes` for `PublicKey`.
+  ## Use `fromBytes` to get a `PublicKey` from an `array[32, byte]` x-only public key.
   result = PublicKey(raw: raw)
   result.populateHex()
 func init*(T: typedesc[EventID], raw: sink array[32, byte]): T =
@@ -272,13 +271,17 @@ func init*(T: typedesc[SchnorrSignature], raw: sink array[64, byte]): T =
 
 
 func toArray*[T](N: static int, data: openArray[T]): array[N, T] =
+  ## Convert ``data`` to an array of N length, ``data`` must be `N` long or longer.
   rangeCheck data.len >= N
   copyMem(addr result[0], addr data[0], N)
 
 template toArray*[T](N: static int, data: array[N, T]): auto =
+  ## Returns the array ``data``, this exists to allow for generic procs using `toArray`
+  ## which were given the correctly sized array to just use that array.
   data
 
 func toStackString*(N: static int, data: openArray[char]): StackString[N] =
+  ## Convert ``data`` to a stack string of N length, ``data`` must be `N` chars long or longer.
   rangeCheck data.len >= N
   copyMem(addr result.data[0], addr data[0], N)
   result.unsafeSetLen(N)

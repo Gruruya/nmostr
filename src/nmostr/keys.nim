@@ -75,7 +75,7 @@ proc random*(T: typedesc[SecretKey]; rng: Rng = sysRng): SecretKey =
   raise newException(OSError, "cannot get random bytes for key")
 
 func toPublicKey*(key: SecretKey): PublicKey =
-  ## Calculate and return Secp256k1 public key from private key ``key``.
+  ## Calculate and return secp256k1 public key from private key ``key``.
   var pubkey {.noinit.}: secp256k1_pubkey
   assert 1 == secp256k1_ec_pubkey_create(getContext(), addr pubkey, addr key.raw[0]),
     "valid private keys should always have a corresponding pub"
@@ -94,7 +94,7 @@ when isMainModule:
 
 
 ### § Signing with keypairs
-## Schnorr signatures using Secp256k1 keys.
+## Schnorr signatures using secp256k1 keys.
 ## Keypair objects containing a private and public key.
 
 func signSchnorr*(key: SecretKey, msg: openArray[byte], randbytes: Option[array[32, byte]]): SchnorrSignature =
