@@ -28,7 +28,7 @@ export stack_strings
 func toHex*(bytes: openArray[byte]): string =
   ## Convert a byte-sequence to its hex representation
   const hexChars = "0123456789abcdef"
-  result = newStringUninit(2 * bytes.len)
+  result = when declared(newStringUninit): newStringUninit(2 * bytes.len) else: newString(2 * bytes.len)
   for i in 0..bytes.high:
     result[i * 2] = hexChars[int(bytes[i] shr 4 and 0x0f'u8)]
     result[i * 2 + 1] = hexChars[int(bytes[i] and 0x0f'u8)]
