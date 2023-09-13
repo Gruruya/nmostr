@@ -2,7 +2,7 @@
 # Copyright © 2023 Gruruya <gruruya.chi4c@slmails.com>
 # SPDX-License-Identifier: AGPL-3.0-only
 
-version     = "0.0.14"
+version     = "0.0.15"
 author      = "Gruruya"
 description = "Library for working with the Nostr protocol."
 license     = "AGPL-3.0-only"
