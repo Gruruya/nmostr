@@ -77,9 +77,9 @@ proc random*(T: typedesc[SecretKey]; rng: Rng = sysRng): SecretKey =
 func toPublicKey*(key: SecretKey): PublicKey =
   ## Calculate and return secp256k1 public key from private key ``key``.
   var pubkey {.noinit.}: secp256k1_pubkey
-  assert 1 == secp256k1_ec_pubkey_create(getContext(), addr pubkey, addr key.raw[0]),
+  doAssert 1 == secp256k1_ec_pubkey_create(getContext(), addr pubkey, addr key.raw[0]),
     "valid private keys should always have a corresponding pub"
-  assert 1 == secp256k1_xonly_pubkey_from_pubkey(secp256k1_context_no_precomp, cast[ptr secp256k1_xonly_pubkey](addr result), nil, addr pubkey),
+  doAssert 1 == secp256k1_xonly_pubkey_from_pubkey(secp256k1_context_no_precomp, cast[ptr secp256k1_xonly_pubkey](addr result), nil, addr pubkey),
     "valid pubkeys should always be convertable to x-only"
   populateHex(result)
 
@@ -103,9 +103,9 @@ func signSchnorr*(key: SecretKey, msg: openArray[byte], randbytes: Option[array[
   let aux_rand32 = if randbytes.isSome: addr randbytes.unsafeGet[0] else: nil
   let extraparams = secp256k1_schnorrsig_extraparams(magic: SECP256K1_SCHNORRSIG_EXTRAPARAMS_MAGIC, noncefp: nil, ndata: aux_rand32)
   var kp {.noinit.}: secp256k1_keypair
-  assert 1 == secp256k1_keypair_create(getContext(), addr kp, addr key.raw[0]),
+  doAssert 1 == secp256k1_keypair_create(getContext(), addr kp, addr key.raw[0]),
     "cannot create keypair, key invalid?"
-  assert 1 == secp256k1_schnorrsig_sign_custom(getContext(), addr result.raw[0], addr msg[0], csize_t msg.len, addr kp, unsafeAddr extraparams),
+  doAssert 1 == secp256k1_schnorrsig_sign_custom(getContext(), addr result.raw[0], addr msg[0], csize_t msg.len, addr kp, unsafeAddr extraparams),
     "cannot create signature, key invalid?"
   populateHex(result)
 
