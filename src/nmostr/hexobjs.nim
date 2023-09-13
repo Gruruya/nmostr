@@ -230,28 +230,31 @@ func toString*(v: PublicKey | EventID | SchnorrSignature): string =
 
 
 # For populating fields of objects created without either raw data or hex:
-func hexToBytes*(v: EventID | SchnorrSignature): auto =
+func hexToRaw*(v: EventID | SchnorrSignature): auto =
   ## Parse raw data from hex
   typeof(v.raw).fromHex(v.hex)
 
-func hexToBytes*(v: PublicKey): array[64, byte] # Forward decl
+func hexToRaw*(v: PublicKey): array[64, byte] # Forward decl
 
-func populateBytes*(v: var (PublicKey | EventID | SchnorrSignature)) =
+template rawToHex*(v: PublicKey | EventID | SchnorrSignature): auto =
+  toHex(toBytes(v))
+
+func populateRaw*(v: var (PublicKey | EventID | SchnorrSignature)) =
   ## Update the raw data based on the hex
-  v.raw = v.hexToBytes
+  v.raw = v.hexToRaw
 
 func populateHex*(v: var (PublicKey | EventID | SchnorrSignature)) =
   ## Update the hex based on the raw data
-  v.hex = v.toBytes.toHex
+  v.hex = v.rawToHex
 
 func populate*(v: var (PublicKey | EventID | SchnorrSignature)) =
   ## Makes sure both the hex and raw fields are populated
-  let needsBytes = unlikely v.raw == default(typeof v.raw)
+  let needsRaw = unlikely v.raw == default(typeof v.raw)
   let needsHex = unlikely v.hex.len != typeof(v).hex.Size
-  if needsBytes and needsHex:
+  if needsRaw and needsHex:
     raise newException(ValueError, "object has no raw data nor hex data")
-  elif needsBytes:
-    populateBytes(v)
+  elif needsRaw:
+    populateRaw(v)
   elif needsHex:
     populateHex(v)
 
@@ -272,7 +275,7 @@ func fromBytesOnly(T: typedesc[PublicKey], data: openArray[byte]): T =
   if unlikely ret != 1:
     raise newException(ValueError, "could not parse x-only public key")
 
-func hexToBytes*(v: PublicKey): array[64, byte] =
+func hexToRaw*(v: PublicKey): array[64, byte] =
   ## Parse raw data from hex
   PublicKey.fromBytesOnly(array[32, byte].fromHex(v.hex)).raw
 
