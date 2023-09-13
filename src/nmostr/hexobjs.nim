@@ -279,13 +279,13 @@ func hexToBytes*(v: PublicKey): array[64, byte] =
 func fromBytesOnly(T: typedesc[EventID], data: openArray[byte]): EventID =
   EventID(raw: toArray(32, data))
 
-func fromBytesOnly(T: typedesc[EventID], data: array[32, byte]): EventID =
+func fromBytesOnly(T: typedesc[EventID], data: sink array[32, byte]): EventID =
   EventID(raw: data)
 
 func fromBytesOnly(T: typedesc[SchnorrSignature], data: openArray[byte]): T =
   SchnorrSignature(raw: toArray(64, data))
 
-func fromBytesOnly(T: typedesc[SchnorrSignature], data: array[64, byte]): T =
+func fromBytesOnly(T: typedesc[SchnorrSignature], data: sink array[64, byte]): T =
   SchnorrSignature(raw: data)
 
 func fromBytes*(T: typedesc[PublicKey | EventID | SchnorrSignature], data: openArray[byte]): T =

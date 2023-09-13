@@ -23,7 +23,7 @@ Example uses [guzba's whisky](https://github.com/guzba/whisky) i.e. `nimble inst
 ```nim
 import pkg/[nmostr, whisky]
 
-let keypair = Keypair.init()
+let keypair = random Keypair
 echo "New secret key: " & keypair.seckey.toBech32
 echo "The public key: " & keypair.pubkey.toBech32
 

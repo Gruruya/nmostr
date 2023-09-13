@@ -87,7 +87,7 @@ suite "events":
 """.fromJson(Event).verify
 
   block parameterized_id:
-    var N = note(Keypair.init(), "test")
+    var N = note(Keypair.random(), "test")
     check N.getParameterizedID == none string
     N.tags.add @["d"]
     check N.getParameterizedID == some ""
@@ -143,9 +143,9 @@ suite "messages":
 
 suite "signatures":
   block signing_and_verifying:
-    var e = note(Keypair.init(), "hello world")
+    var e = note(Keypair.random(), "hello world")
     check e.verify
-    e.stamp(Keypair.init())
+    e.stamp(Keypair.random())
     check e.verify
     e.content = "goodbye world"
     check not e.verify

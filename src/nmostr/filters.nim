@@ -152,7 +152,7 @@ proc dumpHook*(s: var string, v: Filter) =
 
 
 when isMainModule:
-  let e = note(Keypair.init(), "test", tags = @[@["e", "not empty"]])
+  let e = note(Keypair.random(), "test", tags = @[@["e", "not empty"]])
   var f = Filter(ids: @[e.id.toHex], authors: @[e.pubkey.toHex], kinds: @[1], tags: @[@["#e", "not in event", "not empty"]], search: "", other: @[])
   doAssert e.matches(f)
 

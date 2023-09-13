@@ -60,7 +60,7 @@ proc sysRng*(data: var openArray[byte]): bool =
   result = true
 {.push inline.}
 
-proc random*(T: type SecretKey, rng: Rng = sysRng): T =
+proc random*(T: SecretKey; rng: Rng = sysRng): SecretKey =
   ## Generates new random private key
   ##
   ## This function may fail to generate a valid key if the RNG fails. In the
@@ -71,7 +71,7 @@ proc random*(T: type SecretKey, rng: Rng = sysRng): T =
 
   while rng(data):
     if secp256k1_ec_seckey_verify(secp256k1_context_no_precomp, addr data[0]) == 1:
-      return T.fromBytes(data)
+      return SecretKey.fromBytes(data)
 
   raise newException(OSError, "cannot get random bytes for key")
 
@@ -134,20 +134,19 @@ type
     seckey*: SecretKey
     pubkey*: PublicKey
 
-func init*(T: typedesc[Keypair]; seckey: SecretKey): Keypair =
+proc random*(T: Keypair; rng: Rng = sysRng): Keypair =
+  result.seckey = randomSecretKey(rng)
+  result.pubkey = result.seckey.toPublicKey
+
+func toKeypair*(seckey: sink SecretKey): Keypair =
   Keypair(seckey: seckey, pubkey: seckey.toPublicKey)
-
-proc init*(T: typedesc[Keypair]; rng: Rng = sysRng): Keypair =
-  Keypair.init(random(SecretKey, rng))
-
-template toKeypair*(seckey: SecretKey): Keypair =
-  init(Keypair, seckey)
 
 converter toSecretKey*(kp: Keypair): lent SecretKey =
   kp.seckey
 
+
 when isMainModule:
-  let kp = Keypair.init()
+  let kp = Keypair.random()
   var msg = "Hello, world!"
   let sig = signSchnorr(kp, msg.toOpenArrayByte(0, msg.high))
   dump kp
