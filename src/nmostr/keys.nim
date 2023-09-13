@@ -39,15 +39,17 @@ template bytesLen*(T: typedesc[SecretKey]): Positive =
 
 func toHex*(v: SecretKey): StackString[64] =
   toHex(v.raw)
+template rawToHex*(v: SecretKey): StackString[64] =
+  toHex(v.raw)
 func `$`*(v: SecretKey): string =
   $toHex(v)
 func toString*(v: SecretKey): string =
   toString(toHex(v))
 
-func fromBytes*(T: typedesc[SecretKey], data: openArray[byte]): SecretKey =
-  SecretKey(raw: toArray(32, data))
-func fromBytes*(T: typedesc[SecretKey], data: array[32, byte]): SecretKey =
-  SecretKey(raw: data)
+func init*(T: typedesc[SecretKey], raw: sink array[32, byte]): T =
+  SecretKey(raw: raw)
+template fromBytes*(T: typedesc[SecretKey], bytes: openArray[byte]): SecretKey =
+  init(SecretKey, toArray(32, bytes))
 
 func fromHex*(T: typedesc[SecretKey], hex: auto): SecretKey =
   SecretKey(raw: array[32, byte].fromHex(hex))
@@ -60,7 +62,7 @@ proc sysRng*(data: var openArray[byte]): bool =
   result = true
 {.push inline.}
 
-proc random*(T: SecretKey; rng: Rng = sysRng): SecretKey =
+proc random*(T: typedesc[SecretKey]; rng: Rng = sysRng): SecretKey =
   ## Generates new random private key
   ##
   ## This function may fail to generate a valid key if the RNG fails. In the
@@ -134,8 +136,8 @@ type
     seckey*: SecretKey
     pubkey*: PublicKey
 
-proc random*(T: Keypair; rng: Rng = sysRng): Keypair =
-  result.seckey = randomSecretKey(rng)
+proc random*(T: typedesc[Keypair]; rng: Rng = sysRng): Keypair =
+  result.seckey = SecretKey.random(rng)
   result.pubkey = result.seckey.toPublicKey
 
 func toKeypair*(seckey: sink SecretKey): Keypair =

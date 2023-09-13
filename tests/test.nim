@@ -95,7 +95,7 @@ suite "events":
     check N.getParameterizedID == some "someval"
 
 suite "messages":
-  let exEvent = Event.init(1, Keypair.init(), "test")
+  let exEvent = Event.init(1, Keypair.random(), "test")
 
   block serializing_and_parsing:
     check CMEvent(event: exEvent) == ("[\"EVENT\"," & exEvent.toJson & "]").fromMessage
@@ -181,7 +181,7 @@ suite "bech32":
     check fromNostrBech32(NNote(id: EventID.fromHex "4cd665db042864ee600ee976d6cfcc7c5ce743859462f94a347cd970d88a5f3b").toBech32) == NNote(id: EventID.fromHex "4cd665db042864ee600ee976d6cfcc7c5ce743859462f94a347cd970d88a5f3b")
 
 suite "pow":
-  var note = note(Keypair.init(), "Test note")
+  var note = note(Keypair.random(), "Test note")
 
   block single_threaded:
     note.pow(2)

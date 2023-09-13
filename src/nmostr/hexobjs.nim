@@ -194,7 +194,9 @@ when isMainModule:
 type
   PublicKey* = object
     ## x-only public key for Nostr
-    raw*: array[64, byte] # note the raw field may contain a full public key (64 bytes) instead of x-only (32 bytes)
+    ## Note that the raw field contains a full public key (64 bytes) instead of x-only (32 bytes)
+    ## The `PublicKey` must first be transformed by `toBytes` to get the 32 bytes which we then encode into hex.
+    raw*: array[64, byte]
     hex*: StackString[32 * 2]
 
   EventID* = object
@@ -259,19 +261,33 @@ func populate*(v: var (PublicKey | EventID | SchnorrSignature)) =
     populateHex(v)
 
 
+func init*(T: typedesc[PublicKey], raw: sink array[64, byte]): T =
+  ## Note that ``raw`` != `toBytes` for `PublicKey`. Use `fromBytes` to get a `PublicKey` from an `array[32, byte]`.
+  result = PublicKey(raw: raw)
+  result.populateHex()
+func init*(T: typedesc[EventID], raw: sink array[32, byte]): T =
+  EventID(raw: raw, hex: raw.toHex)
+func init*(T: typedesc[SchnorrSignature], raw: sink array[64, byte]): T =
+  SchnorrSignature(raw: raw, hex: raw.toHex)
+
+
 func toArray*[T](N: static int, data: openArray[T]): array[N, T] =
   rangeCheck data.len >= N
   copyMem(addr result[0], addr data[0], N)
+
+template toArray*[T](N: static int, data: array[N, T]): auto =
+  data
 
 func toStackString*(N: static int, data: openArray[char]): StackString[N] =
   rangeCheck data.len >= N
   copyMem(addr result.data[0], addr data[0], N)
   result.unsafeSetLen(N)
 
-func fromBytesOnly(T: typedesc[PublicKey], data: openArray[byte]): T =
-  rangeCheck data.len >= PublicKey.bytesLen
+
+func fromBytesOnly(T: typedesc[PublicKey], bytes: openArray[byte]): T =
+  rangeCheck bytes.len >= PublicKey.bytesLen
   let ret =
-    secp256k1_xonly_pubkey_parse(secp256k1_context_no_precomp, cast[ptr secp256k1_xonly_pubkey](addr result), addr data[0])
+    secp256k1_xonly_pubkey_parse(secp256k1_context_no_precomp, cast[ptr secp256k1_xonly_pubkey](addr result), addr bytes[0])
   if unlikely ret != 1:
     raise newException(ValueError, "could not parse x-only public key")
 
@@ -279,21 +295,18 @@ func hexToRaw*(v: PublicKey): array[64, byte] =
   ## Parse raw data from hex
   PublicKey.fromBytesOnly(array[32, byte].fromHex(v.hex)).raw
 
-func fromBytesOnly(T: typedesc[EventID], data: openArray[byte]): EventID =
-  EventID(raw: toArray(32, data))
-
-func fromBytesOnly(T: typedesc[EventID], data: sink array[32, byte]): EventID =
-  EventID(raw: data)
-
-func fromBytesOnly(T: typedesc[SchnorrSignature], data: openArray[byte]): T =
-  SchnorrSignature(raw: toArray(64, data))
-
-func fromBytesOnly(T: typedesc[SchnorrSignature], data: sink array[64, byte]): T =
-  SchnorrSignature(raw: data)
-
-func fromBytes*(T: typedesc[PublicKey | EventID | SchnorrSignature], data: openArray[byte]): T =
-  result = T.fromBytesOnly(data)
+func fromBytes*(T: typedesc[PublicKey], bytes: openArray[byte]): T =
+  result = T.fromBytesOnly(bytes)
   result.populateHex()
+
+template fromBytes*(T: typedesc[EventID | SchnorrSignature], bytes: openArray[byte]): T =
+  init(T, toArray(T.raw.len, bytes))
+
+
+template fromBytesOnly(T: typedesc[EventID], bytes: openArray[byte]): EventID =
+  EventID(raw: toArray(32, bytes))
+template fromBytesOnly(T: typedesc[SchnorrSignature], bytes: openArray[byte]): T =
+  SchnorrSignature(raw: toArray(64, bytes))
 
 func fromHex*(T: typedesc[PublicKey | EventID | SchnorrSignature], hex: auto): T =
   const fromLen = T.bytesLen
@@ -321,6 +334,6 @@ func dumpHook*(s: var string, v: PublicKey | EventID | SchnorrSignature) =
 
 when isMainModule:
   dump PublicKey.fromHex("7e7e9c42a91bfef19fa929e5fda1b72e0ebc1a4c1141673e2794234d86addf4e").toJson
-  dump EventID.fromHex("4cd665db042864ee600ee976d6cfcc7c5ce743859462f94a347cd970d88a5f3b").toJson
+  dump EventID.fromHex(ss"4cd665db042864ee600ee976d6cfcc7c5ce743859462f94a347cd970d88a5f3b").toJson
   dump EventID.fromBytes(EventID.fromHex("4cd665db042864ee600ee976d6cfcc7c5ce743859462f94a347cd970d88a5f3b").toBytes)
   dump SchnorrSignature.fromHex("f771ac928eb78037c0f4ddacd483471f3d71797e7ae524f328613338affd31d7ffcc346d88d0cba8f9278778c013c3591c81df3b06556024c80549b9a3962db5").toJson
