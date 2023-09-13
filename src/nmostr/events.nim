@@ -22,7 +22,7 @@ type Event* = object
 
 
 func parseHook*(s: string, i: var int, v: var EventID) =
-  ## Parse `id` as a hexadecimal encoding [of a sha256 hash.]
+  ## Parse `id` from hexadecimal.
   var j: string = ""
   parseHook(s, i, j)
   v = EventID.fromHex(j)
@@ -32,18 +32,18 @@ func dumpHook*(s: var string, v: EventID) =
   dumpHook(s, v.toHex)
 
 func parseHook*(s: string, i: var int, v: var Time) =
-  ## Parse `created_at` as a `Time`.
+  ## Parse `created_at` into a `Time`.
   var j: int64 = 0
   parseHook(s, i, j)
   v = fromUnix(j)
 
 func dumpHook*(s: var string, v: Time) =
-  ## Serialize `created_at` into a Unix timestamp.
+  ## Serialize `created_at` into a Unix timestamp (seconds since epoch.)
   dumpHook(s, v.toUnix)
 
 
 func serialize*(e: Event): string =
-  ## Serialize `event` into JSON so that it can be hashed in accordance with NIP-01.
+  ## Serialize `event` in the format specified by NIP-01 for hashing.
   "[0," & e.pubkey.toJson & ',' & e.created_at.toJson & ',' & e.kind.toJson & ',' & e.tags.toJson & ',' & e.content.toJson & ']'
 
 proc updateID*(event: var Event) =
@@ -56,7 +56,7 @@ template sign*(event: var Event, keypair: Keypair, rng: Rng = sysRng) =
   sign(event, keypair.seckey, rng)
 
 proc stamp*(event: var Event, keypair: Keypair, rng: Rng = sysRng) =
-  ## Change the author of an event
+  ## Change the author of an event.
   event.pubkey = keypair.pubkey
   event.updateID
   event.sign(keypair.seckey, rng)
@@ -94,7 +94,7 @@ proc article*(keypair: Keypair, content, d: string, tags: sink seq[seq[string]] 
 
 
 func getParameterizedID*(tags: openArray[seq[string]]): Option[string] =
-  ## Get the first value of any "d" tag from a sequence of tags.
+  ## Get the first value of any "d" tag from a sequence of tags, or `none` if there is no "d" tag.
   for tag in tags:
     if tag.len >= 1 and tag[0] == "d":
       if unlikely tag.len == 1: return some ""
@@ -102,5 +102,5 @@ func getParameterizedID*(tags: openArray[seq[string]]): Option[string] =
   result = none string
 
 template getParameterizedID*(event: Event): Option[string] =
-  ## Get the first value of any "d" tag from an event's tags.
+  ## Get the first value of any "d" tag from an event's tags, or `none` if there is no "d" tag.
   getParameterizedID(event.tags)

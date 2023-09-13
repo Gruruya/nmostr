@@ -232,33 +232,33 @@ func toString*(v: PublicKey | EventID | SchnorrSignature): string =
 
 
 # For populating fields of objects created without either raw data or hex:
+template rawToHex*(v: PublicKey | EventID | SchnorrSignature): auto =
+  toHex(toBytes(v))
+
 func hexToRaw*(v: EventID | SchnorrSignature): auto =
   ## Parse raw data from hex
   typeof(v.raw).fromHex(v.hex)
 
 func hexToRaw*(v: PublicKey): array[64, byte] # Forward decl
 
-template rawToHex*(v: PublicKey | EventID | SchnorrSignature): auto =
-  toHex(toBytes(v))
+func populateHex*(v: var (PublicKey | EventID | SchnorrSignature)) =
+  ## Update the hex based on the raw data
+  v.hex = v.rawToHex
 
 func populateRaw*(v: var (PublicKey | EventID | SchnorrSignature)) =
   ## Update the raw data based on the hex
   v.raw = v.hexToRaw
 
-func populateHex*(v: var (PublicKey | EventID | SchnorrSignature)) =
-  ## Update the hex based on the raw data
-  v.hex = v.rawToHex
-
 func populate*(v: var (PublicKey | EventID | SchnorrSignature)) =
   ## Makes sure both the hex and raw fields are populated
-  let needsRaw = unlikely v.raw == default(typeof v.raw)
   let needsHex = unlikely v.hex.len != typeof(v).hex.Size
-  if needsRaw and needsHex:
+  let needsRaw = unlikely v.raw == default(typeof v.raw)
+  if needsHex and needsRaw:
     raise newException(ValueError, "object has no raw data nor hex data")
-  elif needsRaw:
-    populateRaw(v)
   elif needsHex:
     populateHex(v)
+  elif needsRaw:
+    populateRaw(v)
 
 
 func init*(T: typedesc[PublicKey], raw: sink array[64, byte]): T =
@@ -286,9 +286,7 @@ func toStackString*(N: static int, data: openArray[char]): StackString[N] =
 
 func fromBytesOnly(T: typedesc[PublicKey], bytes: openArray[byte]): T =
   rangeCheck bytes.len >= PublicKey.bytesLen
-  let ret =
-    secp256k1_xonly_pubkey_parse(secp256k1_context_no_precomp, cast[ptr secp256k1_xonly_pubkey](addr result), addr bytes[0])
-  if unlikely ret != 1:
+  if unlikely 1 != secp256k1_xonly_pubkey_parse(secp256k1_context_no_precomp, cast[ptr secp256k1_xonly_pubkey](addr result), addr bytes[0]):
     raise newException(ValueError, "could not parse x-only public key")
 
 func hexToRaw*(v: PublicKey): array[64, byte] =

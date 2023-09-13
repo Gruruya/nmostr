@@ -69,23 +69,18 @@ proc random*(T: typedesc[SecretKey]; rng: Rng = sysRng): SecretKey =
   ## current version, the random number generation will be called in a loop
   ## which may be vulnerable to timing attacks. Generate your keys elsewhere
   ## if this is a issue.
-  var data{.noinit.}: array[32, byte]
-
-  while rng(data):
-    if secp256k1_ec_seckey_verify(secp256k1_context_no_precomp, addr data[0]) == 1:
-      return SecretKey.fromBytes(data)
-
+  while rng(result.raw):
+    if 1 == secp256k1_ec_seckey_verify(secp256k1_context_no_precomp, addr result.raw[0]):
+      return
   raise newException(OSError, "cannot get random bytes for key")
 
 func toPublicKey*(key: SecretKey): PublicKey =
   ## Calculate and return Secp256k1 public key from private key ``key``.
   var pubkey {.noinit.}: secp256k1_pubkey
-  var ret =
-    secp256k1_ec_pubkey_create(getContext(), addr pubkey, addr key.raw[0])
-  assert ret == 1, "valid private keys should always have a corresponding pub"
-  ret =
-    secp256k1_xonly_pubkey_from_pubkey(secp256k1_context_no_precomp, cast[ptr secp256k1_xonly_pubkey](addr result), nil, addr pubkey)
-  assert ret == 1, "valid pubkeys should always be convertable to x-only"
+  assert 1 == secp256k1_ec_pubkey_create(getContext(), addr pubkey, addr key.raw[0]),
+    "valid private keys should always have a corresponding pub"
+  assert 1 == secp256k1_xonly_pubkey_from_pubkey(secp256k1_context_no_precomp, cast[ptr secp256k1_xonly_pubkey](addr result), nil, addr pubkey),
+    "valid pubkeys should always be convertable to x-only"
   populateHex(result)
 
 when isMainModule:
@@ -108,14 +103,11 @@ func signSchnorr*(key: SecretKey, msg: openArray[byte], randbytes: Option[array[
   let aux_rand32 = if randbytes.isSome: addr randbytes.unsafeGet[0] else: nil
   let extraparams = secp256k1_schnorrsig_extraparams(magic: SECP256K1_SCHNORRSIG_EXTRAPARAMS_MAGIC, noncefp: nil, ndata: aux_rand32)
   var kp {.noinit.}: secp256k1_keypair
-  let res = secp256k1_keypair_create(
-    getContext(), addr kp, addr key.raw[0])
-  assert res == 1, "cannot create keypair, key invalid?"
-
-  var data {.noinit.}: array[64, byte]
-  let res2 = secp256k1_schnorrsig_sign_custom(getContext(), addr data[0], addr msg[0], csize_t msg.len, addr kp, unsafeAddr extraparams)
-  assert res2 == 1, "cannot create signature, key invalid?"
-  SchnorrSignature.fromBytes(data)
+  assert 1 == secp256k1_keypair_create(getContext(), addr kp, addr key.raw[0]),
+    "cannot create keypair, key invalid?"
+  assert 1 == secp256k1_schnorrsig_sign_custom(getContext(), addr result.raw[0], addr msg[0], csize_t msg.len, addr kp, unsafeAddr extraparams),
+    "cannot create signature, key invalid?"
+  populateHex(result)
 
 proc signSchnorr*(key: SecretKey, msg: openArray[byte], rng: Rng = sysRng): SchnorrSignature =
   ## Sign message `msg` using private key `key` with the Schnorr signature algorithm and return signature object.
@@ -127,8 +119,7 @@ proc signSchnorr*(key: SecretKey, msg: openArray[byte], rng: Rng = sysRng): Schn
     raise newException(OSError, "cannot get random bytes for signature")
 
 func verify*(sig: SchnorrSignature, msg: openArray[byte], pubkey: PublicKey): bool =
-  secp256k1_schnorrsig_verify(
-    getContext(), addr sig.raw[0], addr msg[0], csize_t msg.len, cast[ptr secp256k1_xonly_pubkey](addr pubkey)) == 1
+  1 == secp256k1_schnorrsig_verify(getContext(), addr sig.raw[0], addr msg[0], csize_t msg.len, cast[ptr secp256k1_xonly_pubkey](addr pubkey))
 
 type
   Keypair* = object
