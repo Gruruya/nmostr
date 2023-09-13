@@ -66,20 +66,26 @@ func fromHex*(T: typedesc[seq[byte]]; hex: auto): T =
   fromHexImpl(result, N.low, N.high)
 
 func fromHex*[N](T: typedesc[array[N, byte]]; hex: openArray[char]): T =
-  rangeCheck hex.len >= 2*(1 + N.high - N.low)
+  const validLen = 2*(1 + N.high - N.low)
+  if unlikely hex.len < validLen:
+    raise newException(ValueError, "hex is too short, it should be at least " & $validLen & " chars")
+
   fromHexImpl(result, N.low, N.high)
 
 func fromHex*[N,N2](T: typedesc[array[N, byte]]; hex: array[N2, char]): T =
   const validLen = 2*(1 + N.high - N.low)
   const actualCap = hex.len
   when actualCap < validLen: {.error: "hex is too short, (" & $actualCap & " chars) it should be " & $validLen & " chars".}
+
   fromHexImpl(result, N.low, N.high)
 
 func fromHex*[N](T: typedesc[array[N, byte]]; hex: StackString): T =
   const validLen = 2*(1 + N.high - N.low)
   const actualCap = hex.Size
   when actualCap < validLen: {.error: "hex is too short, (" & $actualCap & " chars) it should be " & $validLen & " chars".}
-  rangeCheck hex.len >= validLen
+  if unlikely hex.len < validLen:
+    raise newException(ValueError, "hex is too short, it should be at least " & $validLen & " chars")
+
   fromHexImpl(result, N.low, N.high)
 
 
@@ -269,7 +275,7 @@ func toStackString*(N: static int, data: openArray[char]): StackString[N] =
   result.unsafeSetLen(N)
 
 func fromBytesOnly(T: typedesc[PublicKey], data: openArray[byte]): T =
-  rangeCheck data.len >= 32
+  rangeCheck data.len >= PublicKey.bytesLen
   let ret =
     secp256k1_xonly_pubkey_parse(secp256k1_context_no_precomp, cast[ptr secp256k1_xonly_pubkey](addr result), addr data[0])
   if unlikely ret != 1:
