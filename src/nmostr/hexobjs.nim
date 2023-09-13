@@ -50,14 +50,8 @@ func readHexChar*(c: char): byte =
   of 'A'..'F': byte(ord(c) - ord('A') + 10)
   else: raise newException(ValueError, $c & " is not a hexadecimal character")
 
-template skip0xPrefix(hexStr: typed): range[0..2] =
-  ## Returns the index of the first meaningful char in `hexStr` by skipping "0x" prefix
-  if hexStr.len > 1 and hexStr[0] == '0' and hexStr[1] in {'x', 'X'}: 2
-  else: 0
-
 template fromHexImpl(bytes: out openArray[byte]; start, last: Natural) =
-  var sIdx = skip0xPrefix(hex).Natural
-  sIdx += start * 2
+  var sIdx = start * 2
   for bIdx in start..last:
     bytes[bIdx] = readHexChar(hex[sIdx]) shl 4 or readHexChar(hex[sIdx + 1])
     inc(sIdx, 2)
@@ -68,24 +62,21 @@ func fromHex*(T: typedesc[seq[byte]]; hex: auto): T =
 func fromHex*[N](T: typedesc[array[N, byte]]; hex: openArray[char]): T =
   const validLen = 2*(1 + N.high - N.low)
   if unlikely hex.len < validLen:
-    raise newException(ValueError, "hex is too short, it should be at least " & $validLen & " chars")
-
+    raise newException(ValueError, "hex is too short, it should be " & $validLen & " chars")
   fromHexImpl(result, N.low, N.high)
 
 func fromHex*[N,N2](T: typedesc[array[N, byte]]; hex: array[N2, char]): T =
   const validLen = 2*(1 + N.high - N.low)
   const actualCap = hex.len
-  when actualCap < validLen: {.error: "hex is too short, (" & $actualCap & " chars) it should be " & $validLen & " chars".}
-
+  when actualCap < validLen: {.error: "hex is too short (" & $actualCap & " chars), it should be " & $validLen & " chars".}
   fromHexImpl(result, N.low, N.high)
 
 func fromHex*[N](T: typedesc[array[N, byte]]; hex: StackString): T =
   const validLen = 2*(1 + N.high - N.low)
   const actualCap = hex.Size
-  when actualCap < validLen: {.error: "hex is too short, (" & $actualCap & " chars) it should be " & $validLen & " chars".}
+  when actualCap < validLen: {.error: "hex is too short (" & $actualCap & " chars), it should be " & $validLen & " chars".}
   if unlikely hex.len < validLen:
-    raise newException(ValueError, "hex is too short, it should be at least " & $validLen & " chars")
-
+    raise newException(ValueError, "hex is too short, it should be " & $validLen & " chars")
   fromHexImpl(result, N.low, N.high)
 
 
@@ -230,7 +221,7 @@ template bytesLen*(T: typedesc[PublicKey]): Positive =
 
 template toHex*(v: PublicKey | EventID | SchnorrSignature): auto =
   v.hex
-func `$`*(v: PublicKey | EventID | SchnorrSignature): string =
+template `$`*(v: PublicKey | EventID | SchnorrSignature): string =
   # StackStrings have the option to warn on `$`,
   # see: https://github.com/termermc/nim-stack-strings/blob/master/stack_strings.nim#L107-L114
   $v.hex
