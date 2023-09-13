@@ -215,6 +215,9 @@ func toBytes*(v: PublicKey): array[32, byte] =
   ## Gets the x-coordinate by reading the first 32 bytes in reverse.
   for i in 0..31:
     result[i] = v.raw[31 - i]
+template bytes*(v: PublicKey): auto =
+  {.warning: "Getting the bytes for a PublicKey requires serialization. Use `toBytes` to avoid this warning.".}
+  toBytes(v)
 template bytesLen*(T: typedesc[PublicKey]): Positive =
   32
 
@@ -230,21 +233,21 @@ func toString*(v: PublicKey | EventID | SchnorrSignature): string =
 
 # For populating fields of objects created without either raw data or hex:
 template rawToHex*(v: PublicKey | EventID | SchnorrSignature): auto =
-  ## Parse hex from raw data
+  ## Parse `hex` from `raw` data
   toHex(toBytes(v))
 
 func hexToRaw*(v: EventID | SchnorrSignature): auto =
-  ## Parse raw data from hex
+  ## Parse `raw` data from `hex`
   typeof(v.raw).fromHex(v.hex)
 
 func hexToRaw*(v: PublicKey): array[64, byte] # Forward decl
 
 func populateHex*(v: var (PublicKey | EventID | SchnorrSignature)) =
-  ## Update the hex based on the raw data
+  ## Update the `hex` of ``v`` based its `raw` data
   v.hex = v.rawToHex
 
 func populateRaw*(v: var (PublicKey | EventID | SchnorrSignature)) =
-  ## Update the raw data based on the hex
+  ## Update the `raw` data of ``v`` based on its `hex`
   v.raw = v.hexToRaw
 
 func populate*(v: var (PublicKey | EventID | SchnorrSignature)) =
@@ -293,7 +296,7 @@ func fromBytesOnly(T: typedesc[PublicKey], bytes: openArray[byte]): T =
     raise newException(ValueError, "could not parse x-only public key")
 
 func hexToRaw*(v: PublicKey): array[64, byte] =
-  ## Parse raw data from hex
+  ## Parse `raw` data from `hex`
   PublicKey.fromBytesOnly(array[32, byte].fromHex(v.hex)).raw
 
 func fromBytes*(T: typedesc[PublicKey], bytes: openArray[byte]): T =
