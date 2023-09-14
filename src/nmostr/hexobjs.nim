@@ -243,7 +243,7 @@ func hexToRaw*(v: EventID | SchnorrSignature): auto =
 func hexToRaw*(v: PublicKey): array[64, byte] # Forward decl
 
 func populateHex*(v: var (PublicKey | EventID | SchnorrSignature)) =
-  ## Update the `hex` of ``v`` based its `raw` data
+  ## Update the `hex` of ``v`` based on its `raw` data
   v.hex = v.rawToHex
 
 func populateRaw*(v: var (PublicKey | EventID | SchnorrSignature)) =
