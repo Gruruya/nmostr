@@ -275,7 +275,7 @@ func init*(T: typedesc[SchnorrSignature], raw: sink array[64, byte]): T =
 
 func toArray*[T](N: static int, data: openArray[T]): array[N, T] =
   ## Convert ``data`` to an array of N length, ``data`` must be `N` long or longer.
-  rangeCheck data.len >= N
+  assert data.len >= N
   copyMem(addr result[0], addr data[0], N)
 
 template toArray*[T](N: static int, data: array[N, T]): auto =
@@ -285,13 +285,13 @@ template toArray*[T](N: static int, data: array[N, T]): auto =
 
 func toStackString*(N: static int, data: openArray[char]): StackString[N] =
   ## Convert ``data`` to a stack string of N length, ``data`` must be `N` chars long or longer.
-  rangeCheck data.len >= N
+  assert data.len >= N
   copyMem(addr result.data[0], addr data[0], N)
   result.unsafeSetLen(N)
 
 
 func fromBytesOnly(T: typedesc[PublicKey], bytes: openArray[byte]): T =
-  rangeCheck bytes.len >= PublicKey.bytesLen
+  assert bytes.len >= PublicKey.bytesLen
   if unlikely 1 != secp256k1_xonly_pubkey_parse(secp256k1_context_no_precomp, cast[ptr secp256k1_xonly_pubkey](addr result), addr bytes[0]):
     raise newException(ValueError, "could not parse x-only public key")
 

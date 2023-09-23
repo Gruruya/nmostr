@@ -224,7 +224,7 @@ func fromBytes*(T: type NRelay, address: openArray[byte]): T =
       return NRelay(url: string.fromBytes(data))
 
 func fromBytes*(T: type NNote, address: seq[byte]): T =
-  rangeCheck address.len >= 32
+  assert address.len >= 32
   NNote(id: EventID.fromBytes(address))
 
 func fromNostrBech32*(address: string): union(NostrTLV) =
