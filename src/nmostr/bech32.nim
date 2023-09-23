@@ -13,6 +13,7 @@ from std/strutils import toLower, rfind, join
 from std/setutils import toSet
 import ./events, ./filters
 
+export events, union
 
 type
   uint5* =

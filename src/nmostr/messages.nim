@@ -9,7 +9,7 @@
 import std/sysrand, pkg/[jsony, union]
 import ./events, ./filters
 
-export events, union
+export events, filters, union
 
 
 type

@@ -40,7 +40,7 @@ unpack fromMessage(response), msg:
     echo socket.receiveMessage().get.data
 ```
 
-For more, see the reference client [niomo](https://github.com/Gruruya/niomo) and [tests/test.nim](tests/test.nim).
+For more, see the reference client [niomo](https://github.com/Gruruya/niomo) and [tests](tests/tbasic.nim).
 
 What is Nostr?
 ---
