@@ -283,12 +283,6 @@ template toArray*[T](N: static int, data: array[N, T]): auto =
   ## which were given the correctly sized array to just use that array.
   data
 
-func toStackString*(N: static int, data: openArray[char]): StackString[N] =
-  ## Convert ``data`` to a stack string of N length, ``data`` must be `N` chars long or longer.
-  assert data.len >= N
-  copyMem(addr result.data[0], addr data[0], N)
-  result.unsafeSetLen(N)
-
 
 func fromBytesOnly(T: typedesc[PublicKey], bytes: openArray[byte]): T =
   assert bytes.len >= PublicKey.bytesLen
