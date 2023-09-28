@@ -29,4 +29,4 @@ task test, "run tests":
     when defined(windows):
           "balls.cmd"
     else: "balls"
-  exec balls & " --backend:c --mm:arc --define:danger"
+  exec balls & " --backend:c --mm:orc --mm:arc --define:debug --define:release --define:danger"
