@@ -3,7 +3,9 @@
 : SPDX-License-Identifier: CC-BY-SA-4.0
 ]:#
 
-# 0.1.1 - Unreleased
+# 0.1.2 - Unreleased
+
+# 0.1.1 - September 28, 2023
 
 #### Breaking
 * Remove custom `toStackString`, nim-stack-strings [added their own function](https://github.com/termermc/nim-stack-strings/commit/2dfaa69bab56dd3fd6517461cfffd536e0423baf) with the same purpose.
