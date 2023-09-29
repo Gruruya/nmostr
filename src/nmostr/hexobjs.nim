@@ -147,9 +147,6 @@ func parseHook*(s: string, i: var int, v: var StackString) =
     return
   eatChar(s, i, '"')
 
-  template add(v: var StackString; c: char) =
-    discard v.addTruncate c
-
   while i < s.len:
     case s[i]
     of '"':
@@ -157,18 +154,18 @@ func parseHook*(s: string, i: var int, v: var StackString) =
     of '\\':
       inc i
       case s[i]
-      of '"', '\\', '/': v.add(s[i])
-      of 'b': v.add '\b'
-      of 'f': v.add '\f'
-      of 'n': v.add '\n'
-      of 'r': v.add '\r'
-      of 't': v.add '\t'
+      of '"', '\\', '/': v.addTruncate(s[i])
+      of 'b': v.addTruncate '\b'
+      of 'f': v.addTruncate '\f'
+      of 'n': v.addTruncate '\n'
+      of 'r': v.addTruncate '\r'
+      of 't': v.addTruncate '\t'
       of 'u':
-        v.add(Rune(parseUnicodeEscape(s, i)).toUTF8())
+        v.addTruncate(Rune(parseUnicodeEscape(s, i)).toUTF8())
       else:
-        v.add(s[i])
+        v.addTruncate(s[i])
     else:
-      v.add(s[i])
+      v.addTruncate(s[i])
     inc i
   eatChar(s, i, '"')
 
