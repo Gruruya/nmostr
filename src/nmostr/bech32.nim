@@ -15,6 +15,10 @@ import ./events, ./filters
 
 export events, union
 
+when not declared(newSeqUninit):
+  template newSeqUninit[T](len: Natural): seq[T] =
+    newSeqUninitialized[T](len)
+
 type
   uint5* =
     range[0'u8..31'u8]
@@ -29,7 +33,7 @@ const CharsetSet* = Charset.toSet
 
 func toWords*(data: openArray[byte]): seq[uint5] =
   ## uint8 → uint5 conversion
-  result = newSeqUninitialized[uint5]((data.len * 8 + 4) div 5)
+  result = newSeqUninit[uint5]((data.len * 8 + 4) div 5)
   var
     acc = 0'u32
     bits = 0'u32
@@ -46,7 +50,7 @@ func toWords*(data: openArray[byte]): seq[uint5] =
 
 func fromWords*(data: openArray[uint5]): seq[byte] =
   ## uint5 → uint8 conversion
-  result = newSeqUninitialized[byte]((data.len * 5) div 8)
+  result = newSeqUninit[byte]((data.len * 5) div 8)
   var
     acc = 0'u32
     bits = 0'u32
@@ -70,7 +74,7 @@ func polymod(values: openArray[uint5]): uint32 =
 
 func hrpExpand(hrp: string): seq[uint5] =
   # ex: "nsec" → @[3, 3, 3, 3, 0, 14, 19, 5, 3]
-  result = newSeqUninitialized[uint5](hrp.len * 2 + 1)
+  result = newSeqUninit[uint5](hrp.len * 2 + 1)
   result[hrp.len] = 0
   for i, c in hrp:
     result[i] = uint5(ord(c) shr 5)
@@ -109,7 +113,7 @@ func encode*(hrp: string, witprog: openArray[byte]): string =
   func checksum(hrp: string, data: seq[uint5]): seq[uint5] {.inline.} =
     let values = hrpExpand(hrp) & data
     let polymod = polymod(values & @[uint5 0, 0, 0, 0, 0, 0]) xor 1
-    result = newSeqUninitialized[uint5](6)
+    result = newSeqUninit[uint5](6)
     for i in 0 .. 5:
       result[i] = uint5((polymod shr (5 * (5 - i))) and 31)
 
