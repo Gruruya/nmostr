@@ -3,6 +3,8 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 
 name: build
+## See also:
+## * ./nim-run/action.yml
 
 on:
   push:

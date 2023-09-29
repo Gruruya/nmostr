@@ -3,6 +3,9 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 
 name: documentation
+## See also:
+## * ./nim-run/action.yml
+## * https://nim-lang.org/docs/docgen.html
 
 on:
   push:

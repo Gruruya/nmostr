@@ -4,6 +4,9 @@
 
 name : Nim run
 description: 'Run shell commands in an environment with Nim.'
+## See also:
+## * https://github.com/marketplace/actions/setup-nim-environment
+## * https://github.com/marketplace/actions/run-on-architecture
 
 inputs:
   run:
