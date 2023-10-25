@@ -6,12 +6,11 @@
 ## Used Pieter Wuille's `Python implementation <https://github.com/sipa/bech32/blob/master/ref/python/segwit_addr.py>`_ as a reference.  
 ## Nostr-style Bech32 addresses use no witness version or m-encoding.
 
-import pkg/[union, stew/byteutils]
+import ./[events, filters], pkg/[union, stew/byteutils]
 from std/tables import toTable, `[]`
 from std/sequtils import mapIt
 from std/strutils import toLower, rfind, join
 from std/setutils import toSet
-import ./events, ./filters
 
 export events, union
 
@@ -73,7 +72,7 @@ func polymod(values: openArray[uint5]): uint32 =
       result = result xor (if (top shr i and 1) == 1: generator[i] else: 0)
 
 func hrpExpand(hrp: string): seq[uint5] =
-  # ex: "nsec" → @[3, 3, 3, 3, 0, 14, 19, 5, 3]
+  # "nsec" → @[3, 3, 3, 3, 0, 14, 19, 5, 3]
   result = newSeqUninit[uint5](hrp.len * 2 + 1)
   result[hrp.len] = 0
   for i, c in hrp:
@@ -296,7 +295,7 @@ func toBech32*(nevent: NEvent): string  =
     encoded &= @[byte 3, 4] & @(fromUInt32(nevent.kind))
   encode("nevent", encoded)
 
-func toBech32*(event: Event, relays = newSeq[string]()): string =
+func toBech32*(event: Event, relays: seq[string] = @[]): string =
   # Encode an event as an `nevent` TLV
   var encoded = @[byte 0, 32] & @(event.id.toBytes)
   for relay in relays:

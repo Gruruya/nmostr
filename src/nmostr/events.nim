@@ -2,9 +2,7 @@
 # Copyright © 2023 Gruruya <gruruya.chi4c@slmails.com>
 # SPDX-License-Identifier: AGPL-3.0-only
 
-import ./[hexobjs, keys],
-       pkg/jsony,
-       std/[times, strutils, options, macros]
+import ./[hexobjs, keys], pkg/jsony, std/[times, strutils, options, macros]
 import pkg/crunchy except toHex
 
 export times, keys, jsony, hexobjs, options

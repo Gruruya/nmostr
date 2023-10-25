@@ -13,9 +13,9 @@
 ## * `keys <keys.html>`_
 ## * `termermc/nim-stack-strings <https://github.com/termermc/nim-stack-strings>`_
 
-import pkg/[stack_strings, secp256k1/abi]
-from   pkg/jsony {.all.} import eatSpace, eatChar, parseUnicodeEscape, JsonError
-from   std/unicode import Rune, toUTF8
+import ./common, pkg/[stack_strings, secp256k1/abi]
+from pkg/jsony {.all.} import eatSpace, eatChar, parseUnicodeEscape, JsonError
+from std/unicode import Rune, toUTF8
 
 export stack_strings
 {.push inline.}
@@ -270,17 +270,6 @@ func init*(T: typedesc[SchnorrSignature], raw: sink array[64, byte]): T =
   SchnorrSignature(raw: raw, hex: raw.toHex)
 
 
-func toArray*[T](N: static int, data: openArray[T]): array[N, T] =
-  ## Convert ``data`` to an array of N length, ``data`` must be `N` long or longer.
-  assert data.len >= N
-  copyMem(addr result[0], addr data[0], N)
-
-template toArray*[T](N: static int, data: array[N, T]): auto =
-  ## Returns the array ``data``, this exists to allow for generic procs using `toArray`
-  ## which were given the correctly sized array to just use that array.
-  data
-
-
 func fromBytesOnly(T: typedesc[PublicKey], bytes: openArray[byte]): T =
   assert bytes.len >= PublicKey.bytesLen
   if unlikely 1 != secp256k1_xonly_pubkey_parse(secp256k1_context_no_precomp, cast[ptr secp256k1_xonly_pubkey](addr result), addr bytes[0]):
@@ -328,7 +317,7 @@ func dumpHook*(s: var string, v: PublicKey | EventID | SchnorrSignature) =
 
 
 when isMainModule:
-  dump PublicKey.fromHex("7e7e9c42a91bfef19fa929e5fda1b72e0ebc1a4c1141673e2794234d86addf4e").toJson
+  dump PublicKey.fromHex("7e7e9c42a91bfef19fa929e5fda1b72e0ebc1a4c1141673e2794234d86addf4e").toBytes
   dump EventID.fromHex(ss"4cd665db042864ee600ee976d6cfcc7c5ce743859462f94a347cd970d88a5f3b").toJson
   dump EventID.fromBytes(EventID.fromHex("4cd665db042864ee600ee976d6cfcc7c5ce743859462f94a347cd970d88a5f3b").toBytes)
   dump SchnorrSignature.fromHex("f771ac928eb78037c0f4ddacd483471f3d71797e7ae524f328613338affd31d7ffcc346d88d0cba8f9278778c013c3591c81df3b06556024c80549b9a3962db5").toJson

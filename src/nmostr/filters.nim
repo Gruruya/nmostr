@@ -6,10 +6,8 @@
 #   Copyright © 2020-2023 Andre von Houck
 #   SPDX-License-Identifier: MIT
 
-import std/[times, strutils, sequtils, macros]
+import ./events, pkg/jsony, std/[times, strutils, sequtils, macros]
 import std/json except JsonError
-import pkg/jsony
-import ./events
 
 export events
 

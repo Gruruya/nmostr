@@ -6,8 +6,7 @@
 ## Utilities for creating and parsing Nostr messages.
 ## Implements NIP-01, NIP-42, NIP-45
 
-import std/sysrand, pkg/[jsony, union]
-import ./events, ./filters
+import ./[events, filters], pkg/[jsony, union], std/sysrand
 
 export events, filters, union
 

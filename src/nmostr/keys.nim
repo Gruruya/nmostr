@@ -14,10 +14,10 @@
 ## * `status-im/nim-secp256k1 <https://github.com/status-im/nim-secp256k1>`_
 ## * `bitcoin-core/secp256k1 <https://github.com/bitcoin-core/secp256k1>`_
 
-import ./hexobjs, pkg/secp256k1/abi, std/options
-from   pkg/secp256k1 {.all.} import getContext, Rng
-from   pkg/stew/arrayops import assign
-from   std/sysrand import urandom
+import ./[hexobjs, common], pkg/secp256k1/abi, std/options
+from pkg/secp256k1 {.all.} import getContext, Rng
+from pkg/stew/arrayops import assign
+from std/sysrand import urandom
 
 export Rng, hexobjs
 {.push inline.}
@@ -85,7 +85,7 @@ func toPublicKey*(key: SecretKey): PublicKey =
 
 when isMainModule:
   from std/sugar import dump
-  let privateKey = SecretKey.random()
+  let privateKey = random(SecretKey)
   let bytReflected = SecretKey.fromBytes(privateKey.toBytes)
   let hexReflected = SecretKey.fromHex(privateKey.toHex)
   doAssert bytReflected == SecretKey.fromBytes(privateKey.toBytes)
@@ -128,7 +128,7 @@ type
     pubkey*: PublicKey
 
 proc random*(T: typedesc[Keypair]; rng: Rng = sysRng): Keypair =
-  result.seckey = SecretKey.random(rng)
+  result.seckey = random(SecretKey, rng)
   result.pubkey = result.seckey.toPublicKey
 
 func toKeypair*(seckey: sink SecretKey): Keypair =
@@ -139,7 +139,7 @@ converter toSecretKey*(kp: Keypair): lent SecretKey =
 
 
 when isMainModule:
-  let kp = Keypair.random()
+  let kp = random(Keypair)
   var msg = "Hello, world!"
   let sig = signSchnorr(kp, msg.toOpenArrayByte(0, msg.high))
   dump kp

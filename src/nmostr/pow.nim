@@ -2,11 +2,12 @@
 # Copyright © 2023 Gruruya <gruruya.chi4c@slmails.com>
 # SPDX-License-Identifier: AGPL-3.0-only
 
-import std/options, pkg/crunchy, ./events
+import ./events, pkg/crunchy, std/options
 from strutils import rfind, parseInt
 {.warnings: off.} # weave/cross_thread_com/scoped_barriers.nim(66, 12) Warning: Moving a shared resource (an atomic type). [User]
 import pkg/weave
 {.warnings: on.}
+
 export events, options
 
 
